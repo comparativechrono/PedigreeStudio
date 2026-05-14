@@ -1,0 +1,2800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pedigree Studio</title>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --text: #1a2332;
+    --text-muted: #6b7a8d;
+    --accent: #2a7d8c;
+    --accent-hover: #1f6470;
+    --accent-light: rgba(42,125,140,0.08);
+    --border: #dde1e6;
+    --border-light: #eaecf0;
+    --canvas-dot: #d6dae0;
+    --danger: #c0392b;
+  }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, Helvetica, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    touch-action: none;
+  }
+
+  /* ── Side Panel ── */
+  .side-panel {
+    width: 296px; min-width: 296px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+    z-index: 200;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .panel-header {
+    padding: 20px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-header h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 400; letter-spacing: -0.3px; }
+  .panel-header h1 span { color: var(--accent); }
+  .panel-header p { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+  .panel-close-btn {
+    display: none; width: 36px; height: 36px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: 20px;
+    cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .panel-section { padding: 14px 18px; border-bottom: 1px solid var(--border-light); }
+  .panel-section h3 {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 10px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 14px; border: none; border-radius: 6px;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 8px; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); width: 100%; margin-top: 6px; }
+  .btn-secondary:hover { background: var(--border-light); }
+  .btn-secondary.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; width: 100%; margin-top: 6px; }
+  .btn-danger:hover { background: #fee2e2; }
+
+  /* ── Shape picker ── */
+  .shape-picker { display: flex; gap: 8px; margin-top: 6px; }
+  .shape-option {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 10px 6px; border: 1.5px solid var(--border); border-radius: 8px;
+    cursor: pointer; background: #fff; transition: all 0.15s;
+  }
+  .shape-option:hover { border-color: var(--accent); background: var(--accent-light); }
+  .shape-option.active { border-color: var(--accent); background: var(--accent-light); }
+  .shape-option svg { width: 32px; height: 32px; }
+  .shape-option span { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Toolbar ── */
+  .toolbar { display: flex; gap: 3px; padding: 12px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .tool-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 11.5px; font-weight: 500;
+    cursor: pointer; background: #fff; color: var(--text);
+    transition: all 0.15s; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  }
+  .tool-btn:hover { background: var(--bg); }
+  .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tool-btn svg { width: 13px; height: 13px; }
+
+  /* ── Toggle ── */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
+  .toggle-row label { font-size: 13px; color: var(--text); cursor: pointer; }
+  .toggle-switch {
+    position: relative; width: 40px; height: 22px;
+    background: var(--border); border-radius: 11px; cursor: pointer;
+    transition: background 0.2s; border: none;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; background: #fff; border-radius: 50%;
+    transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .toggle-switch.on::after { transform: translateX(18px); }
+
+  /* ── Props panel ── */
+  .props-panel { display: none; }
+  .props-panel.visible { display: block; }
+  .props-panel textarea {
+    width: 100%; height: 54px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font-family: inherit; font-size: 13px; line-height: 1.5;
+    resize: none; color: var(--text); background: var(--bg); outline: none;
+    transition: border-color 0.2s; touch-action: auto;
+  }
+  .props-panel textarea:focus { border-color: var(--accent); }
+
+  /* ── Fill mode controls ── */
+  .fill-mode-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .fill-mode-btn {
+    flex: 1; padding: 6px 4px; border: 1px solid var(--border); border-radius: 5px;
+    background: #fff; font-family: inherit; font-size: 11px; font-weight: 500;
+    cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .fill-mode-btn:hover { background: var(--bg); }
+  .fill-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .fill-colors { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+  .fill-swatch {
+    width: 26px; height: 26px; border-radius: 4px;
+    border: 2px solid transparent; cursor: pointer; transition: all 0.15s;
+  }
+  .fill-swatch:hover { transform: scale(1.15); }
+  .fill-swatch.active { border-color: var(--text); }
+  .fill-swatch.clear-swatch {
+    background: #fff !important;
+    position: relative;
+  }
+  .fill-swatch.clear-swatch::after {
+    content: ''; position: absolute; top: 2px; left: 50%; width: 1.5px; height: calc(100% - 4px);
+    background: var(--danger); transform: rotate(45deg); transform-origin: center;
+  }
+
+  /* ── Quarter selector ── */
+  .quarter-grid {
+    display: inline-grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; margin: 6px 0; border: 1.5px solid var(--border); border-radius: 4px;
+    overflow: hidden; width: 60px; height: 60px;
+  }
+  .quarter-cell {
+    cursor: pointer; transition: all 0.15s; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--text-muted); font-weight: 600;
+  }
+  .quarter-cell:hover { filter: brightness(0.9); }
+  .quarter-cell.active-quarter { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+  .quarter-label { font-size: 11px; color: var(--text-muted); margin-left: 10px; vertical-align: top; }
+
+  /* ── Canvas ── */
+  .canvas-area {
+    flex: 1; position: relative; overflow: hidden;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    touch-action: none;
+  }
+  #canvas {
+    position: absolute; top: 0; left: 0;
+    width: 6000px; height: 6000px; transform-origin: 0 0;
+  }
+  #lines-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 1; overflow: visible;
+  }
+  #lines-layer line, #lines-layer path { pointer-events: stroke; cursor: pointer; }
+
+  /* ── Person nodes ── */
+  .person {
+    position: absolute; cursor: grab; user-select: none; -webkit-user-select: none;
+    z-index: 10; touch-action: none; display: flex; flex-direction: column; align-items: center;
+  }
+  .person:hover .person-shape { filter: drop-shadow(0 0 3px rgba(42,125,140,0.35)); }
+  .person.dragging { cursor: grabbing; z-index: 999; }
+  .person.selected .shape-border { stroke: var(--accent) !important; stroke-width: 2.5 !important; }
+  .person.multi-selected .shape-border { stroke: #e67e22 !important; stroke-width: 2.5 !important; stroke-dasharray: 4 3; }
+  .person-shape { width: 52px; height: 52px; position: relative; transition: filter 0.15s; }
+  .person-shape svg { width: 100%; height: 100%; }
+  .person .delete-btn {
+    position: absolute; top: -8px; right: -8px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: 2px solid #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+    display: none; align-items: center; justify-content: center; z-index: 20;
+  }
+  .person:hover .delete-btn, .person.selected .delete-btn { display: flex; }
+  .person-number {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-weight: 700; color: var(--text-muted);
+    white-space: nowrap; pointer-events: none; letter-spacing: 0.3px;
+  }
+  .person-number.shifted-left { left: -2px; transform: translateX(-100%); }
+  .person-number.shifted-right { left: auto; right: -2px; transform: translateX(100%); }
+  .person-text {
+    position: absolute; top: 56px; left: 30px;
+    font-size: 11px; line-height: 1.35; color: var(--text);
+    white-space: pre;
+    pointer-events: none; text-align: left;
+  }
+  .person-text.wrapped { white-space: pre-wrap; }
+  .person-text.text-left {
+    left: auto; right: 56px; text-align: right;
+  }
+  .miscarriage-sex {
+    position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-weight: 600; color: var(--text-muted);
+    white-space: nowrap; pointer-events: none; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  /* ── Free-text labels ── */
+  .label {
+    position: absolute; cursor: grab; user-select: none; -webkit-user-select: none;
+    z-index: 10; font-size: 14px; color: var(--text-muted);
+    font-style: italic; padding: 4px 8px; border-radius: 4px;
+    min-width: 20px; transition: background 0.15s; touch-action: none;
+  }
+  .label:hover { background: rgba(0,0,0,0.04); }
+  .label.dragging { cursor: grabbing; z-index: 999; }
+  .label.selected { outline: 1.5px solid var(--accent); outline-offset: 2px; }
+  .label .delete-btn {
+    position: absolute; top: -10px; right: -10px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: 2px solid #fff;
+    font-size: 13px; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .label:hover .delete-btn, .label.selected .delete-btn { display: flex; }
+  .label-text { outline: none; min-height: 1em; cursor: grab; }
+  .label-text[contenteditable="true"] { cursor: text; background: rgba(42,125,140,0.06); border-radius: 3px; }
+
+  /* ── Connection hit areas ── */
+  .conn-hit { pointer-events: stroke; cursor: pointer; }
+
+  /* ── Status bar ── */
+  .status-bar {
+    padding: 8px 18px; font-size: 11px; color: var(--text-muted);
+    border-top: 1px solid var(--border-light); margin-top: auto; flex-shrink: 0; line-height: 1.4;
+  }
+
+  /* ── Zoom controls ── */
+  .zoom-controls { position: absolute; bottom: 16px; right: 16px; display: flex; gap: 4px; z-index: 100; }
+  .zoom-btn {
+    width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); color: var(--text); font-size: 18px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.15s;
+  }
+  .zoom-btn:hover { background: var(--bg); }
+  .zoom-label {
+    padding: 0 10px; height: 36px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* ── Mode banner ── */
+  .mode-banner {
+    display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #fff; padding: 8px 20px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; z-index: 160;
+    box-shadow: 0 4px 16px rgba(42,125,140,0.3); cursor: pointer;
+  }
+  .mode-banner.visible { display: block; }
+
+  /* ── Legend/Key box (on canvas, draggable) ── */
+  .legend-box {
+    position: absolute; z-index: 15;
+    background: #fff; border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; min-width: 180px; max-width: 300px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    cursor: grab; user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  .legend-box.dragging { cursor: grabbing; z-index: 999; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+  .legend-box h4 {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 8px;
+    pointer-events: none;
+  }
+  .legend-row {
+    display: flex; align-items: center; gap: 8px; padding: 3px 0;
+    pointer-events: auto;
+  }
+  .legend-swatch {
+    width: 18px; height: 18px; border-radius: 3px;
+    border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .legend-input {
+    flex: 1; border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 6px; font-family: inherit; font-size: 11px;
+    outline: none; color: var(--text); background: var(--bg);
+    min-width: 0;
+  }
+  .legend-input:focus { border-color: var(--accent); }
+  .legend-empty { font-size: 11px; color: var(--text-muted); font-style: italic; pointer-events: none; }
+
+  /* ── Rubber-band select ── */
+  .select-rect {
+    position: absolute; border: 1.5px dashed var(--accent);
+    background: rgba(42,125,140,0.06); pointer-events: none; z-index: 500; display: none;
+  }
+
+  /* ── Proband arrow (below-left of symbol) ── */
+  .proband-arrow {
+    position: absolute; top: 54px; left: -18px;
+    width: 18px; height: 18px; pointer-events: none;
+  }
+
+  /* ── Label size control ── */
+  .size-control { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .size-control span { font-size: 13px; color: var(--text); min-width: 38px; text-align: center; font-weight: 500; }
+  .size-btn {
+    width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text); font-size: 18px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .size-btn:hover { background: var(--bg); }
+
+  /* ── Mobile ── */
+  .fab-open {
+    display: none; position: fixed; top: 12px; left: 12px;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12); color: var(--text);
+    font-size: 22px; cursor: pointer; z-index: 150;
+    align-items: center; justify-content: center;
+  }
+  .mobile-toolbar {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--panel); border-top: 1px solid var(--border);
+    padding: 8px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 150; gap: 4px; justify-content: center; flex-wrap: wrap;
+  }
+  .mobile-toolbar .tool-btn { flex: 1; min-width: 0; justify-content: center; padding: 10px 6px; font-size: 11px; }
+  .panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 190; }
+
+  @media (max-width: 768px) {
+    .side-panel {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 85vw; max-width: 310px;
+      transform: translateX(-100%); transition: transform 0.3s ease;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    }
+    .side-panel.open { transform: translateX(0); }
+    .panel-overlay.open { display: block; }
+    .panel-close-btn { display: flex; }
+    .fab-open { display: flex; }
+    .mobile-toolbar { display: flex; }
+    .side-panel .toolbar { display: none; }
+  }
+
+  /* ── Splash ── */
+  .splash-overlay {
+    position: fixed; inset: 0; background: rgba(26,35,50,0.5);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .splash-overlay.hidden { display: none; }
+  .splash-card {
+    background: var(--panel); border-radius: 14px;
+    max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2); padding: 32px 28px 24px;
+  }
+  .splash-card h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; margin-bottom: 4px; }
+  .splash-card h1 span { color: var(--accent); }
+  .splash-card .splash-subtitle { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px; }
+  .splash-card .splash-privacy {
+    background: #f0f7f8; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+    padding: 12px 14px; margin-bottom: 18px; font-size: 12.5px; line-height: 1.55;
+  }
+  .splash-card .splash-privacy strong { display: block; margin-bottom: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); }
+  .splash-card h3 { font-size: 13px; font-weight: 700; margin: 16px 0 8px; }
+  .splash-card .splash-steps { list-style: none; padding: 0; }
+  .splash-card .splash-steps li { position: relative; padding: 5px 0 5px 30px; font-size: 12.5px; line-height: 1.5; color: #4a5568; }
+  .splash-card .splash-steps li .step-num {
+    position: absolute; left: 0; top: 5px; width: 20px; height: 20px;
+    background: var(--accent); color: #fff; border-radius: 50%;
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .splash-card .btn-start {
+    display: block; width: 100%; padding: 13px; margin-top: 18px;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .splash-card .btn-start:hover { background: var(--accent-hover); }
+  @media (max-width: 500px) { .splash-card { padding: 24px 18px 20px; } .splash-card h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+
+<!-- ── Splash ── -->
+<div class="splash-overlay" id="splashOverlay">
+  <div class="splash-card">
+    <h1>Pedigree <span>Studio</span></h1>
+    <div class="splash-subtitle">Fully Offline · No Data Leaves This Device</div>
+    <div class="splash-privacy">
+      <strong>Designed for privacy-sensitive clinical settings</strong>
+      This tool runs entirely in your browser with no internet connection required. No data is transmitted or stored remotely. Suitable for clinical genetics environments where patient data cannot be entered into online tools.
+    </div>
+    <h3>How It Works</h3>
+    <ol class="splash-steps">
+      <li><span class="step-num">1</span>Choose a shape (male, female, unknown) and click <strong>Add Person</strong>.</li>
+      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid or quartered).</li>
+      <li><span class="step-num">3</span>Use <strong>Partner</strong> mode to connect two people with a partnership line.</li>
+      <li><span class="step-num">4</span>Use <strong>Child</strong> mode — click a partnership line, then a person — to draw a descent line.</li>
+      <li><span class="step-num">5</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
+      <li><span class="step-num">6</span>Connected people move as a unit. Toggle <strong>Individual Move</strong> for independent positioning. Use the <strong>Key</strong> button to generate a colour legend.</li>
+      <li><span class="step-num">7</span>People are auto-numbered by generation and position. <strong>Export Image</strong> to save a PNG.</li>
+    </ol>
+    <button class="btn-start" onclick="dismissSplash()">Get Started</button>
+  </div>
+</div>
+
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+<button class="fab-open" id="fabOpen" onclick="openPanel()">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+
+<div class="side-panel" id="sidePanel">
+  <div class="panel-header">
+    <div><h1>Pedigree <span>Studio</span></h1><p>Clinical genetics pedigree drawing</p></div>
+    <button class="panel-close-btn" onclick="closePanel()">×</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool-btn active" id="tool-move" onclick="setTool('move')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+      Move
+    </button>
+    <button class="tool-btn" id="tool-partner" onclick="setTool('partner')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><rect x="2" y="8" width="6" height="8" rx="0"/><circle cx="19" cy="12" r="4"/></svg>
+      Partner
+    </button>
+    <button class="tool-btn" id="tool-child" onclick="setTool('child')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
+      Child
+    </button>
+    <button class="tool-btn" id="tool-twin" onclick="setTool('twin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
+      Twin
+    </button>
+  </div>
+
+  <div class="panel-section">
+    <h3>Add Person</h3>
+    <div class="shape-picker">
+      <div class="shape-option active" data-shape="male" onclick="selectShape('male')">
+        <svg viewBox="0 0 40 40"><rect x="4" y="4" width="32" height="32" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>Male</span>
+      </div>
+      <div class="shape-option" data-shape="female" onclick="selectShape('female')">
+        <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>Female</span>
+      </div>
+      <div class="shape-option" data-shape="unknown" onclick="selectShape('unknown')">
+        <svg viewBox="0 0 40 40"><polygon points="20,2 38,20 20,38 2,20" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>Unknown</span>
+      </div>
+      <div class="shape-option" data-shape="miscarriage" onclick="selectShape('miscarriage')">
+        <svg viewBox="0 0 40 40"><polygon points="20,10 34,32 6,32" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>SAb</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="addPerson()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Person
+    </button>
+  </div>
+
+  <!-- Properties Panel (shown when person selected) -->
+  <div class="panel-section props-panel" id="propsPanel">
+    <h3>Selected Person</h3>
+    <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Annotation (shown below-right)</label>
+    <textarea id="personText" placeholder="e.g. Breast Ca dx 42&#10;BRCA1+" oninput="updatePersonText()"></textarea>
+
+    <div class="toggle-row" style="margin-top:8px;">
+      <label onclick="toggleDeceased()">Deceased</label>
+      <button class="toggle-switch" id="deceasedToggle" onclick="toggleDeceased()"></button>
+    </div>
+    <div class="toggle-row">
+      <label onclick="toggleProband()">Proband</label>
+      <button class="toggle-switch" id="probandToggle" onclick="toggleProband()"></button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Change shape</label>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('male')">♂ Male</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('female')">♀ Female</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('unknown')">◇ Unk</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('miscarriage')">△ SAb</button>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Centre symbol</label>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-secondary" data-ct="" onclick="setCenterText('')" style="flex:1;margin:0;padding:5px;font-size:10px;">None</button>
+        <button class="btn btn-secondary" data-ct="S" onclick="setCenterText('S')" style="flex:1;margin:0;padding:5px;font-size:10px;">S (multiple)</button>
+        <button class="btn btn-secondary" data-ct="P" onclick="setCenterText('P')" style="flex:1;margin:0;padding:5px;font-size:10px;">P (pregnancy)</button>
+      </div>
+    </div>
+    <div id="miscarriageSexUI" style="display:none;margin-top:8px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Miscarriage sex</label>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-secondary" data-ms="unknown" onclick="setMiscarriageSex('unknown')" style="flex:1;margin:0;padding:5px;font-size:10px;">Unknown</button>
+        <button class="btn btn-secondary" data-ms="male" onclick="setMiscarriageSex('male')" style="flex:1;margin:0;padding:5px;font-size:10px;">Male</button>
+        <button class="btn btn-secondary" data-ms="female" onclick="setMiscarriageSex('female')" style="flex:1;margin:0;padding:5px;font-size:10px;">Female</button>
+      </div>
+    </div>
+
+    <!-- Fill mode -->
+    <div style="margin-top:12px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Fill</label>
+      <div class="fill-mode-row">
+        <button class="fill-mode-btn active" data-mode="none" onclick="setFillMode('none')">None</button>
+        <button class="fill-mode-btn" data-mode="solid" onclick="setFillMode('solid')">Solid</button>
+        <button class="fill-mode-btn" data-mode="quartered" onclick="setFillMode('quartered')">Quartered</button>
+      </div>
+
+      <div id="solidFillUI" style="display:none;">
+        <div class="fill-colors" id="solidColorPicker"></div>
+      </div>
+
+      <div id="quarteredFillUI" style="display:none;">
+        <div style="display:flex;align-items:flex-start;">
+          <div class="quarter-grid" id="quarterGrid">
+            <div class="quarter-cell" data-q="3" onclick="selectQuarter(3)" style="background:#fff;">TL</div>
+            <div class="quarter-cell" data-q="0" onclick="selectQuarter(0)" style="background:#fff;">TR</div>
+            <div class="quarter-cell" data-q="2" onclick="selectQuarter(2)" style="background:#fff;">BL</div>
+            <div class="quarter-cell" data-q="1" onclick="selectQuarter(1)" style="background:#fff;">BR</div>
+          </div>
+          <span class="quarter-label" id="quarterLabel">Click a quadrant, then pick a colour</span>
+        </div>
+        <div class="fill-colors" id="quarterColorPicker" style="margin-top:6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <h3>Partnership Type</h3>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
+      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
+      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Sets type for new partnerships. Click existing line in Move to select, then use these buttons to change type.</p>
+  </div>
+
+  <div class="panel-section">
+    <h3>Twin Type</h3>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-secondary active" data-tt="identical" onclick="setTwinType('identical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Identical</button>
+      <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Twin tool: click two children of same partnership.</p>
+  </div>
+
+  <!-- Free Text Labels section -->
+  <div class="panel-section" id="labelSection">
+    <h3>Free Text Labels</h3>
+    <button class="btn btn-primary" onclick="activateLabelTool()" style="margin-top:0;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5l4 4L7 21l-4 1 1-4L16.5 3.5z"/></svg>
+      Add Label to Canvas
+    </button>
+    <label style="font-size:12px;color:var(--text-muted);display:block;margin-top:8px;margin-bottom:4px;">Label text size</label>
+    <div class="size-control">
+      <button class="size-btn" onclick="changeLabelSize(-2)">−</button>
+      <span id="labelSizeDisplay">14px</span>
+      <button class="size-btn" onclick="changeLabelSize(2)">+</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Applies to selected or next new label. Double-tap a label to edit.</p>
+  </div>
+
+  <div class="panel-section">
+    <h3>Movement</h3>
+    <div class="toggle-row">
+      <label onclick="toggleIndividualMove()">Individual move mode</label>
+      <button class="toggle-switch" id="individualMoveToggle" onclick="toggleIndividualMove()"></button>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">Off = drag moves connected family. On = drag moves one person.</p>
+  </div>
+
+  <div class="panel-section" style="display:flex; flex-direction:column; gap:4px;">
+    <h3>File</h3>
+    <button class="btn btn-primary" onclick="saveAsImage()" style="margin-top:0;">Export Image</button>
+    <button class="btn btn-secondary" onclick="toggleLegend()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Colour Key / Legend
+    </button>
+    <button class="btn btn-secondary" onclick="exportJSON()">Save Session (JSON)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Load Session (JSON)</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+    <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('splashOverlay').classList.remove('hidden')">Help &amp; Info</button>
+  </div>
+
+  <div class="status-bar" id="statusBar">Ready — add people to start building a pedigree</div>
+</div>
+
+<div class="mobile-toolbar" id="mobileToolbar">
+  <button class="tool-btn active" id="m-tool-move" onclick="setTool('move')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+    Move
+  </button>
+  <button class="tool-btn" id="m-tool-partner" onclick="setTool('partner')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><rect x="2" y="8" width="6" height="8" rx="0"/><circle cx="19" cy="12" r="4"/></svg>
+    Partner
+  </button>
+  <button class="tool-btn" id="m-tool-child" onclick="setTool('child')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
+    Child
+  </button>
+  <button class="tool-btn" id="m-tool-twin" onclick="setTool('twin')">Twin</button>
+</div>
+
+<div class="mode-banner" id="modeBanner" onclick="this.classList.remove('visible')"></div>
+
+<div class="canvas-area" id="canvasArea">
+  <div id="canvas">
+    <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="select-rect" id="selectRect"></div>
+  <div class="zoom-controls">
+    <button class="zoom-btn" onclick="doZoom(-0.1)">−</button>
+    <div class="zoom-label" id="zoomLabel">100%</div>
+    <button class="zoom-btn" onclick="doZoom(0.1)">+</button>
+    <button class="zoom-btn" onclick="fitToView()" title="Fit to view" style="font-size:14px;">⊞</button>
+  </div>
+</div>
+
+<script>
+// ═════════════════════════════════════════════════════
+// PEDIGREE STUDIO v2
+// ═════════════════════════════════════════════════════
+
+function getPointerPos(e) {
+  if (e.touches && e.touches.length > 0) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+  if (e.changedTouches && e.changedTouches.length > 0) return { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY };
+  return { clientX: e.clientX, clientY: e.clientY };
+}
+
+// ── State ──
+let currentTool = 'move';
+let personIdCounter = 0;
+let labelIdCounter = 0;
+let lineIdCounter = 0;
+let selectedPerson = null;
+let selectedLabel = null;
+let selectedPartnershipId = null;
+let connectSource = null;
+let childPartnershipSource = null;
+let dragState = null;
+let currentShape = 'male';
+let individualMoveMode = false;
+let panState = null;
+let currentLabelSize = 14;
+let activeQuarter = -1; // which quarter is being edited
+
+const SHAPE_SIZE = 52;
+const SHAPE_HALF = 26;
+
+const FILL_COLORS = [
+  '#1a2332','#c0392b','#2980b9','#27ae60','#e67e22',
+  '#8e44ad','#f1c40f','#16a085','#d35400','#7f8c8d'
+];
+
+const persons = new Map();
+const labels = new Map();
+const partnerships = [];
+const childLinks = [];
+const twinLinks = [];
+const multiSelected = new Set();
+let legendLabels = {};
+let currentPartnershipType = 'normal';
+let currentTwinType = 'identical';
+let twinSource = null; // { '#c0392b': 'Breast cancer', ... }
+
+let zoomLevel = 1, panX = 0, panY = 0;
+
+// ── Auto-save ──
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem('pedigree-studio-session', JSON.stringify(buildSessionData())); } catch(e) {}
+  }, 800);
+}
+
+// ── Mobile panel ──
+function openPanel() { document.getElementById('sidePanel').classList.add('open'); document.getElementById('panelOverlay').classList.add('open'); }
+function closePanel() { document.getElementById('sidePanel').classList.remove('open'); document.getElementById('panelOverlay').classList.remove('open'); }
+function dismissSplash() { document.getElementById('splashOverlay').classList.add('hidden'); }
+
+// ── Shape selection ──
+function selectShape(shape) {
+  currentShape = shape;
+  document.querySelectorAll('.shape-option').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.shape-option[data-shape="${shape}"]`)?.classList.add('active');
+}
+
+function setPartnershipType(t) {
+  currentPartnershipType = t;
+  document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
+  // If a partnership is selected, change its type
+  if (selectedPartnershipId) {
+    const ps = partnerships.find(p => p.id === selectedPartnershipId);
+    if (ps) {
+      const svg = document.getElementById('lines-layer');
+      ps.type = t;
+      if (ps.el2) { ps.el2.remove(); ps.el2 = null; }
+      if (ps.slash) { ps.slash.forEach(s => s.remove()); ps.slash = null; }
+      if (t === 'consanguineous') {
+        const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        l2.setAttribute('stroke', '#1a2332'); l2.setAttribute('stroke-width', '2'); l2.style.pointerEvents = 'none';
+        svg.appendChild(l2); ps.el2 = l2;
+      }
+      updatePartnershipPos(ps);
+      scheduleSave();
+      document.getElementById('statusBar').textContent = 'Partnership changed to ' + t;
+    }
+  }
+}
+function setTwinType(t) {
+  currentTwinType = t;
+  document.querySelectorAll('[data-tt]').forEach(b => b.classList.toggle('active', b.dataset.tt === t));
+}
+function setCenterText(ct) {
+  if (!selectedPerson) return; const p = persons.get(selectedPerson); if (!p) return;
+  p.centerText = ct;
+  document.querySelectorAll('[data-ct]').forEach(b => b.classList.toggle('active', b.dataset.ct === (ct || '')));
+  refreshPersonShape(p); scheduleSave();
+}
+function setMiscarriageSex(s) {
+  if (!selectedPerson) return; const p = persons.get(selectedPerson); if (!p) return;
+  p.miscarriageSex = s;
+  document.querySelectorAll('[data-ms]').forEach(b => b.classList.toggle('active', b.dataset.ms === s));
+  let msEl = p.el.querySelector('.miscarriage-sex');
+  if (msEl) msEl.textContent = s !== 'unknown' ? s : '';
+  scheduleSave();
+}
+
+// ── Init color pickers ──
+function initColorPickers() {
+  const makePicker = (containerId) => {
+    const c = document.getElementById(containerId);
+    c.innerHTML = '';
+    // Clear/none swatch
+    const cs = document.createElement('div');
+    cs.className = 'fill-swatch clear-swatch';
+    cs.style.border = '2px solid var(--border)';
+    cs.onclick = () => applyFillColor(null);
+    c.appendChild(cs);
+    FILL_COLORS.forEach(color => {
+      const s = document.createElement('div');
+      s.className = 'fill-swatch';
+      s.style.background = color;
+      s.onclick = () => applyFillColor(color);
+      c.appendChild(s);
+    });
+  };
+  makePicker('solidColorPicker');
+  makePicker('quarterColorPicker');
+}
+
+// ── Tools ──
+function setTool(tool) {
+  currentTool = tool;
+  connectSource = null;
+  childPartnershipSource = null;
+  twinSource = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  ['tool-','m-tool-'].forEach(prefix => {
+    const btn = document.getElementById(prefix + tool);
+    if (btn) btn.classList.add('active');
+  });
+  updateBanner();
+  updateStatus();
+}
+
+function updateBanner() {
+  const banner = document.getElementById('modeBanner');
+  const msgs = {
+    partner: 'Partner mode — click two people to connect them',
+    child: 'Child mode — click a partnership line, then click a child',
+    twin: 'Twin mode — click two children of the same partnership',
+    label: 'Label mode — click on the canvas to place a text label',
+    select: 'Select mode — drag to select multiple, or Shift+click'
+  };
+  if (msgs[currentTool]) { banner.textContent = msgs[currentTool]; banner.classList.add('visible'); }
+  else { banner.classList.remove('visible'); }
+}
+
+function updateStatus() {
+  const s = document.getElementById('statusBar');
+  const map = {
+    move: 'Move — drag to reposition' + (individualMoveMode ? ' (individual)' : ' (group)'),
+    partner: 'Partner — click two people to draw a partnership line',
+    child: 'Child — click a partnership line, then click a person',
+    twin: 'Twin — click two children of same partnership to link',
+    label: 'Label — click on the canvas to add a text label',
+    select: 'Select — drag a rectangle or Shift+click to multi-select'
+  };
+  s.textContent = map[currentTool] || 'Ready';
+}
+
+// ══════════════════════════════════════════
+// SHAPE SVG RENDERING (solid + quartered)
+// ══════════════════════════════════════════
+
+function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText) {
+  const stroke = '#1a2332';
+  const sw = 2;
+  let fills = '', border = '', deathLine = '', extra = '';
+  const hasFill = fillMode === 'solid' || fillMode === 'quartered';
+
+  if (fillMode === 'solid' && fillColor) fills = makeSolidFill(shape, fillColor);
+  else if (fillMode === 'quartered' && quarters) fills = makeQuarteredFill(shape, quarters);
+
+  if (shape === 'male') {
+    border = `<rect class="shape-border" x="4" y="4" width="44" height="44" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    if (deceased) deathLine = `<line x1="4" y1="48" x2="48" y2="4" stroke="${stroke}" stroke-width="${sw}"/>`;
+  } else if (shape === 'female') {
+    border = `<circle class="shape-border" cx="26" cy="26" r="22" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    if (deceased) deathLine = `<line x1="4" y1="48" x2="48" y2="4" stroke="${stroke}" stroke-width="${sw}"/>`;
+  } else if (shape === 'miscarriage') {
+    border = `<polygon class="shape-border" points="26,8 46,44 6,44" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    if (deceased) deathLine = `<line x1="6" y1="44" x2="46" y2="8" stroke="${stroke}" stroke-width="${sw}"/>`;
+  } else {
+    border = `<polygon class="shape-border" points="26,3 49,26 26,49 3,26" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    if (deceased) deathLine = `<line x1="3" y1="49" x2="49" y2="3" stroke="${stroke}" stroke-width="${sw}"/>`;
+  }
+  if (centerText) {
+    const tc = (fillMode === 'solid' && fillColor && !isLight(fillColor)) ? '#fff' : stroke;
+    const cy = shape === 'miscarriage' ? 30 : 26;
+    extra = `<text x="26" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="-apple-system,sans-serif">${centerText}</text>`;
+  }
+  return `<svg viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">${fills}${border}${deathLine}${extra}</svg>`;
+}
+
+function makeSolidFill(shape, color) {
+  if (shape === 'male') return `<rect x="4" y="4" width="44" height="44" fill="${color}" stroke="none"/>`;
+  if (shape === 'female') return `<circle cx="26" cy="26" r="22" fill="${color}" stroke="none"/>`;
+  if (shape === 'miscarriage') return `<polygon points="26,8 46,44 6,44" fill="${color}" stroke="none"/>`;
+  return `<polygon points="26,3 49,26 26,49 3,26" fill="${color}" stroke="none"/>`;
+}
+
+function makeQuarteredFill(shape, quarters) {
+  // quarters: [TR, BR, BL, TL]  — each is a color string or null
+  let svg = '';
+  if (shape === 'male') {
+    // Square quarters
+    const rects = [
+      [26, 4, 22, 22],  // TR
+      [26, 26, 22, 22], // BR
+      [4, 26, 22, 22],  // BL
+      [4, 4, 22, 22]    // TL
+    ];
+    rects.forEach((r, i) => {
+      const c = quarters[i];
+      if (c) svg += `<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="${c}" stroke="none"/>`;
+    });
+    // Divider lines
+    svg += `<line x1="26" y1="4" x2="26" y2="48" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+    svg += `<line x1="4" y1="26" x2="48" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+  } else if (shape === 'female') {
+    // Circle quarters as pie slices: TR, BR, BL, TL
+    const paths = [
+      'M 26 26 L 26 4 A 22 22 0 0 1 48 26 Z',   // TR
+      'M 26 26 L 48 26 A 22 22 0 0 1 26 48 Z',   // BR
+      'M 26 26 L 26 48 A 22 22 0 0 1 4 26 Z',    // BL
+      'M 26 26 L 4 26 A 22 22 0 0 1 26 4 Z'      // TL
+    ];
+    paths.forEach((d, i) => {
+      const c = quarters[i];
+      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+    });
+    svg += `<line x1="26" y1="4" x2="26" y2="48" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+    svg += `<line x1="4" y1="26" x2="48" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+  } else {
+    // Diamond quarters as triangles from center
+    const paths = [
+      'M 26 26 L 26 3 L 49 26 Z',  // TR
+      'M 26 26 L 49 26 L 26 49 Z',  // BR
+      'M 26 26 L 26 49 L 3 26 Z',   // BL
+      'M 26 26 L 3 26 L 26 3 Z'     // TL
+    ];
+    paths.forEach((d, i) => {
+      const c = quarters[i];
+      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+    });
+    svg += `<line x1="26" y1="3" x2="26" y2="49" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+    svg += `<line x1="3" y1="26" x2="49" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+  }
+  return svg;
+}
+
+// ══════════════════════════
+// ADD / REMOVE PERSON
+// ══════════════════════════
+
+function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex) {
+  const id = customId || 'person-' + (++personIdCounter);
+  if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n; }
+  else { const n = parseInt(id.split('-')[1]) || 0; if (n >= personIdCounter) personIdCounter = n; }
+
+  const shape = customShape || currentShape;
+  const area = document.getElementById('canvasArea');
+  const areaRect = area.getBoundingClientRect();
+  const x = customX !== undefined ? customX : (areaRect.width / 2 - panX) / zoomLevel - SHAPE_HALF + Math.random() * 60 - 30;
+  const y = customY !== undefined ? customY : (areaRect.height / 2 - panY) / zoomLevel - SHAPE_HALF + Math.random() * 40 - 20;
+
+  const fillMode = customFillMode || 'none';
+  const fillColor = customFillColor || FILL_COLORS[0];
+  const quarters = customQuarters || [null, null, null, null];
+  const centerText = customCenterText || '';
+  const miscarriageSex = customMiscarriageSex || 'unknown';
+
+  const el = document.createElement('div');
+  el.className = 'person';
+  el.id = id;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+
+  const shapeDiv = document.createElement('div');
+  shapeDiv.className = 'person-shape';
+  shapeDiv.innerHTML = makeShapeSVG(shape, !!customDeceased, fillMode, fillColor, quarters, centerText);
+  el.appendChild(shapeDiv);
+
+  const numEl = document.createElement('div');
+  numEl.className = 'person-number';
+  el.appendChild(numEl);
+
+  const textEl = document.createElement('div');
+  textEl.className = 'person-text';
+  textEl.textContent = customText || '';
+  el.appendChild(textEl);
+
+  if (shape === 'miscarriage') {
+    const msEl = document.createElement('div');
+    msEl.className = 'miscarriage-sex';
+    msEl.textContent = miscarriageSex !== 'unknown' ? miscarriageSex : '';
+    el.appendChild(msEl);
+  }
+
+  if (customProband) { el.classList.add('proband'); addProbandArrow(el); }
+
+  // Delete
+  const del = document.createElement('button');
+  del.className = 'delete-btn';
+  del.innerHTML = '×';
+  const doDelete = (e) => { e.preventDefault(); e.stopPropagation(); removePerson(id); };
+  del.addEventListener('click', doDelete);
+  del.addEventListener('touchend', doDelete);
+  shapeDiv.appendChild(del);
+
+  // Pointer events
+  const onDown = (e) => {
+    if (e.target.classList.contains('delete-btn')) return;
+    if (e.cancelable) e.preventDefault();
+    if (currentTool === 'partner') { startPartnerConnect(id); return; }
+    if (currentTool === 'child') {
+      if (childPartnershipSource) {
+        addChildLink(childPartnershipSource, id);
+        childPartnershipSource = null;
+        document.getElementById('statusBar').textContent = 'Child connected!';
+        updateBanner();
+      }
+      return;
+    }
+    if (currentTool === 'twin') { startTwinConnect(id); return; }
+    if (e.shiftKey || currentTool === 'select') { toggleMultiSelect(id); return; }
+    selectPerson(id);
+    startDrag(id, e);
+  };
+  el.addEventListener('mousedown', onDown);
+  el.addEventListener('touchstart', onDown, { passive: false });
+
+  document.getElementById('canvas').appendChild(el);
+
+  const personData = {
+    id, shape, x, y,
+    text: customText || '',
+    deceased: !!customDeceased,
+    proband: !!customProband,
+    fillMode, fillColor,
+    quarters: [...quarters],
+    centerText, miscarriageSex,
+    el
+  };
+  persons.set(id, personData);
+
+  updateNumbering();
+  updateTextWrapping();
+  scheduleSave();
+  if (!customId) {
+    document.getElementById('statusBar').textContent = `Added ${shape}`;
+    closePanel();
+  }
+  return personData;
+}
+
+function addProbandArrow(el) {
+  const existing = el.querySelector('.proband-arrow');
+  if (existing) existing.remove();
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  arrow.setAttribute('class', 'proband-arrow');
+  arrow.setAttribute('viewBox', '0 0 18 18');
+  arrow.innerHTML = `<path d="M2 16L16 2" stroke="#1a2332" stroke-width="1.8" fill="none"/><path d="M16 2L9 2" stroke="#1a2332" stroke-width="1.8" fill="none"/><path d="M16 2L16 9" stroke="#1a2332" stroke-width="1.8" fill="none"/>`;
+  el.appendChild(arrow);
+}
+
+function removePerson(id) {
+  const p = persons.get(id);
+  if (!p) return;
+  for (let i = partnerships.length - 1; i >= 0; i--) {
+    if (partnerships[i].fromId === id || partnerships[i].toId === id) {
+      const pid = partnerships[i].id;
+      for (let j = childLinks.length - 1; j >= 0; j--) {
+        if (childLinks[j].partnershipId === pid) { childLinks[j].els.forEach(el => el.remove()); childLinks.splice(j, 1); }
+      }
+      for (let j = twinLinks.length - 1; j >= 0; j--) {
+        if (twinLinks[j].partnershipId === pid) { twinLinks[j].els.forEach(el => el.remove()); twinLinks.splice(j, 1); }
+      }
+      partnerships[i].el.remove();
+      partnerships[i].hitEl.remove();
+      if (partnerships[i].el2) partnerships[i].el2.remove();
+      if (partnerships[i].slash) partnerships[i].slash.forEach(s => s.remove());
+      partnerships.splice(i, 1);
+    }
+  }
+  for (let i = childLinks.length - 1; i >= 0; i--) {
+    if (childLinks[i].childId === id) { childLinks[i].els.forEach(el => el.remove()); childLinks.splice(i, 1); }
+  }
+  for (let i = twinLinks.length - 1; i >= 0; i--) {
+    if (twinLinks[i].child1Id === id || twinLinks[i].child2Id === id) { twinLinks[i].els.forEach(el => el.remove()); twinLinks.splice(i, 1); }
+  }
+  multiSelected.delete(id);
+  if (selectedPerson === id) { selectedPerson = null; hideProps(); }
+  p.el.remove();
+  persons.delete(id);
+  updateNumbering();
+  scheduleSave();
+}
+
+// ══════════════════════
+// SELECTION
+// ══════════════════════
+
+function selectPerson(id) {
+  deselectAll();
+  selectedPerson = id;
+  selectedLabel = null;
+  const p = persons.get(id);
+  if (p) { p.el.classList.add('selected'); showProps(p); }
+}
+
+function deselectAll() {
+  document.querySelectorAll('.person.selected, .person.multi-selected, .label.selected').forEach(el => {
+    el.classList.remove('selected', 'multi-selected');
+  });
+  selectedPerson = null;
+  selectedLabel = null;
+  selectedPartnershipId = null;
+  multiSelected.clear();
+  hideProps();
+  
+}
+
+function toggleMultiSelect(id) {
+  if (multiSelected.has(id)) { multiSelected.delete(id); persons.get(id)?.el.classList.remove('multi-selected'); }
+  else { multiSelected.add(id); persons.get(id)?.el.classList.add('multi-selected'); }
+  if (multiSelected.size === 1) { const onlyId = [...multiSelected][0]; selectedPerson = onlyId; showProps(persons.get(onlyId)); }
+  else { hideProps(); }
+}
+
+function selectAllPersons() {
+  deselectAll();
+  persons.forEach((p, id) => { multiSelected.add(id); p.el.classList.add('multi-selected'); });
+  document.getElementById('statusBar').textContent = `Selected all ${persons.size} individuals`;
+}
+
+// ══════════════════════
+// PROPERTIES PANEL
+// ══════════════════════
+
+function showProps(p) {
+  const panel = document.getElementById('propsPanel');
+  panel.classList.add('visible');
+  
+  document.getElementById('personText').value = p.text || '';
+  document.getElementById('deceasedToggle').className = 'toggle-switch' + (p.deceased ? ' on' : '');
+  document.getElementById('probandToggle').className = 'toggle-switch' + (p.proband ? ' on' : '');
+
+  // Center text buttons
+  document.querySelectorAll('[data-ct]').forEach(b => b.classList.toggle('active', b.dataset.ct === (p.centerText || '')));
+  // Miscarriage sex UI
+  document.getElementById('miscarriageSexUI').style.display = p.shape === 'miscarriage' ? 'block' : 'none';
+  document.querySelectorAll('[data-ms]').forEach(b => b.classList.toggle('active', b.dataset.ms === (p.miscarriageSex || 'unknown')));
+
+  // Fill mode buttons
+  document.querySelectorAll('.fill-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === p.fillMode));
+  document.getElementById('solidFillUI').style.display = p.fillMode === 'solid' ? 'block' : 'none';
+  document.getElementById('quarteredFillUI').style.display = p.fillMode === 'quartered' ? 'block' : 'none';
+
+  // Update quarter grid visuals
+  updateQuarterGridUI(p);
+
+  // Highlight active solid color
+  document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => s.classList.remove('active'));
+  if (p.fillMode === 'solid' && p.fillColor) {
+    document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => {
+      if (s.style.background === p.fillColor || rgbToHex(s.style.background) === p.fillColor) s.classList.add('active');
+    });
+  }
+  activeQuarter = -1;
+}
+
+function hideProps() {
+  document.getElementById('propsPanel').classList.remove('visible');
+}
+
+function updatePersonText() {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.text = document.getElementById('personText').value;
+  p.el.querySelector('.person-text').textContent = p.text;
+  updateTextWrapping();
+  scheduleSave();
+}
+
+function toggleDeceased() {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.deceased = !p.deceased;
+  document.getElementById('deceasedToggle').className = 'toggle-switch' + (p.deceased ? ' on' : '');
+  refreshPersonShape(p);
+  scheduleSave();
+}
+
+function toggleProband() {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  persons.forEach(op => {
+    if (op.id !== p.id && op.proband) {
+      op.proband = false; op.el.classList.remove('proband');
+      const arr = op.el.querySelector('.proband-arrow'); if (arr) arr.remove();
+    }
+  });
+  p.proband = !p.proband;
+  document.getElementById('probandToggle').className = 'toggle-switch' + (p.proband ? ' on' : '');
+  if (p.proband) { p.el.classList.add('proband'); addProbandArrow(p.el); }
+  else { p.el.classList.remove('proband'); const arr = p.el.querySelector('.proband-arrow'); if (arr) arr.remove(); }
+  scheduleSave();
+}
+
+function changeShape(newShape) {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.shape = newShape;
+  if (!p.miscarriageSex) p.miscarriageSex = 'unknown';
+  refreshPersonShape(p);
+  showProps(p);
+  scheduleSave();
+}
+
+function refreshPersonShape(p) {
+  const shapeDiv = p.el.querySelector('.person-shape');
+  const delBtn = shapeDiv.querySelector('.delete-btn');
+  shapeDiv.innerHTML = makeShapeSVG(p.shape, p.deceased, p.fillMode, p.fillColor, p.quarters, p.centerText);
+  if (delBtn) shapeDiv.appendChild(delBtn);
+  if (p.proband) addProbandArrow(p.el);
+  // Manage miscarriage sex label
+  let msEl = p.el.querySelector('.miscarriage-sex');
+  if (p.shape === 'miscarriage') {
+    if (!msEl) { msEl = document.createElement('div'); msEl.className = 'miscarriage-sex'; p.el.appendChild(msEl); }
+    msEl.textContent = (p.miscarriageSex && p.miscarriageSex !== 'unknown') ? p.miscarriageSex : '';
+  } else {
+    if (msEl) msEl.remove();
+  }
+}
+
+// ══════════════════════
+// FILL MODE & COLOURS
+// ══════════════════════
+
+function setFillMode(mode) {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.fillMode = mode;
+  document.querySelectorAll('.fill-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('solidFillUI').style.display = mode === 'solid' ? 'block' : 'none';
+  document.getElementById('quarteredFillUI').style.display = mode === 'quartered' ? 'block' : 'none';
+  if (mode === 'quartered') updateQuarterGridUI(p);
+  refreshPersonShape(p);
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function applyFillColor(color) {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+
+  if (p.fillMode === 'solid') {
+    p.fillColor = color;
+    if (!color) p.fillMode = 'none';
+    // Highlight
+    document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => s.classList.remove('active'));
+    if (color) {
+      document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => {
+        if (rgbToHex(s.style.background) === color || s.style.background === color) s.classList.add('active');
+      });
+    }
+  } else if (p.fillMode === 'quartered' && activeQuarter >= 0) {
+    p.quarters[activeQuarter] = color;
+    updateQuarterGridUI(p);
+  }
+  refreshPersonShape(p);
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function selectQuarter(qi) {
+  activeQuarter = qi;
+  document.querySelectorAll('.quarter-cell').forEach(c => c.classList.remove('active-quarter'));
+  document.querySelector(`.quarter-cell[data-q="${qi}"]`)?.classList.add('active-quarter');
+  const qNames = ['top-right', 'bottom-right', 'bottom-left', 'top-left'];
+  document.getElementById('quarterLabel').textContent = `Selected: ${qNames[qi]}`;
+}
+
+function updateQuarterGridUI(p) {
+  const cells = document.querySelectorAll('.quarter-cell');
+  const qMap = [3, 0, 2, 1]; // grid order: TL=q3, TR=q0, BL=q2, BR=q1
+  cells.forEach(cell => {
+    const qi = parseInt(cell.dataset.q);
+    const c = p.quarters[qi];
+    cell.style.background = c || '#fff';
+    cell.style.color = c ? (isLight(c) ? '#333' : '#fff') : '#aaa';
+  });
+}
+
+function rgbToHex(rgb) {
+  if (!rgb || rgb.startsWith('#')) return rgb;
+  const m = rgb.match(/\d+/g);
+  if (!m || m.length < 3) return rgb;
+  return '#' + m.slice(0,3).map(x => parseInt(x).toString(16).padStart(2,'0')).join('');
+}
+
+function isLight(hex) {
+  if (!hex) return true;
+  const c = hex.replace('#','');
+  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+  return (r * 0.299 + g * 0.587 + b * 0.114) > 150;
+}
+
+// ══════════════════════
+// FREE TEXT LABELS
+// ══════════════════════
+
+function createLabel(x, y, customId, customText, customSize) {
+  const id = customId || 'label-' + (++labelIdCounter);
+  if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > labelIdCounter) labelIdCounter = n; }
+  else { const n = parseInt(id.split('-')[1]) || 0; if (n >= labelIdCounter) labelIdCounter = n; }
+
+  const size = customSize || currentLabelSize;
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.id = id;
+  label.style.left = x + 'px';
+  label.style.top = y + 'px';
+  label.style.fontSize = size + 'px';
+
+  const textEl = document.createElement('div');
+  textEl.className = 'label-text';
+  textEl.contentEditable = 'false';
+  textEl.textContent = customText || 'Label';
+
+  textEl.addEventListener('dblclick', (e) => { e.stopPropagation(); enterEditMode(textEl); });
+  let lastTap = 0;
+  textEl.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 350) { e.preventDefault(); e.stopPropagation(); enterEditMode(textEl); lastTap = 0; }
+    else { lastTap = now; }
+  });
+  textEl.addEventListener('mousedown', (e) => { if (textEl.contentEditable === 'true') e.stopPropagation(); });
+  textEl.addEventListener('touchstart', (e) => { if (textEl.contentEditable === 'true') e.stopPropagation(); }, { passive: true });
+  textEl.addEventListener('blur', () => { textEl.contentEditable = 'false'; scheduleSave(); });
+
+  const del = document.createElement('button');
+  del.className = 'delete-btn';
+  del.innerHTML = '×';
+  const doDelete = (e) => { e.preventDefault(); e.stopPropagation(); removeLabel(id); };
+  del.addEventListener('click', doDelete);
+  del.addEventListener('touchend', doDelete);
+
+  label.appendChild(textEl);
+  label.appendChild(del);
+
+  const onDown = (e) => {
+    if (e.target.contentEditable === 'true') return;
+    if (e.target.classList.contains('delete-btn')) return;
+    if (e.cancelable) e.preventDefault();
+    exitAllEditModes();
+    deselectAll();
+    label.classList.add('selected');
+    selectedLabel = id;
+    
+    document.getElementById('labelSizeDisplay').textContent = parseInt(label.style.fontSize) + 'px';
+    startLabelDrag(label, e);
+  };
+  label.addEventListener('mousedown', onDown);
+  label.addEventListener('touchstart', onDown, { passive: false });
+
+  document.getElementById('canvas').appendChild(label);
+  labels.set(id, { id, el: label, text: customText || 'Label', size });
+
+  if (!customId) setTimeout(() => enterEditMode(textEl), 50);
+  scheduleSave();
+  return label;
+}
+
+function removeLabel(id) {
+  const l = labels.get(id);
+  if (!l) return;
+  l.el.remove();
+  labels.delete(id);
+  if (selectedLabel === id) { selectedLabel = null; }
+  scheduleSave();
+}
+
+function activateLabelTool() {
+  setTool('label');
+  closePanel();
+}
+
+function enterEditMode(textEl) {
+  exitAllEditModes();
+  textEl.contentEditable = 'true';
+  textEl.style.touchAction = 'auto';
+  textEl.focus();
+  const range = document.createRange();
+  range.selectNodeContents(textEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function exitAllEditModes() {
+  document.querySelectorAll('.label-text').forEach(el => {
+    if (el.contentEditable === 'true') {
+      el.contentEditable = 'false';
+      el.style.touchAction = '';
+      // Update label data
+      const labelEl = el.closest('.label');
+      if (labelEl) {
+        const ld = labels.get(labelEl.id);
+        if (ld) ld.text = el.textContent;
+      }
+    }
+  });
+}
+
+function changeLabelSize(delta) {
+  currentLabelSize = Math.max(8, Math.min(48, currentLabelSize + delta));
+  document.getElementById('labelSizeDisplay').textContent = currentLabelSize + 'px';
+  if (selectedLabel) {
+    const l = labels.get(selectedLabel);
+    if (l) { l.el.style.fontSize = currentLabelSize + 'px'; l.size = currentLabelSize; scheduleSave(); }
+  }
+}
+
+let labelDragState = null;
+function startLabelDrag(el, e) {
+  const pos = getPointerPos(e);
+  labelDragState = { el, startX: pos.clientX, startY: pos.clientY, origLeft: parseFloat(el.style.left), origTop: parseFloat(el.style.top) };
+  el.classList.add('dragging');
+}
+
+// ══════════════════════
+// INDIVIDUAL MOVE TOGGLE
+// ══════════════════════
+
+function toggleIndividualMove() {
+  individualMoveMode = !individualMoveMode;
+  document.getElementById('individualMoveToggle').className = 'toggle-switch' + (individualMoveMode ? ' on' : '');
+  updateStatus();
+}
+
+// ══════════════════════
+// PARTNERSHIP CONNECTIONS
+// ══════════════════════
+
+function startPartnerConnect(id) {
+  if (!connectSource) {
+    connectSource = id;
+    persons.get(id)?.el.classList.add('selected');
+    document.getElementById('statusBar').textContent = 'Now click the partner';
+  } else if (connectSource !== id) {
+    const exists = partnerships.some(p => (p.fromId === connectSource && p.toId === id) || (p.fromId === id && p.toId === connectSource));
+    if (!exists) { addPartnership(connectSource, id); document.getElementById('statusBar').textContent = 'Partnership connected!'; }
+    else { document.getElementById('statusBar').textContent = 'Partnership already exists'; }
+    document.querySelectorAll('.person.selected').forEach(el => el.classList.remove('selected'));
+    connectSource = null;
+  }
+}
+
+function addPartnership(fromId, toId, customId, type) {
+  const id = customId || 'pship-' + (++lineIdCounter);
+  const pType = type || currentPartnershipType;
+  const svg = document.getElementById('lines-layer');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.classList.add('partnership-line');
+  line.setAttribute('stroke', '#1a2332');
+  line.setAttribute('stroke-width', '2');
+  line.id = id;
+  line.style.pointerEvents = 'stroke';
+  line.style.cursor = 'pointer';
+
+  const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  hitArea.setAttribute('stroke', 'transparent');
+  hitArea.setAttribute('stroke-width', '28');
+  hitArea.classList.add('conn-hit');
+
+  // Second line for consanguineous
+  let line2 = null;
+  if (pType === 'consanguineous') {
+    line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line2.setAttribute('stroke', '#1a2332');
+    line2.setAttribute('stroke-width', '2');
+    line2.style.pointerEvents = 'none';
+    svg.appendChild(line2);
+  }
+
+  const onLineClick = (ev) => {
+    if (currentTool === 'child') { childPartnershipSource = id; document.getElementById('statusBar').textContent = 'Now click a person to add as child'; return; }
+    if (currentTool === 'move') {
+      // Select this partnership so panel buttons can change its type
+      selectedPartnershipId = id;
+      const ps = partnerships.find(p => p.id === id);
+      if (ps) {
+        document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === ps.type));
+        document.getElementById('statusBar').textContent = 'Partnership selected (' + ps.type + '). Use panel buttons to change type.';
+      }
+      if (confirm('Remove this partnership line?\n(Cancel to keep — use Partnership Type buttons to change type)')) {
+        removePartnership(id);
+        selectedPartnershipId = null;
+      }
+    }
+  };
+  line.addEventListener('click', onLineClick);
+  hitArea.addEventListener('click', onLineClick);
+  hitArea.addEventListener('touchend', (ev) => { if (ev.cancelable) ev.preventDefault(); onLineClick(ev); });
+
+  svg.appendChild(hitArea);
+  svg.appendChild(line);
+  const pship = { id, fromId, toId, type: pType, el: line, hitEl: hitArea, el2: line2, slash: null };
+  partnerships.push(pship);
+  updatePartnershipPos(pship);
+  alignConnectedPersons();
+  updateTextWrapping();
+  scheduleSave();
+  return pship;
+}
+
+function removePartnership(id) {
+  const idx = partnerships.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  for (let i = childLinks.length - 1; i >= 0; i--) {
+    if (childLinks[i].partnershipId === id) { childLinks[i].els.forEach(el => el.remove()); childLinks.splice(i, 1); }
+  }
+  // Remove twin links attached to this partnership's children
+  for (let i = twinLinks.length - 1; i >= 0; i--) {
+    if (twinLinks[i].partnershipId === id) { twinLinks[i].els.forEach(el => el.remove()); twinLinks.splice(i, 1); }
+  }
+  const ps = partnerships[idx];
+  ps.el.remove(); ps.hitEl.remove();
+  if (ps.el2) ps.el2.remove();
+  if (ps.slash) ps.slash.forEach(s => s.remove());
+  partnerships.splice(idx, 1);
+  updateTextWrapping();
+  scheduleSave();
+}
+
+function updatePartnershipPos(pship) {
+  const fromP = persons.get(pship.fromId);
+  const toP = persons.get(pship.toId);
+  if (!fromP || !toP) return;
+  const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+  [pship.el, pship.hitEl].forEach(l => { l.setAttribute('x1', fc.x); l.setAttribute('y1', fc.y); l.setAttribute('x2', tc.x); l.setAttribute('y2', tc.y); });
+
+  // Consanguineous: second parallel line offset by 4px
+  if (pship.type === 'consanguineous' && pship.el2) {
+    const dx = tc.x - fc.x, dy = tc.y - fc.y, len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len * 4, ny = dx / len * 4;
+    pship.el2.setAttribute('x1', fc.x + nx); pship.el2.setAttribute('y1', fc.y + ny);
+    pship.el2.setAttribute('x2', tc.x + nx); pship.el2.setAttribute('y2', tc.y + ny);
+  }
+
+  // Separated: slash marks through the line
+  if (pship.type === 'separated') {
+    if (pship.slash) pship.slash.forEach(s => s.remove());
+    const mx = (fc.x + tc.x) / 2, my = (fc.y + tc.y) / 2;
+    const svg = document.getElementById('lines-layer');
+    const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    s1.setAttribute('x1', mx - 5); s1.setAttribute('y1', my - 8);
+    s1.setAttribute('x2', mx + 5); s1.setAttribute('y2', my + 8);
+    s1.setAttribute('stroke', '#1a2332'); s1.setAttribute('stroke-width', '2');
+    s1.style.pointerEvents = 'none';
+    const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    s2.setAttribute('x1', mx + 3); s2.setAttribute('y1', my - 8);
+    s2.setAttribute('x2', mx + 13); s2.setAttribute('y2', my + 8);
+    s2.setAttribute('stroke', '#1a2332'); s2.setAttribute('stroke-width', '2');
+    s2.style.pointerEvents = 'none';
+    svg.appendChild(s1); svg.appendChild(s2);
+    pship.slash = [s1, s2];
+  } else {
+    if (pship.slash) { pship.slash.forEach(s => s.remove()); pship.slash = null; }
+  }
+}
+
+// ══════════════════════
+// CHILD CONNECTIONS
+// ══════════════════════
+
+function addChildLink(partnershipId, childId, customId) {
+  const id = customId || 'child-' + (++lineIdCounter);
+  const pship = partnerships.find(p => p.id === partnershipId);
+  if (!pship) return;
+  if (childLinks.some(cl => cl.partnershipId === partnershipId && cl.childId === childId)) { document.getElementById('statusBar').textContent = 'Child link already exists'; return; }
+
+  const svg = document.getElementById('lines-layer');
+  const vertLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  vertLine.setAttribute('stroke', '#1a2332');
+  vertLine.setAttribute('stroke-width', '2');
+  vertLine.setAttribute('fill', 'none');
+  vertLine.style.pointerEvents = 'stroke';
+  vertLine.style.cursor = 'pointer';
+  vertLine.id = id;
+
+  const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  hitPath.setAttribute('stroke', 'transparent');
+  hitPath.setAttribute('stroke-width', '24');
+  hitPath.setAttribute('fill', 'none');
+  hitPath.classList.add('conn-hit');
+
+  const onChildClick = () => {
+    if (currentTool === 'move') {
+      // Check if this child is part of a twin link — offer to remove twin first
+      const twinLink = twinLinks.find(t => t.child1Id === childId || t.child2Id === childId);
+      if (twinLink) {
+        if (confirm('This child is part of a twin link. Remove twin relationship?\n(Cancel to keep twin link)')) {
+          removeTwinLink(twinLink.id);
+        }
+      } else {
+        if (confirm('Remove this child connection?')) removeChildLink(id);
+      }
+    }
+  };
+  vertLine.addEventListener('click', onChildClick);
+  hitPath.addEventListener('click', onChildClick);
+  hitPath.addEventListener('touchend', (ev) => { if (ev.cancelable) ev.preventDefault(); onChildClick(); });
+
+  svg.appendChild(hitPath);
+  svg.appendChild(vertLine);
+  const els = [vertLine, hitPath];
+  const cl = { id, partnershipId, childId, els };
+  childLinks.push(cl);
+  updateChildLinkPos(cl);
+  alignConnectedPersons();
+  scheduleSave();
+  return cl;
+}
+
+function removeChildLink(id) {
+  const idx = childLinks.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  childLinks[idx].els.forEach(el => el.remove());
+  childLinks.splice(idx, 1);
+  scheduleSave();
+}
+
+function updateChildLinkPos(cl) {
+  const pship = partnerships.find(p => p.id === cl.partnershipId);
+  const child = persons.get(cl.childId);
+  if (!pship || !child) return;
+  const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+  if (!fromP || !toP) return;
+  const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+  const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+  const childCenter = getPersonCenter(child);
+  const childTop = parseFloat(child.el.style.top);
+
+  // Check if this child is part of a twin link
+  const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
+
+  if (twinLink) {
+    // Twin: diagonal line from branch point to child
+    const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
+    const otherChild = persons.get(otherChildId);
+    if (otherChild) {
+      const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
+      const branchY = midY + (avgChildTop - midY) * 0.45;
+      const pathD = `M ${midX} ${branchY} L ${childCenter.x} ${childTop}`;
+      cl.els[0].setAttribute('d', pathD);
+      cl.els[1].setAttribute('d', pathD);
+      return;
+    }
+  }
+
+  // Normal: right-angle path
+  const dropY = midY + (childTop - midY) * 0.5;
+  const pathD = `M ${midX} ${midY} L ${midX} ${dropY} L ${childCenter.x} ${dropY} L ${childCenter.x} ${childTop}`;
+  cl.els[0].setAttribute('d', pathD);
+  cl.els[1].setAttribute('d', pathD);
+}
+
+function getPersonCenter(p) {
+  return { x: parseFloat(p.el.style.left) + SHAPE_HALF, y: parseFloat(p.el.style.top) + SHAPE_HALF };
+}
+
+function updateAllConnections() {
+  partnerships.forEach(p => updatePartnershipPos(p));
+  childLinks.forEach(c => updateChildLinkPos(c));
+  twinLinks.forEach(t => updateTwinLinkPos(t));
+}
+
+// ══════════════════════
+// AUTO-ALIGN CONNECTED
+// ══════════════════════
+
+function alignConnectedPersons() {
+  // 1. Align partners: both partners in a partnership snap to leftmost partner's Y
+  partnerships.forEach(ps => {
+    const p1 = persons.get(ps.fromId), p2 = persons.get(ps.toId);
+    if (!p1 || !p2) return;
+    const x1 = parseFloat(p1.el.style.left), x2 = parseFloat(p2.el.style.left);
+    const leftPerson = x1 <= x2 ? p1 : p2;
+    const rightPerson = x1 <= x2 ? p2 : p1;
+    const targetY = parseFloat(leftPerson.el.style.top);
+    rightPerson.el.style.top = targetY + 'px';
+    rightPerson.y = targetY;
+  });
+
+  // 2. Align siblings: children of the same partnership snap to leftmost sibling's Y
+  const childrenByPartnership = {};
+  childLinks.forEach(cl => {
+    if (!childrenByPartnership[cl.partnershipId]) childrenByPartnership[cl.partnershipId] = [];
+    childrenByPartnership[cl.partnershipId].push(cl.childId);
+  });
+  Object.values(childrenByPartnership).forEach(childIds => {
+    if (childIds.length < 2) return;
+    // Find leftmost child
+    let leftmostX = Infinity, targetY = 0;
+    childIds.forEach(cid => {
+      const p = persons.get(cid);
+      if (!p) return;
+      const x = parseFloat(p.el.style.left);
+      if (x < leftmostX) { leftmostX = x; targetY = parseFloat(p.el.style.top); }
+    });
+    // Snap all siblings to that Y
+    childIds.forEach(cid => {
+      const p = persons.get(cid);
+      if (!p) return;
+      p.el.style.top = targetY + 'px';
+      p.y = targetY;
+    });
+  });
+
+  updateAllConnections();
+  updateNumbering();
+}
+
+// ══════════════════════
+// TWIN LINKS
+// ══════════════════════
+
+function startTwinConnect(id) {
+  if (!twinSource) {
+    twinSource = id;
+    persons.get(id)?.el.classList.add('selected');
+    document.getElementById('statusBar').textContent = 'Now click the second twin';
+  } else if (twinSource !== id) {
+    addTwinLink(twinSource, id, currentTwinType);
+    document.querySelectorAll('.person.selected').forEach(el => el.classList.remove('selected'));
+    twinSource = null;
+  }
+}
+
+function addTwinLink(child1Id, child2Id, type, customId) {
+  // Find shared partnership
+  const c1Links = childLinks.filter(cl => cl.childId === child1Id);
+  const c2Links = childLinks.filter(cl => cl.childId === child2Id);
+  let sharedPship = null;
+  for (const l1 of c1Links) for (const l2 of c2Links) {
+    if (l1.partnershipId === l2.partnershipId) { sharedPship = l1.partnershipId; break; }
+  }
+  if (!sharedPship) { document.getElementById('statusBar').textContent = 'Children must share a partnership'; return; }
+  if (twinLinks.some(t => (t.child1Id === child1Id && t.child2Id === child2Id) || (t.child1Id === child2Id && t.child2Id === child1Id))) return;
+
+  const id = customId || 'twin-' + (++lineIdCounter);
+  const svg = document.getElementById('lines-layer');
+
+  // Path for the vertical drop + optional bar
+  const twinPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  twinPath.setAttribute('stroke', '#1a2332');
+  twinPath.setAttribute('stroke-width', '2');
+  twinPath.setAttribute('fill', 'none');
+  twinPath.style.pointerEvents = 'stroke';
+  twinPath.style.cursor = 'pointer';
+  twinPath.id = id;
+
+  const onClick = () => { if (currentTool === 'move') if (confirm('Remove twin link?')) removeTwinLink(id); };
+  twinPath.addEventListener('click', onClick);
+
+  svg.appendChild(twinPath);
+  const tl = { id, child1Id, child2Id, type: type || 'identical', partnershipId: sharedPship, els: [twinPath] };
+  twinLinks.push(tl);
+  updateTwinLinkPos(tl);
+  // Re-render the child links for both twins to show diagonal paths
+  childLinks.filter(cl => cl.childId === child1Id || cl.childId === child2Id).forEach(cl => updateChildLinkPos(cl));
+  updateNumbering();
+  scheduleSave();
+  document.getElementById('statusBar').textContent = (type === 'identical' ? 'Identical' : 'Non-identical') + ' twins linked!';
+}
+
+function removeTwinLink(id) {
+  const idx = twinLinks.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  const tl = twinLinks[idx];
+  tl.els.forEach(el => el.remove());
+  twinLinks.splice(idx, 1);
+  // Refresh the child links to revert to normal right-angle paths
+  childLinks.filter(cl => cl.childId === tl.child1Id || cl.childId === tl.child2Id).forEach(cl => updateChildLinkPos(cl));
+  updateNumbering();
+  scheduleSave();
+}
+
+function updateTwinLinkPos(tl) {
+  const c1 = persons.get(tl.child1Id), c2 = persons.get(tl.child2Id);
+  if (!c1 || !c2) return;
+  const pship = partnerships.find(p => p.id === tl.partnershipId);
+  if (!pship) return;
+  const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+  if (!fp || !tp) return;
+  const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
+  const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+  const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
+  const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
+  const avgChildTop = (c1Top + c2Top) / 2;
+  const branchY = midY + (avgChildTop - midY) * 0.45;
+
+  // Build path: vertical drop from partnership midpoint to branch point
+  let d = `M ${midX} ${midY} L ${midX} ${branchY}`;
+
+  // For identical twins: add horizontal bar at 55% down the diagonals
+  if (tl.type === 'identical') {
+    const frac = 0.55;
+    const bar1X = midX + (cc1.x - midX) * frac;
+    const bar1Y = branchY + (c1Top - branchY) * frac;
+    const bar2X = midX + (cc2.x - midX) * frac;
+    const bar2Y = branchY + (c2Top - branchY) * frac;
+    d += ` M ${bar1X} ${bar1Y} L ${bar2X} ${bar2Y}`;
+  }
+
+  tl.els[0].setAttribute('d', d);
+}
+
+// ══════════════════════
+// CONNECTED GROUPS
+// ══════════════════════
+
+function getConnectedGroup(startId) {
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(p => {
+      if (p.fromId === id && !visited.has(p.toId)) queue.push(p.toId);
+      if (p.toId === id && !visited.has(p.fromId)) queue.push(p.fromId);
+      if (p.fromId === id || p.toId === id) {
+        childLinks.forEach(cl => { if (cl.partnershipId === p.id && !visited.has(cl.childId)) queue.push(cl.childId); });
+      }
+    });
+    childLinks.forEach(cl => {
+      if (cl.childId === id) {
+        const ps = partnerships.find(p => p.id === cl.partnershipId);
+        if (ps) { if (!visited.has(ps.fromId)) queue.push(ps.fromId); if (!visited.has(ps.toId)) queue.push(ps.toId); }
+      }
+    });
+  }
+  return visited;
+}
+
+// ══════════════════════
+// DRAG SYSTEM
+// ══════════════════════
+
+function startDrag(personId, e) {
+  const pos = getPointerPos(e);
+  let dragIds;
+  if (multiSelected.size > 0 && multiSelected.has(personId)) dragIds = new Set(multiSelected);
+  else if (individualMoveMode) dragIds = new Set([personId]);
+  else dragIds = getConnectedGroup(personId);
+
+  const origins = new Map();
+  dragIds.forEach(id => {
+    const p = persons.get(id);
+    if (p) { origins.set(id, { x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) }); p.el.classList.add('dragging'); }
+  });
+  dragState = { personId, dragIds, origins, startX: pos.clientX, startY: pos.clientY };
+}
+
+let selectDragState = null;
+
+function onPointerMove(e) {
+  // Rubber-band
+  if (selectDragState) {
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    const rect = document.getElementById('selectRect');
+    rect.style.left = Math.min(selectDragState.startX, pos.clientX) + 'px';
+    rect.style.top = Math.min(selectDragState.startY, pos.clientY) + 'px';
+    rect.style.width = Math.abs(pos.clientX - selectDragState.startX) + 'px';
+    rect.style.height = Math.abs(pos.clientY - selectDragState.startY) + 'px';
+    rect.style.display = 'block';
+    return;
+  }
+  // Label drag
+  if (labelDragState) {
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    const dx = (pos.clientX - labelDragState.startX) / zoomLevel;
+    const dy = (pos.clientY - labelDragState.startY) / zoomLevel;
+    labelDragState.el.style.left = (labelDragState.origLeft + dx) + 'px';
+    labelDragState.el.style.top = (labelDragState.origTop + dy) + 'px';
+    return;
+  }
+  // Legend box drag
+  if (legendDragState) {
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    const dx = (pos.clientX - legendDragState.startX) / zoomLevel;
+    const dy = (pos.clientY - legendDragState.startY) / zoomLevel;
+    legendDragState.el.style.left = (legendDragState.origLeft + dx) + 'px';
+    legendDragState.el.style.top = (legendDragState.origTop + dy) + 'px';
+    return;
+  }
+  // Canvas pan
+  if (panState) {
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    panX = panState.origPanX + (pos.clientX - panState.startX);
+    panY = panState.origPanY + (pos.clientY - panState.startY);
+    applyTransform();
+    return;
+  }
+  // Person drag
+  if (!dragState) return;
+  if (e.cancelable) e.preventDefault();
+  const pos = getPointerPos(e);
+  const dx = (pos.clientX - dragState.startX) / zoomLevel;
+  const dy = (pos.clientY - dragState.startY) / zoomLevel;
+  dragState.dragIds.forEach(id => {
+    const p = persons.get(id);
+    const orig = dragState.origins.get(id);
+    if (p && orig) { p.el.style.left = (orig.x + dx) + 'px'; p.el.style.top = (orig.y + dy) + 'px'; }
+  });
+  updateAllConnections();
+}
+
+function onPointerUp(e) {
+  if (selectDragState) {
+    document.getElementById('selectRect').style.display = 'none';
+    const pos = getPointerPos(e);
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    const x1 = (Math.min(selectDragState.startX, pos.clientX) - canvasRect.left) / zoomLevel;
+    const y1 = (Math.min(selectDragState.startY, pos.clientY) - canvasRect.top) / zoomLevel;
+    const x2 = (Math.max(selectDragState.startX, pos.clientX) - canvasRect.left) / zoomLevel;
+    const y2 = (Math.max(selectDragState.startY, pos.clientY) - canvasRect.top) / zoomLevel;
+    persons.forEach((p, id) => {
+      const px = parseFloat(p.el.style.left) + SHAPE_HALF, py = parseFloat(p.el.style.top) + SHAPE_HALF;
+      if (px >= x1 && px <= x2 && py >= y1 && py <= y2) { multiSelected.add(id); p.el.classList.add('multi-selected'); }
+    });
+    selectDragState = null;
+    if (multiSelected.size > 0) document.getElementById('statusBar').textContent = `Selected ${multiSelected.size} individuals`;
+    return;
+  }
+  if (labelDragState) { labelDragState.el.classList.remove('dragging'); labelDragState = null; scheduleSave(); return; }
+  if (legendDragState) {
+    legendDragState.el.classList.remove('dragging');
+    legendX = parseFloat(legendDragState.el.style.left);
+    legendY = parseFloat(legendDragState.el.style.top);
+    legendDragState = null;
+    scheduleSave();
+    return;
+  }
+  if (panState) { panState = null; return; }
+  if (dragState) {
+    dragState.dragIds.forEach(id => {
+      const p = persons.get(id);
+      if (p) { p.el.classList.remove('dragging'); p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
+    });
+    dragState = null;
+    alignConnectedPersons();
+    updateNumbering();
+    updateTextWrapping();
+    scheduleSave();
+  }
+}
+
+document.addEventListener('mousemove', onPointerMove);
+document.addEventListener('mouseup', onPointerUp);
+document.addEventListener('touchmove', onPointerMove, { passive: false });
+document.addEventListener('touchend', onPointerUp);
+document.addEventListener('touchcancel', onPointerUp);
+
+// ── Canvas tap / pan ──
+function onCanvasDown(e) {
+  const t = e.target;
+  if (t.closest('.partnership-line') || t.closest('.conn-hit')) return;
+  if (t.id !== 'canvasArea' && t.id !== 'canvas' && t.id !== 'lines-layer' && !t.closest('#lines-layer')) return;
+  if (e.cancelable) e.preventDefault();
+
+  exitAllEditModes();
+
+  if (currentTool === 'label') {
+    const pos = getPointerPos(e);
+    const canvas = document.getElementById('canvas');
+    const r = canvas.getBoundingClientRect();
+    createLabel((pos.clientX - r.left) / zoomLevel, (pos.clientY - r.top) / zoomLevel);
+    return;
+  }
+
+  if (currentTool === 'select') {
+    const pos = getPointerPos(e);
+    selectDragState = { startX: pos.clientX, startY: pos.clientY };
+    if (!e.shiftKey) deselectAll();
+    return;
+  }
+  if (currentTool === 'move') {
+    deselectAll();
+    const pos = getPointerPos(e);
+    panState = { startX: pos.clientX, startY: pos.clientY, origPanX: panX, origPanY: panY };
+  }
+}
+document.getElementById('canvasArea').addEventListener('mousedown', onCanvasDown);
+document.getElementById('canvasArea').addEventListener('touchstart', onCanvasDown, { passive: false });
+
+// ══════════════════════
+// ZOOM & PAN
+// ══════════════════════
+
+function doZoom(delta) {
+  zoomLevel = Math.max(0.2, Math.min(3, zoomLevel + delta));
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+  applyTransform();
+}
+function applyTransform() {
+  document.getElementById('canvas').style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+}
+
+document.getElementById('canvasArea').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.08 : 0.08;
+  const area = document.getElementById('canvasArea');
+  const rect = area.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const oldZoom = zoomLevel;
+  zoomLevel = Math.max(0.2, Math.min(3, zoomLevel + delta));
+  panX = mx - (mx - panX) * (zoomLevel / oldZoom);
+  panY = my - (my - panY) * (zoomLevel / oldZoom);
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+  applyTransform();
+}, { passive: false });
+
+let lastPinchDist = null;
+document.getElementById('canvasArea').addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+}, { passive: true });
+document.getElementById('canvasArea').addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2 && lastPinchDist !== null) {
+    if (e.cancelable) e.preventDefault();
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    zoomLevel = Math.max(0.2, Math.min(3, zoomLevel * (dist / lastPinchDist)));
+    lastPinchDist = dist;
+    document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+    applyTransform();
+  }
+}, { passive: false });
+document.getElementById('canvasArea').addEventListener('touchend', () => { lastPinchDist = null; });
+
+function fitToView() {
+  if (persons.size === 0) return;
+  const area = document.getElementById('canvasArea');
+  const areaRect = area.getBoundingClientRect();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+    minX = Math.min(minX, x - 20); minY = Math.min(minY, y - 20);
+    maxX = Math.max(maxX, x + SHAPE_SIZE + 130); maxY = Math.max(maxY, y + SHAPE_SIZE + 80);
+  });
+  const pad = 80;
+  const contentW = maxX - minX + pad * 2, contentH = maxY - minY + pad * 2;
+  zoomLevel = Math.min(1.5, Math.min(areaRect.width / contentW, areaRect.height / contentH));
+  panX = (areaRect.width - contentW * zoomLevel) / 2 - minX * zoomLevel + pad * zoomLevel;
+  panY = (areaRect.height - contentH * zoomLevel) / 2 - minY * zoomLevel + pad * zoomLevel;
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+  applyTransform();
+}
+
+// ══════════════════════════════
+// TEXT WRAPPING (overlap-aware)
+// ══════════════════════════════
+
+function updateTextWrapping() {
+  persons.forEach(p => {
+    const textEl = p.el.querySelector('.person-text');
+    if (!textEl) return;
+    if (!p.text) { textEl.style.maxWidth = ''; textEl.classList.remove('wrapped', 'text-left'); return; }
+
+    const px = parseFloat(p.el.style.left);
+    const py = parseFloat(p.el.style.top);
+
+    // Determine if this person is the LEFT partner in any partnership
+    let isLeftPartner = false;
+    partnerships.forEach(ps => {
+      if (ps.fromId === p.id || ps.toId === p.id) {
+        const otherId = ps.fromId === p.id ? ps.toId : ps.fromId;
+        const other = persons.get(otherId);
+        if (other) {
+          const otherX = parseFloat(other.el.style.left);
+          if (px < otherX) isLeftPartner = true;
+        }
+      }
+    });
+
+    if (isLeftPartner) {
+      textEl.classList.add('text-left');
+    } else {
+      textEl.classList.remove('text-left');
+    }
+
+    // Reset to unwrapped to measure natural width
+    textEl.style.maxWidth = 'none';
+    textEl.classList.remove('wrapped');
+    const naturalWidth = textEl.offsetWidth;
+
+    if (isLeftPartner) {
+      // Text extends to the LEFT from the shape, below it
+      const textRightEdge = px - 4;
+      const textLeft = textRightEdge - naturalWidth;
+      const ty = py + 56;
+      const textBottom = ty + textEl.offsetHeight;
+
+      let minAvail = Infinity;
+      persons.forEach(other => {
+        if (other.id === p.id) return;
+        const ox = parseFloat(other.el.style.left);
+        const oy = parseFloat(other.el.style.top);
+        const oRight = ox + SHAPE_SIZE;
+        const oBottom = oy + SHAPE_SIZE;
+        if (ty < oBottom + 4 && textBottom > oy - 4) {
+          if (oRight > textLeft - 8 && oRight < textRightEdge) {
+            const avail = textRightEdge - oRight - 8;
+            if (avail < minAvail) minAvail = avail;
+          }
+        }
+      });
+
+      if (minAvail < naturalWidth && minAvail > 30) {
+        textEl.style.maxWidth = minAvail + 'px';
+        textEl.classList.add('wrapped');
+      } else {
+        textEl.style.maxWidth = '';
+        textEl.classList.remove('wrapped');
+      }
+    } else {
+      // Text extends to the RIGHT (default), below the shape
+      const tx = px + 30;
+      const ty = py + 56;
+      const textRight = tx + naturalWidth;
+      const textBottom = ty + textEl.offsetHeight;
+
+      let minAvail = Infinity;
+      persons.forEach(other => {
+        if (other.id === p.id) return;
+        const ox = parseFloat(other.el.style.left);
+        const oy = parseFloat(other.el.style.top);
+        const oBottom = oy + SHAPE_SIZE;
+        if (ty < oBottom + 4 && textBottom > oy - 4) {
+          if (ox > tx && ox < textRight + 8) {
+            const avail = ox - tx - 8;
+            if (avail < minAvail) minAvail = avail;
+          }
+        }
+      });
+
+      if (minAvail < naturalWidth && minAvail > 30) {
+        textEl.style.maxWidth = minAvail + 'px';
+        textEl.classList.add('wrapped');
+      } else {
+        textEl.style.maxWidth = '';
+        textEl.classList.remove('wrapped');
+      }
+    }
+  });
+}
+
+// ══════════════════════
+// NUMBERING
+// ══════════════════════
+
+function updateNumbering() {
+  if (persons.size === 0) return;
+  const list = [];
+  persons.forEach(p => { list.push({ id: p.id, x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) }); });
+  list.sort((a, b) => a.y - b.y);
+
+  const generations = [];
+  let currentGen = [list[0]];
+  for (let i = 1; i < list.length; i++) {
+    if (list[i].y - currentGen[0].y < 80) currentGen.push(list[i]);
+    else { generations.push(currentGen); currentGen = [list[i]]; }
+  }
+  generations.push(currentGen);
+
+  const roman = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  generations.forEach((gen, gi) => {
+    gen.sort((a, b) => a.x - b.x);
+    gen.forEach((item, pi) => {
+      const p = persons.get(item.id);
+      if (p) {
+        const numEl = p.el.querySelector('.person-number');
+        numEl.textContent = `${gi < roman.length ? roman[gi] : (gi+1)}-${pi+1}`;
+        const hasChildLine = childLinks.some(cl => cl.childId === p.id);
+        // Check if this person is part of a twin link
+        const twinLink = twinLinks.find(t => t.child1Id === p.id || t.child2Id === p.id);
+        if (twinLink) {
+          // Determine if this is the left or right twin
+          const otherId = twinLink.child1Id === p.id ? twinLink.child2Id : twinLink.child1Id;
+          const other = persons.get(otherId);
+          const isRightTwin = other && parseFloat(p.el.style.left) > parseFloat(other.el.style.left);
+          numEl.classList.remove('shifted-left', 'shifted-right');
+          numEl.classList.add(isRightTwin ? 'shifted-right' : 'shifted-left');
+        } else {
+          numEl.classList.remove('shifted-left', 'shifted-right');
+          if (hasChildLine) numEl.classList.add('shifted-left');
+        }
+      }
+    });
+  });
+}
+
+// ══════════════════════
+// COLOUR KEY / LEGEND
+// ══════════════════════
+
+let legendVisible = false;
+let legendX = 100, legendY = 100;
+
+function toggleLegend() {
+  legendVisible = !legendVisible;
+  if (legendVisible) {
+    buildLegendBox();
+  } else {
+    const box = document.getElementById('legend-box');
+    if (box) box.remove();
+  }
+  scheduleSave();
+}
+
+function buildLegendBox() {
+  // Remove existing
+  let box = document.getElementById('legend-box');
+  if (box) box.remove();
+
+  // Collect colours in use
+  const colorsInUse = [];
+  const seen = new Set();
+  persons.forEach(p => {
+    if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); colorsInUse.push(p.fillColor); }
+    if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); colorsInUse.push(q); } });
+  });
+
+  box = document.createElement('div');
+  box.className = 'legend-box';
+  box.id = 'legend-box';
+  box.style.left = legendX + 'px';
+  box.style.top = legendY + 'px';
+
+  const title = document.createElement('h4');
+  title.textContent = 'KEY';
+  box.appendChild(title);
+
+  if (colorsInUse.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'legend-empty';
+    empty.textContent = 'No fill colours used yet.';
+    box.appendChild(empty);
+  } else {
+    colorsInUse.forEach(color => {
+      const row = document.createElement('div');
+      row.className = 'legend-row';
+      const swatch = document.createElement('div');
+      swatch.className = 'legend-swatch';
+      swatch.style.background = color;
+      const input = document.createElement('input');
+      input.className = 'legend-input';
+      input.type = 'text';
+      input.placeholder = 'Enter meaning…';
+      input.value = legendLabels[color] || '';
+      input.addEventListener('input', () => { legendLabels[color] = input.value; scheduleSave(); });
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+      row.appendChild(swatch);
+      row.appendChild(input);
+      box.appendChild(row);
+    });
+  }
+
+  // Make draggable
+  const onDown = (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    legendDragState = {
+      el: box,
+      startX: pos.clientX,
+      startY: pos.clientY,
+      origLeft: parseFloat(box.style.left),
+      origTop: parseFloat(box.style.top)
+    };
+    box.classList.add('dragging');
+  };
+  box.addEventListener('mousedown', onDown);
+  box.addEventListener('touchstart', onDown, { passive: false });
+
+  document.getElementById('canvas').appendChild(box);
+}
+
+let legendDragState = null;
+
+// ══════════════════════
+// KEYBOARD
+// ══════════════════════
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
+    if (multiSelected.size > 0) { if (confirm(`Remove ${multiSelected.size} selected individuals?`)) { [...multiSelected].forEach(id => removePerson(id)); multiSelected.clear(); } return; }
+    if (selectedPerson) removePerson(selectedPerson);
+    if (selectedLabel) removeLabel(selectedLabel);
+  }
+  if (e.key === 'Escape') { deselectAll(); connectSource = null; childPartnershipSource = null; twinSource = null; exitAllEditModes(); updateBanner(); updateStatus(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
+    e.preventDefault(); selectAllPersons();
+  }
+});
+
+// ══════════════════════
+// CLEAR
+// ══════════════════════
+
+function clearAll() {
+  if (!confirm('Remove everything from the canvas?')) return;
+  document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
+  document.getElementById('lines-layer').innerHTML = '';
+  persons.clear(); labels.clear();
+  partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
+  multiSelected.clear();
+  selectedPerson = null; selectedLabel = null; connectSource = null; childPartnershipSource = null; twinSource = null;
+  personIdCounter = labelIdCounter = lineIdCounter = 0;
+  legendLabels = {}; legendVisible = false;
+  hideProps();
+  try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
+  document.getElementById('statusBar').textContent = 'Canvas cleared';
+}
+
+// ══════════════════════
+// SESSION SAVE / LOAD
+// ══════════════════════
+
+function buildSessionData() {
+  const personArr = [];
+  persons.forEach(p => {
+    personArr.push({
+      id: p.id, shape: p.shape,
+      x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top),
+      text: p.text, deceased: p.deceased, proband: p.proband,
+      fillMode: p.fillMode, fillColor: p.fillColor, quarters: [...p.quarters],
+      centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown'
+    });
+  });
+  const labelArr = [];
+  labels.forEach(l => {
+    labelArr.push({
+      id: l.id, x: parseFloat(l.el.style.left), y: parseFloat(l.el.style.top),
+      text: l.el.querySelector('.label-text')?.textContent || l.text,
+      size: parseInt(l.el.style.fontSize) || l.size
+    });
+  });
+  return {
+    version: 3,
+    personIdCounter, labelIdCounter, lineIdCounter,
+    persons: personArr,
+    labels: labelArr,
+    partnerships: partnerships.map(p => ({ id: p.id, fromId: p.fromId, toId: p.toId, type: p.type || 'normal' })),
+    childLinks: childLinks.map(c => ({ id: c.id, partnershipId: c.partnershipId, childId: c.childId })),
+    twinLinks: twinLinks.map(t => ({ id: t.id, child1Id: t.child1Id, child2Id: t.child2Id, type: t.type, partnershipId: t.partnershipId })),
+    legendLabels,
+    legendVisible, legendX, legendY,
+    zoom: zoomLevel, panX, panY
+  };
+}
+
+function restoreSession(data) {
+  document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
+  document.getElementById('lines-layer').innerHTML = '';
+  persons.clear(); labels.clear();
+  partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
+  multiSelected.clear(); selectedPerson = null; selectedLabel = null;
+
+  personIdCounter = data.personIdCounter || 0;
+  labelIdCounter = data.labelIdCounter || 0;
+  lineIdCounter = data.lineIdCounter || 0;
+  legendLabels = data.legendLabels || {};
+  legendX = data.legendX || 100;
+  legendY = data.legendY || 100;
+  legendVisible = !!data.legendVisible;
+
+  (data.persons || []).forEach(pd => {
+    // Backward compat: old 'affected' boolean
+    let fm = pd.fillMode || 'none';
+    let fc = pd.fillColor || FILL_COLORS[0];
+    let q = pd.quarters || [null, null, null, null];
+    if (pd.affected && fm === 'none') { fm = 'solid'; fc = '#1a2332'; }
+    addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown');
+    const n = parseInt(pd.id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n;
+  });
+  (data.labels || []).forEach(ld => {
+    createLabel(ld.x, ld.y, ld.id, ld.text, ld.size);
+    const n = parseInt(ld.id.split('-')[1]) || 0; if (n > labelIdCounter) labelIdCounter = n;
+  });
+  (data.partnerships || []).forEach(pd => {
+    addPartnership(pd.fromId, pd.toId, pd.id, pd.type || 'normal');
+    const n = parseInt(pd.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
+  });
+  (data.childLinks || []).forEach(cd => {
+    addChildLink(cd.partnershipId, cd.childId, cd.id);
+    const n = parseInt(cd.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
+  });
+  (data.twinLinks || []).forEach(td => {
+    addTwinLink(td.child1Id, td.child2Id, td.type, td.id);
+    const n = parseInt(td.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
+  });
+
+  if (data.zoom) zoomLevel = data.zoom;
+  if (data.panX !== undefined) panX = data.panX;
+  if (data.panY !== undefined) panY = data.panY;
+  document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+  applyTransform();
+  updateNumbering();
+  updateTextWrapping();
+
+  // Restore legend if it was visible
+  if (legendVisible) buildLegendBox();
+}
+
+function exportJSON() {
+  const data = buildSessionData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = 'pedigree-session.json';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+  document.getElementById('statusBar').textContent = 'Session saved!';
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      restoreSession(data);
+      document.getElementById('statusBar').textContent = 'Session loaded!';
+      document.getElementById('splashOverlay').classList.add('hidden');
+    } catch (err) { alert('Could not read session file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ══════════════════════
+// EXPORT IMAGE
+// ══════════════════════
+
+function saveAsImage() {
+  document.getElementById('statusBar').textContent = 'Generating image…';
+  deselectAll();
+
+  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+    let isLeftP = false;
+    partnerships.forEach(ps => {
+      if (ps.fromId === p.id || ps.toId === p.id) {
+        const otherId = ps.fromId === p.id ? ps.toId : ps.fromId;
+        const other = persons.get(otherId);
+        if (other && x < parseFloat(other.el.style.left)) isLeftP = true;
+      }
+    });
+    minX = Math.min(minX, x - (isLeftP ? 140 : 20)); minY = Math.min(minY, y - 20);
+    maxX = Math.max(maxX, x + SHAPE_SIZE + (isLeftP ? 20 : 140)); maxY = Math.max(maxY, y + SHAPE_SIZE + 80);
+  });
+  labels.forEach(l => {
+    const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + l.el.offsetWidth + 10); maxY = Math.max(maxY, y + l.el.offsetHeight + 10);
+  });
+
+  // Include legend box in bounding box if visible
+  const legendColors = [];
+  if (legendVisible) {
+    const seen = new Set();
+    persons.forEach(p => {
+      if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); legendColors.push({ color: p.fillColor, label: legendLabels[p.fillColor] || '' }); }
+      if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); legendColors.push({ color: q, label: legendLabels[q] || '' }); } });
+    });
+    if (legendColors.length > 0) {
+      const legendH = legendColors.length * 24 + 30;
+      minX = Math.min(minX, legendX - 10);
+      minY = Math.min(minY, legendY - 10);
+      maxX = Math.max(maxX, legendX + 220);
+      maxY = Math.max(maxY, legendY + legendH + 10);
+    }
+  }
+
+  const pad = 60;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+
+  const scale = 2;
+  const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.translate(-minX, -minY);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+  // Draw connections
+  partnerships.forEach(pship => {
+    const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+    if (!fromP || !toP) return;
+    const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+    ctx.beginPath(); ctx.moveTo(fc.x, fc.y); ctx.lineTo(tc.x, tc.y);
+    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2; ctx.stroke();
+    // Consanguineous: second parallel line
+    if (pship.type === 'consanguineous') {
+      const dx = tc.x - fc.x, dy = tc.y - fc.y, len = Math.sqrt(dx*dx+dy*dy) || 1;
+      const nx = -dy/len*4, ny = dx/len*4;
+      ctx.beginPath(); ctx.moveTo(fc.x+nx, fc.y+ny); ctx.lineTo(tc.x+nx, tc.y+ny); ctx.stroke();
+    }
+    // Separated: slash marks
+    if (pship.type === 'separated') {
+      const mx = (fc.x+tc.x)/2, my = (fc.y+tc.y)/2;
+      ctx.beginPath(); ctx.moveTo(mx-5, my-8); ctx.lineTo(mx+5, my+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(mx+3, my-8); ctx.lineTo(mx+13, my+8); ctx.stroke();
+    }
+  });
+
+  childLinks.forEach(cl => {
+    const pship = partnerships.find(p => p.id === cl.partnershipId);
+    const child = persons.get(cl.childId);
+    if (!pship || !child) return;
+    const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+    if (!fromP || !toP) return;
+    const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+    const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+    const childCenter = getPersonCenter(child);
+    const childTop = parseFloat(child.el.style.top);
+    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
+
+    // Check if twin
+    const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
+    if (twinLink) {
+      const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
+      const otherChild = persons.get(otherChildId);
+      if (otherChild) {
+        const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
+        const branchY = midY + (avgChildTop - midY) * 0.45;
+        ctx.beginPath(); ctx.moveTo(midX, branchY); ctx.lineTo(childCenter.x, childTop); ctx.stroke();
+        return;
+      }
+    }
+    // Normal right-angle
+    const dropY = midY + (childTop - midY) * 0.5;
+    ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, dropY); ctx.lineTo(childCenter.x, dropY); ctx.lineTo(childCenter.x, childTop);
+    ctx.stroke();
+  });
+
+  // Twin links (V-shape from branch point + bar for identical)
+  twinLinks.forEach(tl => {
+    const c1 = persons.get(tl.child1Id), c2 = persons.get(tl.child2Id);
+    if (!c1 || !c2) return;
+    const pship = partnerships.find(p => p.id === tl.partnershipId);
+    if (!pship) return;
+    const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+    if (!fp || !tp) return;
+    const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
+    const midX = (fc.x+tc.x)/2, midY = (fc.y+tc.y)/2;
+    const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
+    const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
+    const avgChildTop = (c1Top + c2Top) / 2;
+    const branchY = midY + (avgChildTop - midY) * 0.45;
+    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
+    // Vertical drop
+    ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, branchY); ctx.stroke();
+    // Identical: horizontal bar
+    if (tl.type === 'identical') {
+      const frac = 0.55;
+      const b1x = midX+(cc1.x-midX)*frac, b1y = branchY+(c1Top-branchY)*frac;
+      const b2x = midX+(cc2.x-midX)*frac, b2y = branchY+(c2Top-branchY)*frac;
+      ctx.beginPath(); ctx.moveTo(b1x, b1y); ctx.lineTo(b2x, b2y); ctx.stroke();
+    }
+  });
+
+  // Draw persons
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+    const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
+    ctx.save();
+    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
+
+    // Draw fills
+    if (p.fillMode === 'solid' && p.fillColor) {
+      ctx.fillStyle = p.fillColor;
+      drawShapePath(ctx, p.shape, x, y); ctx.fill();
+    } else if (p.fillMode === 'quartered') {
+      drawQuarteredCanvas(ctx, p.shape, x, y, p.quarters);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      drawShapePath(ctx, p.shape, x, y); ctx.fill();
+    }
+
+    // Border
+    drawShapePath(ctx, p.shape, x, y); ctx.stroke();
+
+    // Quarter dividers if quartered
+    if (p.fillMode === 'quartered') {
+      ctx.save(); ctx.strokeStyle = 'rgba(26,35,50,0.3)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, y + 4); ctx.lineTo(cx, y + 48); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x + 48, cy); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Deceased
+    if (p.deceased) {
+      ctx.beginPath();
+      if (p.shape === 'male') { ctx.moveTo(x + 4, y + 48); ctx.lineTo(x + 48, y + 4); }
+      else if (p.shape === 'female') { ctx.moveTo(x + 4, y + 48); ctx.lineTo(x + 48, y + 4); }
+      else if (p.shape === 'miscarriage') { ctx.moveTo(x + 6, y + 44); ctx.lineTo(x + 46, y + 8); }
+      else { ctx.moveTo(x + 3, y + 49); ctx.lineTo(x + 49, y + 3); }
+      ctx.stroke();
+    }
+
+    // Center text (S or P)
+    if (p.centerText) {
+      ctx.save();
+      ctx.fillStyle = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : '#1a2332';
+      ctx.font = 'bold 16px -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(p.centerText, cx, cy + (p.shape === 'miscarriage' ? 4 : 0));
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // Proband arrow (below-left, pointing up toward shape)
+    if (p.proband) {
+      ctx.save(); ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 1.8;
+      // Arrow: line from bottom-left to upper-right, arrowhead at upper-right
+      ctx.beginPath(); ctx.moveTo(x - 16, y + 70); ctx.lineTo(x - 2, y + 56); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 2, y + 56); ctx.lineTo(x - 9, y + 56); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 2, y + 56); ctx.lineTo(x - 2, y + 63); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Number
+    const numEl = p.el.querySelector('.person-number');
+    if (numEl && numEl.textContent) {
+      ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 9px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+      const hasChildLine = childLinks.some(cl => cl.childId === p.id);
+      const twinLink = twinLinks.find(t => t.child1Id === p.id || t.child2Id === p.id);
+      if (twinLink) {
+        const otherId = twinLink.child1Id === p.id ? twinLink.child2Id : twinLink.child1Id;
+        const other = persons.get(otherId);
+        const isRightTwin = other && x > parseFloat(other.el.style.left);
+        ctx.textAlign = isRightTwin ? 'left' : 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(numEl.textContent, isRightTwin ? x + SHAPE_SIZE + 2 : x - 2, y - 4);
+      } else if (hasChildLine) {
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillText(numEl.textContent, x - 2, y - 4);
+      } else {
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(numEl.textContent, cx, y - 4);
+      }
+    }
+
+    // Text (below shape: right-aligned, or left if left-partner)
+    if (p.text) {
+      let isLeftPartner = false;
+      partnerships.forEach(ps => {
+        if (ps.fromId === p.id || ps.toId === p.id) {
+          const otherId = ps.fromId === p.id ? ps.toId : ps.fromId;
+          const other = persons.get(otherId);
+          if (other && x < parseFloat(other.el.style.left)) isLeftPartner = true;
+        }
+      });
+      ctx.fillStyle = '#1a2332'; ctx.font = '11px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+      ctx.textBaseline = 'top';
+      if (isLeftPartner) {
+        ctx.textAlign = 'right';
+        p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x - 4, y + 56 + i * 15); });
+      } else {
+        ctx.textAlign = 'left';
+        p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x + 30, y + 56 + i * 15); });
+      }
+    }
+
+    // Miscarriage sex label
+    if (p.shape === 'miscarriage' && p.miscarriageSex && p.miscarriageSex !== 'unknown') {
+      ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 9px -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(p.miscarriageSex, cx, y + 58);
+    }
+  });
+
+  // Draw labels
+  labels.forEach(l => {
+    const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
+    const text = l.el.querySelector('.label-text')?.textContent || '';
+    const fontSize = parseInt(l.el.style.fontSize) || 14;
+    ctx.fillStyle = '#6b7a8d';
+    ctx.font = 'italic ' + fontSize + 'px Georgia, "Times New Roman", serif';
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText(text, x + 8, y + 4);
+  });
+
+  // Draw legend at its canvas position
+  if (legendVisible && legendColors.length > 0) {
+    const lx = legendX;
+    const ly = legendY;
+    const lw = 200;
+    const rowH = 24;
+    const totalH = legendColors.length * rowH + 30;
+
+    // Background box
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#dde1e6';
+    ctx.lineWidth = 1.5;
+    const br = 8;
+    ctx.beginPath();
+    ctx.moveTo(lx + br, ly); ctx.lineTo(lx + lw - br, ly);
+    ctx.quadraticCurveTo(lx + lw, ly, lx + lw, ly + br);
+    ctx.lineTo(lx + lw, ly + totalH - br);
+    ctx.quadraticCurveTo(lx + lw, ly + totalH, lx + lw - br, ly + totalH);
+    ctx.lineTo(lx + br, ly + totalH);
+    ctx.quadraticCurveTo(lx, ly + totalH, lx, ly + totalH - br);
+    ctx.lineTo(lx, ly + br);
+    ctx.quadraticCurveTo(lx, ly, lx + br, ly);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // Title
+    ctx.fillStyle = '#6b7a8d';
+    ctx.font = 'bold 10px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText('KEY', lx + 12, ly + 10);
+
+    // Rows
+    legendColors.forEach((lc, i) => {
+      const ry = ly + 28 + i * rowH;
+      ctx.fillStyle = lc.color;
+      ctx.fillRect(lx + 12, ry, 16, 16);
+      ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1; ctx.strokeRect(lx + 12, ry, 16, 16);
+      ctx.fillStyle = '#1a2332';
+      ctx.font = '11px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+      ctx.fillText(lc.label || '(unlabelled)', lx + 36, ry + 2);
+    });
+  }
+
+  try {
+    const link = document.createElement('a');
+    link.download = 'pedigree.png';
+    link.href = c.toDataURL('image/png');
+    link.click();
+    document.getElementById('statusBar').textContent = 'Image exported!';
+  } catch (err) { document.getElementById('statusBar').textContent = 'Error exporting image'; }
+}
+
+function drawShapePath(ctx, shape, x, y) {
+  const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
+  ctx.beginPath();
+  if (shape === 'male') { ctx.rect(x + 4, y + 4, 44, 44); }
+  else if (shape === 'female') { ctx.arc(cx, cy, 22, 0, Math.PI * 2); }
+  else if (shape === 'miscarriage') { ctx.moveTo(cx, y + 8); ctx.lineTo(x + 46, y + 44); ctx.lineTo(x + 6, y + 44); ctx.closePath(); }
+  else { ctx.moveTo(cx, y + 3); ctx.lineTo(x + 49, cy); ctx.lineTo(cx, y + 49); ctx.lineTo(x + 3, cy); ctx.closePath(); }
+}
+
+function drawQuarteredCanvas(ctx, shape, x, y, quarters) {
+  const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
+  if (shape === 'male') {
+    const rects = [[cx, y+4, 22, 22],[cx, cy, 22, 22],[x+4, cy, 22, 22],[x+4, y+4, 22, 22]];
+    rects.forEach((r, i) => { ctx.fillStyle = quarters[i] || '#ffffff'; ctx.fillRect(r[0], r[1], r[2], r[3]); });
+  } else if (shape === 'female') {
+    const angles = [[-Math.PI/2, 0], [0, Math.PI/2], [Math.PI/2, Math.PI], [Math.PI, 3*Math.PI/2]];
+    angles.forEach((a, i) => {
+      ctx.fillStyle = quarters[i] || '#ffffff';
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 22, a[0], a[1]); ctx.closePath(); ctx.fill();
+    });
+  } else {
+    const pts = [
+      [[cx,cy],[cx,y+3],[x+49,cy]],
+      [[cx,cy],[x+49,cy],[cx,y+49]],
+      [[cx,cy],[cx,y+49],[x+3,cy]],
+      [[cx,cy],[x+3,cy],[cx,y+3]]
+    ];
+    pts.forEach((tri, i) => {
+      ctx.fillStyle = quarters[i] || '#ffffff';
+      ctx.beginPath(); ctx.moveTo(tri[0][0],tri[0][1]); ctx.lineTo(tri[1][0],tri[1][1]); ctx.lineTo(tri[2][0],tri[2][1]); ctx.closePath(); ctx.fill();
+    });
+  }
+}
+
+// ── Auto-restore ──
+function tryAutoRestore() {
+  try {
+    const saved = localStorage.getItem('pedigree-studio-session');
+    if (saved) {
+      const data = JSON.parse(saved);
+      restoreSession(data);
+      document.getElementById('splashOverlay').classList.add('hidden');
+      document.getElementById('statusBar').textContent = 'Previous session restored';
+      return true;
+    }
+  } catch(e) { console.error('Auto-restore failed:', e); }
+  return false;
+}
+
+// ── Init ──
+initColorPickers();
+tryAutoRestore();
+updateStatus();
+</script>
+</body>
+</html>

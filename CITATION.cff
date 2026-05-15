@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use PedigreeStudio in academic work, clinical teaching, software development, or publications, please cite it as below."
+type: software
+
+title: "PedigreeStudio"
+version: "1.0.3"
+
+authors:
+  - family-names: "Hearn"
+    given-names: "Timothy John"
+    orcid: "https://orcid.org/0000-0001-6827-4196"
+
+abstract: "PedigreeStudio is a fully offline, browser-based clinical pedigree drawing tool distributed as a single HTML file with no external dependencies."
+
+keywords:
+  - pedigree
+  - clinical genetics
+  - genetic counselling
+  - family history
+  - browser-based software
+  - offline software
+  - medical education
+
+license: "MIT"
+
+repository-code: "https://github.com/comparativechrono/PedigreeStudio"
+url: "https://comparativechrono.github.io/PedigreeStudio/"
+
+doi: "10.5281/zenodo.20209376"
+date-released: "2026-05-15"

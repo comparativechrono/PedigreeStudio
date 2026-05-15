@@ -505,6 +505,10 @@
       <label onclick="toggleProband()">Proband</label>
       <button class="toggle-switch" id="probandToggle" onclick="toggleProband()"></button>
     </div>
+    <div class="toggle-row">
+      <label onclick="toggleNoSnap()">Free position (no snap)</label>
+      <button class="toggle-switch" id="noSnapToggle" onclick="toggleNoSnap()"></button>
+    </div>
 
     <div style="margin-top:10px;">
       <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Change shape</label>
@@ -1010,6 +1014,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
     fillMode, fillColor,
     quarters: [...quarters],
     centerText, miscarriageSex,
+    noSnap: false,
     el
   };
   persons.set(id, personData);
@@ -1115,6 +1120,7 @@ function showProps(p) {
   document.getElementById('personText').value = p.text || '';
   document.getElementById('deceasedToggle').className = 'toggle-switch' + (p.deceased ? ' on' : '');
   document.getElementById('probandToggle').className = 'toggle-switch' + (p.proband ? ' on' : '');
+  document.getElementById('noSnapToggle').className = 'toggle-switch' + (p.noSnap ? ' on' : '');
 
   // Center text buttons
   document.querySelectorAll('[data-ct]').forEach(b => b.classList.toggle('active', b.dataset.ct === (p.centerText || '')));
@@ -1178,6 +1184,15 @@ function toggleProband() {
   document.getElementById('probandToggle').className = 'toggle-switch' + (p.proband ? ' on' : '');
   if (p.proband) { p.el.classList.add('proband'); addProbandArrow(p.el); }
   else { p.el.classList.remove('proband'); const arr = p.el.querySelector('.proband-arrow'); if (arr) arr.remove(); }
+  scheduleSave();
+}
+
+function toggleNoSnap() {
+  if (!selectedPerson) return;
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.noSnap = !p.noSnap;
+  document.getElementById('noSnapToggle').className = 'toggle-switch' + (p.noSnap ? ' on' : '');
   scheduleSave();
 }
 
@@ -1530,15 +1545,16 @@ function updatePartnershipPos(pship) {
   if (pship.type === 'separated') {
     if (pship.slash) pship.slash.forEach(s => s.remove());
     const mx = (fc.x + tc.x) / 2, my = (fc.y + tc.y) / 2;
+    const offX = -25; // shift left to avoid child line at midpoint
     const svg = document.getElementById('lines-layer');
     const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    s1.setAttribute('x1', mx - 5); s1.setAttribute('y1', my - 8);
-    s1.setAttribute('x2', mx + 5); s1.setAttribute('y2', my + 8);
+    s1.setAttribute('x1', mx + offX - 5); s1.setAttribute('y1', my - 8);
+    s1.setAttribute('x2', mx + offX + 5); s1.setAttribute('y2', my + 8);
     s1.setAttribute('stroke', '#1a2332'); s1.setAttribute('stroke-width', '2');
     s1.style.pointerEvents = 'none';
     const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    s2.setAttribute('x1', mx + 3); s2.setAttribute('y1', my - 8);
-    s2.setAttribute('x2', mx + 13); s2.setAttribute('y2', my + 8);
+    s2.setAttribute('x1', mx + offX + 3); s2.setAttribute('y1', my - 8);
+    s2.setAttribute('x2', mx + offX + 13); s2.setAttribute('y2', my + 8);
     s2.setAttribute('stroke', '#1a2332'); s2.setAttribute('stroke-width', '2');
     s2.style.pointerEvents = 'none';
     svg.appendChild(s1); svg.appendChild(s2);
@@ -1609,6 +1625,27 @@ function removeChildLink(id) {
   scheduleSave();
 }
 
+function getSafeBranchY(defaultY, minX, maxX, excludeIds) {
+  // Check if the branch line at defaultY would cross any person shapes
+  // If so, push it up to at least SHAPE_HALF above that person's top
+  let safeY = defaultY;
+  persons.forEach(p => {
+    if (excludeIds.has(p.id)) return;
+    const px = parseFloat(p.el.style.left);
+    const py = parseFloat(p.el.style.top);
+    const pRight = px + SHAPE_SIZE;
+    const pBottom = py + SHAPE_SIZE;
+    // Check horizontal overlap: does this person sit in the branch's horizontal span?
+    if (pRight < minX - 4 || px > maxX + 4) return;
+    // Check if the branch Y falls within or near the person's vertical extent
+    // Include SHAPE_SIZE below the shape to cover child line descent zone
+    if (safeY > py - SHAPE_HALF && safeY < pBottom + SHAPE_SIZE) {
+      safeY = py - SHAPE_HALF;
+    }
+  });
+  return safeY;
+}
+
 function updateChildLinkPos(cl) {
   const pship = partnerships.find(p => p.id === cl.partnershipId);
   const child = persons.get(cl.childId);
@@ -1620,16 +1657,24 @@ function updateChildLinkPos(cl) {
   const childCenter = getPersonCenter(child);
   const childTop = parseFloat(child.el.style.top);
 
+  // Gather all children of same partnership for horizontal span
+  const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
+  const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
+
   // Check if this child is part of a twin link
   const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
 
   if (twinLink) {
-    // Twin: diagonal line from branch point to child
     const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
     const otherChild = persons.get(otherChildId);
     if (otherChild) {
       const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
-      const branchY = midY + (avgChildTop - midY) * 0.45;
+      let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
+      // Check for collisions across the horizontal span
+      const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
+      allXs.push(midX);
+      branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+      branchY = Math.max(midY + 4, branchY);
       const pathD = `M ${midX} ${branchY} L ${childCenter.x} ${childTop}`;
       cl.els[0].setAttribute('d', pathD);
       cl.els[1].setAttribute('d', pathD);
@@ -1637,8 +1682,13 @@ function updateChildLinkPos(cl) {
     }
   }
 
-  // Normal: right-angle path
-  const dropY = midY + (childTop - midY) * 0.5;
+  // Normal: right-angle path at fixed height above children
+  let dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+  // Check for collisions across the horizontal span
+  const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
+  allXs.push(midX);
+  dropY = getSafeBranchY(dropY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+  dropY = Math.max(midY + 4, dropY);
   const pathD = `M ${midX} ${midY} L ${midX} ${dropY} L ${childCenter.x} ${dropY} L ${childCenter.x} ${childTop}`;
   cl.els[0].setAttribute('d', pathD);
   cl.els[1].setAttribute('d', pathD);
@@ -1663,12 +1713,18 @@ function alignConnectedPersons() {
   partnerships.forEach(ps => {
     const p1 = persons.get(ps.fromId), p2 = persons.get(ps.toId);
     if (!p1 || !p2) return;
+    // If both are noSnap, skip entirely
+    if (p1.noSnap && p2.noSnap) return;
     const x1 = parseFloat(p1.el.style.left), x2 = parseFloat(p2.el.style.left);
-    const leftPerson = x1 <= x2 ? p1 : p2;
-    const rightPerson = x1 <= x2 ? p2 : p1;
-    const targetY = parseFloat(leftPerson.el.style.top);
-    rightPerson.el.style.top = targetY + 'px';
-    rightPerson.y = targetY;
+    // Determine reference: prefer the non-noSnap person; if both snappable, use leftmost
+    let refPerson, otherPerson;
+    if (p1.noSnap) { refPerson = p2; otherPerson = p1; }
+    else if (p2.noSnap) { refPerson = p1; otherPerson = p2; }
+    else { refPerson = x1 <= x2 ? p1 : p2; otherPerson = x1 <= x2 ? p2 : p1; }
+    if (otherPerson.noSnap) return; // don't move free-positioned person
+    const targetY = parseFloat(refPerson.el.style.top);
+    otherPerson.el.style.top = targetY + 'px';
+    otherPerson.y = targetY;
   });
 
   // 2. Align siblings: children of the same partnership snap to leftmost sibling's Y
@@ -1679,18 +1735,19 @@ function alignConnectedPersons() {
   });
   Object.values(childrenByPartnership).forEach(childIds => {
     if (childIds.length < 2) return;
-    // Find leftmost child
-    let leftmostX = Infinity, targetY = 0;
+    // Find leftmost snappable child for reference Y
+    let leftmostX = Infinity, targetY = 0, hasRef = false;
     childIds.forEach(cid => {
       const p = persons.get(cid);
-      if (!p) return;
+      if (!p || p.noSnap) return; // ignore free-positioned children as reference
       const x = parseFloat(p.el.style.left);
-      if (x < leftmostX) { leftmostX = x; targetY = parseFloat(p.el.style.top); }
+      if (x < leftmostX) { leftmostX = x; targetY = parseFloat(p.el.style.top); hasRef = true; }
     });
-    // Snap all siblings to that Y
+    if (!hasRef) return; // all children are noSnap, nothing to align
+    // Snap only non-noSnap siblings to that Y
     childIds.forEach(cid => {
       const p = persons.get(cid);
-      if (!p) return;
+      if (!p || p.noSnap) return;
       p.el.style.top = targetY + 'px';
       p.y = targetY;
     });
@@ -1777,14 +1834,22 @@ function updateTwinLinkPos(tl) {
   const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
   const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
   const avgChildTop = (c1Top + c2Top) / 2;
-  const branchY = midY + (avgChildTop - midY) * 0.45;
+
+  const siblingIds = childLinks.filter(c => c.partnershipId === tl.partnershipId).map(c => c.childId);
+  const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
+  const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
+  allXs.push(midX);
+
+  let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
+  branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+  branchY = Math.max(midY + 4, branchY);
 
   // Build path: vertical drop from partnership midpoint to branch point
   let d = `M ${midX} ${midY} L ${midX} ${branchY}`;
 
-  // For identical twins: add horizontal bar at 55% down the diagonals
+  // For identical twins: add horizontal bar at 50% down the diagonals
   if (tl.type === 'identical') {
-    const frac = 0.55;
+    const frac = 0.5;
     const bar1X = midX + (cc1.x - midX) * frac;
     const bar1Y = branchY + (c1Top - branchY) * frac;
     const bar2X = midX + (cc2.x - midX) * frac;
@@ -2323,7 +2388,8 @@ function buildSessionData() {
       x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top),
       text: p.text, deceased: p.deceased, proband: p.proband,
       fillMode: p.fillMode, fillColor: p.fillColor, quarters: [...p.quarters],
-      centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown'
+      centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown',
+      noSnap: !!p.noSnap
     });
   });
   const labelArr = [];
@@ -2370,6 +2436,7 @@ function restoreSession(data) {
     let q = pd.quarters || [null, null, null, null];
     if (pd.affected && fm === 'none') { fm = 'solid'; fc = '#1a2332'; }
     addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown');
+    if (pd.noSnap) { const pp = persons.get(pd.id); if (pp) pp.noSnap = true; }
     const n = parseInt(pd.id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n;
   });
   (data.labels || []).forEach(ld => {
@@ -2505,8 +2572,9 @@ function saveAsImage() {
     // Separated: slash marks
     if (pship.type === 'separated') {
       const mx = (fc.x+tc.x)/2, my = (fc.y+tc.y)/2;
-      ctx.beginPath(); ctx.moveTo(mx-5, my-8); ctx.lineTo(mx+5, my+8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(mx+3, my-8); ctx.lineTo(mx+13, my+8); ctx.stroke();
+      const sx = mx - 25;
+      ctx.beginPath(); ctx.moveTo(sx-5, my-8); ctx.lineTo(sx+5, my+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+3, my-8); ctx.lineTo(sx+13, my+8); ctx.stroke();
     }
   });
 
@@ -2522,6 +2590,11 @@ function saveAsImage() {
     const childTop = parseFloat(child.el.style.top);
     ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
 
+    const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
+    const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
+    const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
+    allXs.push(midX);
+
     // Check if twin
     const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
     if (twinLink) {
@@ -2529,13 +2602,17 @@ function saveAsImage() {
       const otherChild = persons.get(otherChildId);
       if (otherChild) {
         const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
-        const branchY = midY + (avgChildTop - midY) * 0.45;
+        let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
+        branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+        branchY = Math.max(midY + 4, branchY);
         ctx.beginPath(); ctx.moveTo(midX, branchY); ctx.lineTo(childCenter.x, childTop); ctx.stroke();
         return;
       }
     }
     // Normal right-angle
-    const dropY = midY + (childTop - midY) * 0.5;
+    let dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+    dropY = getSafeBranchY(dropY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+    dropY = Math.max(midY + 4, dropY);
     ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, dropY); ctx.lineTo(childCenter.x, dropY); ctx.lineTo(childCenter.x, childTop);
     ctx.stroke();
   });
@@ -2553,13 +2630,19 @@ function saveAsImage() {
     const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
     const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
     const avgChildTop = (c1Top + c2Top) / 2;
-    const branchY = midY + (avgChildTop - midY) * 0.45;
+    const siblingIds = childLinks.filter(c => c.partnershipId === tl.partnershipId).map(c => c.childId);
+    const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
+    const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
+    allXs.push(midX);
+    let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
+    branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
+    branchY = Math.max(midY + 4, branchY);
     ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
     // Vertical drop
     ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, branchY); ctx.stroke();
     // Identical: horizontal bar
     if (tl.type === 'identical') {
-      const frac = 0.55;
+      const frac = 0.5;
       const b1x = midX+(cc1.x-midX)*frac, b1y = branchY+(c1Top-branchY)*frac;
       const b2x = midX+(cc2.x-midX)*frac, b2y = branchY+(c2Top-branchY)*frac;
       ctx.beginPath(); ctx.moveTo(b1x, b1y); ctx.lineTo(b2x, b2y); ctx.stroke();

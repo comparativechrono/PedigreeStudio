@@ -214,6 +214,15 @@
     font-size: 9px; font-weight: 700; color: var(--text-muted);
     white-space: nowrap; pointer-events: none; letter-spacing: 0.3px;
   }
+  .person-number.editable {
+    pointer-events: auto; cursor: pointer;
+    border-bottom: 1px dashed var(--text-muted); padding: 0 2px;
+  }
+  .person-number.editable:focus {
+    outline: none; cursor: text;
+    background: rgba(42,125,140,0.08); border-radius: 2px;
+    border-bottom: 1px solid var(--accent);
+  }
   .person-number.shifted-left { left: -2px; transform: translateX(-100%); }
   .person-number.shifted-right { left: auto; right: -2px; transform: translateX(100%); }
   .person-text {
@@ -250,11 +259,14 @@
     display: none; align-items: center; justify-content: center;
   }
   .label:hover .delete-btn, .label.selected .delete-btn { display: flex; }
-  .label-text { outline: none; min-height: 1em; cursor: grab; }
+  .label-text { outline: none; min-height: 1em; cursor: grab; white-space: pre-wrap; }
   .label-text[contenteditable="true"] { cursor: text; background: rgba(42,125,140,0.06); border-radius: 3px; }
+  .label.bordered .label-text { border: 1.5px solid #6b7a8d; padding: 4px 8px; border-radius: 4px; }
 
   /* ── Connection hit areas ── */
   .conn-hit { pointer-events: stroke; cursor: pointer; }
+  .partnership-line.highlighted { stroke: var(--accent) !important; stroke-width: 4 !important; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
+  .person-text.text-left.proband-left { top: 74px; }
 
   /* ── Status bar ── */
   .status-bar {
@@ -317,12 +329,6 @@
   }
   .legend-input:focus { border-color: var(--accent); }
   .legend-empty { font-size: 11px; color: var(--text-muted); font-style: italic; pointer-events: none; }
-
-  /* ── Rubber-band select ── */
-  .select-rect {
-    position: absolute; border: 1.5px dashed var(--accent);
-    background: rgba(42,125,140,0.06); pointer-events: none; z-index: 500; display: none;
-  }
 
   /* ── Proband arrow (below-left of symbol) ── */
   .proband-arrow {
@@ -463,6 +469,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
       Twin
     </button>
+    <span style="width:1px;height:24px;background:var(--border);margin:0 2px;"></span>
+    <button class="tool-btn undo-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled style="opacity:0.35;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="7 14 3 10 7 6"/></svg>
+    </button>
+    <button class="tool-btn redo-btn" onclick="redo()" title="Redo (Ctrl+Y)" disabled style="opacity:0.35;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><polyline points="17 14 21 10 17 6"/></svg>
+    </button>
   </div>
 
   <div class="panel-section">
@@ -495,7 +508,7 @@
   <div class="panel-section props-panel" id="propsPanel">
     <h3>Selected Person</h3>
     <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Annotation (shown below-right)</label>
-    <textarea id="personText" placeholder="e.g. Breast Ca dx 42&#10;BRCA1+" oninput="updatePersonText()"></textarea>
+    <textarea id="personText" placeholder="e.g. Breast Ca dx 42&#10;BRCA1+" oninput="updatePersonText()" onfocus="pushUndo()"></textarea>
 
     <div class="toggle-row" style="margin-top:8px;">
       <label onclick="toggleDeceased()">Deceased</label>
@@ -598,6 +611,20 @@
       <button class="size-btn" onclick="changeLabelSize(2)">+</button>
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Applies to selected or next new label. Double-tap a label to edit.</p>
+    <button class="btn btn-secondary" id="labelBorderToggle" onclick="toggleLabelBorder()" style="margin-top:8px;font-size:11px;padding:5px 10px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      Border Box: Off
+    </button>
+    <div style="margin-top:10px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Pedigree labelling</label>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-secondary active" data-nm="numbers" onclick="setNumberingMode('numbers')" style="flex:1;margin:0;padding:5px;font-size:10px;">Numbers</button>
+        <button class="btn btn-secondary" data-nm="letters" onclick="setNumberingMode('letters')" style="flex:1;margin:0;padding:5px;font-size:10px;">Gen-Letters</button>
+        <button class="btn btn-secondary" data-nm="lettersonly" onclick="setNumberingMode('lettersonly')" style="flex:1;margin:0;padding:5px;font-size:10px;">Letters</button>
+        <button class="btn btn-secondary" data-nm="freetext" onclick="setNumberingMode('freetext')" style="flex:1;margin:0;padding:5px;font-size:10px;">Free Text</button>
+        <button class="btn btn-secondary" data-nm="off" onclick="setNumberingMode('off')" style="flex:1;margin:0;padding:5px;font-size:10px;">Off</button>
+      </div>
+    </div>
   </div>
 
   <div class="panel-section">
@@ -607,6 +634,15 @@
       <button class="toggle-switch" id="individualMoveToggle" onclick="toggleIndividualMove()"></button>
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">Off = drag moves connected family. On = drag moves one person.</p>
+    <div style="margin-top:12px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Partnership width: <span id="partnerGapLabel">2×</span></label>
+      <input type="range" min="1" max="5" step="0.5" value="2" id="partnerGapSlider" oninput="setPartnerGap(this.value)" style="width:100%;accent-color:var(--accent);">
+    </div>
+    <div style="margin-top:8px;">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Child line height: <span id="childHeightLabel">2.5×</span></label>
+      <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)" style="width:100%;accent-color:var(--accent);">
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Multiples of shape size. Applied when individual move is off.</p>
   </div>
 
   <div class="panel-section" style="display:flex; flex-direction:column; gap:4px;">
@@ -640,6 +676,12 @@
     Child
   </button>
   <button class="tool-btn" id="m-tool-twin" onclick="setTool('twin')">Twin</button>
+  <button class="tool-btn undo-btn" onclick="undo()" title="Undo" disabled style="opacity:0.35;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="7 14 3 10 7 6"/></svg>
+  </button>
+  <button class="tool-btn redo-btn" onclick="redo()" title="Redo" disabled style="opacity:0.35;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><polyline points="17 14 21 10 17 6"/></svg>
+  </button>
 </div>
 
 <div class="mode-banner" id="modeBanner" onclick="this.classList.remove('visible')"></div>
@@ -648,7 +690,6 @@
   <div id="canvas">
     <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
-  <div class="select-rect" id="selectRect"></div>
   <div class="zoom-controls">
     <button class="zoom-btn" onclick="doZoom(-0.1)">−</button>
     <div class="zoom-label" id="zoomLabel">100%</div>
@@ -687,6 +728,8 @@ let activeQuarter = -1; // which quarter is being edited
 
 const SHAPE_SIZE = 52;
 const SHAPE_HALF = 26;
+let partnerGap = SHAPE_SIZE * 2;
+let childHeight = SHAPE_SIZE * 2.5;
 
 const FILL_COLORS = [
   '#1a2332','#c0392b','#2980b9','#27ae60','#e67e22',
@@ -700,6 +743,7 @@ const childLinks = [];
 const twinLinks = [];
 const multiSelected = new Set();
 let legendLabels = {};
+let numberingMode = 'numbers';
 let currentPartnershipType = 'normal';
 let currentTwinType = 'identical';
 let twinSource = null; // { '#c0392b': 'Breast cancer', ... }
@@ -713,6 +757,63 @@ function scheduleSave() {
   saveTimer = setTimeout(() => {
     try { localStorage.setItem('pedigree-studio-session', JSON.stringify(buildSessionData())); } catch(e) {}
   }, 800);
+}
+
+// ── Undo / Redo ──
+const undoStack = [];
+const redoStack = [];
+const MAX_UNDO = 50;
+let isRestoring = false;
+let undoGroupActive = false;
+
+function pushUndo() {
+  if (isRestoring || undoGroupActive) return;
+  undoStack.push(JSON.stringify(buildSessionData()));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoRedoUI();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.stringify(buildSessionData()));
+  const state = JSON.parse(undoStack.pop());
+  // Preserve current slider settings — they are user preferences, not per-operation state
+  const savedGap = partnerGap, savedHeight = childHeight;
+  isRestoring = true;
+  restoreSession(state);
+  isRestoring = false;
+  partnerGap = savedGap; childHeight = savedHeight;
+  document.getElementById('partnerGapSlider').value = partnerGap / SHAPE_SIZE;
+  document.getElementById('partnerGapLabel').textContent = (partnerGap / SHAPE_SIZE) + '×';
+  document.getElementById('childHeightSlider').value = childHeight / SHAPE_SIZE;
+  document.getElementById('childHeightLabel').textContent = (childHeight / SHAPE_SIZE) + '×';
+  scheduleSave();
+  updateUndoRedoUI();
+  document.getElementById('statusBar').textContent = 'Undo';
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.stringify(buildSessionData()));
+  const state = JSON.parse(redoStack.pop());
+  const savedGap = partnerGap, savedHeight = childHeight;
+  isRestoring = true;
+  restoreSession(state);
+  isRestoring = false;
+  partnerGap = savedGap; childHeight = savedHeight;
+  document.getElementById('partnerGapSlider').value = partnerGap / SHAPE_SIZE;
+  document.getElementById('partnerGapLabel').textContent = (partnerGap / SHAPE_SIZE) + '×';
+  document.getElementById('childHeightSlider').value = childHeight / SHAPE_SIZE;
+  document.getElementById('childHeightLabel').textContent = (childHeight / SHAPE_SIZE) + '×';
+  scheduleSave();
+  updateUndoRedoUI();
+  document.getElementById('statusBar').textContent = 'Redo';
+}
+
+function updateUndoRedoUI() {
+  document.querySelectorAll('.undo-btn').forEach(b => { b.disabled = undoStack.length === 0; b.style.opacity = undoStack.length === 0 ? '0.35' : '1'; });
+  document.querySelectorAll('.redo-btn').forEach(b => { b.disabled = redoStack.length === 0; b.style.opacity = redoStack.length === 0 ? '0.35' : '1'; });
 }
 
 // ── Mobile panel ──
@@ -734,6 +835,7 @@ function setPartnershipType(t) {
   if (selectedPartnershipId) {
     const ps = partnerships.find(p => p.id === selectedPartnershipId);
     if (ps) {
+      pushUndo();
       const svg = document.getElementById('lines-layer');
       ps.type = t;
       if (ps.el2) { ps.el2.remove(); ps.el2 = null; }
@@ -754,13 +856,13 @@ function setTwinType(t) {
   document.querySelectorAll('[data-tt]').forEach(b => b.classList.toggle('active', b.dataset.tt === t));
 }
 function setCenterText(ct) {
-  if (!selectedPerson) return; const p = persons.get(selectedPerson); if (!p) return;
+  if (!selectedPerson) return; pushUndo(); const p = persons.get(selectedPerson); if (!p) return;
   p.centerText = ct;
   document.querySelectorAll('[data-ct]').forEach(b => b.classList.toggle('active', b.dataset.ct === (ct || '')));
   refreshPersonShape(p); scheduleSave();
 }
 function setMiscarriageSex(s) {
-  if (!selectedPerson) return; const p = persons.get(selectedPerson); if (!p) return;
+  if (!selectedPerson) return; pushUndo(); const p = persons.get(selectedPerson); if (!p) return;
   p.miscarriageSex = s;
   document.querySelectorAll('[data-ms]').forEach(b => b.classList.toggle('active', b.dataset.ms === s));
   let msEl = p.el.querySelector('.miscarriage-sex');
@@ -797,6 +899,11 @@ function setTool(tool) {
   connectSource = null;
   childPartnershipSource = null;
   twinSource = null;
+  // Clear partnership highlights
+  document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+  // Widen partnership hit areas in child mode for easier selection
+  const hitWidth = tool === 'child' ? '72' : '28';
+  partnerships.forEach(ps => { if (ps.hitEl) ps.hitEl.setAttribute('stroke-width', hitWidth); });
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
   ['tool-','m-tool-'].forEach(prefix => {
     const btn = document.getElementById(prefix + tool);
@@ -812,8 +919,7 @@ function updateBanner() {
     partner: 'Partner mode — click two people to connect them',
     child: 'Child mode — click a partnership line, then click a child',
     twin: 'Twin mode — click two children of the same partnership',
-    label: 'Label mode — click on the canvas to place a text label',
-    select: 'Select mode — drag to select multiple, or Shift+click'
+    label: 'Label mode — click on the canvas to place a text label'
   };
   if (msgs[currentTool]) { banner.textContent = msgs[currentTool]; banner.classList.add('visible'); }
   else { banner.classList.remove('visible'); }
@@ -826,8 +932,7 @@ function updateStatus() {
     partner: 'Partner — click two people to draw a partnership line',
     child: 'Child — click a partnership line, then click a person',
     twin: 'Twin — click two children of same partnership to link',
-    label: 'Label — click on the canvas to add a text label',
-    select: 'Select — drag a rectangle or Shift+click to multi-select'
+    label: 'Label — click on the canvas to add a text label'
   };
   s.textContent = map[currentTool] || 'Ready';
 }
@@ -905,6 +1010,22 @@ function makeQuarteredFill(shape, quarters) {
     });
     svg += `<line x1="26" y1="4" x2="26" y2="48" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
     svg += `<line x1="4" y1="26" x2="48" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+  } else if (shape === 'miscarriage') {
+    // Triangle quarters: vertices at (26,8) top, (46,44) bottom-right, (6,44) bottom-left
+    // Divided by vertical line x=26 and horizontal line y=26
+    // At y=26: left edge x=16, right edge x=36
+    const paths = [
+      'M 26 8 L 36 26 L 26 26 Z',          // TR
+      'M 26 26 L 36 26 L 46 44 L 26 44 Z',  // BR
+      'M 26 26 L 26 44 L 6 44 L 16 26 Z',   // BL
+      'M 26 8 L 26 26 L 16 26 Z'            // TL
+    ];
+    paths.forEach((d, i) => {
+      const c = quarters[i];
+      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+    });
+    svg += `<line x1="26" y1="8" x2="26" y2="44" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
+    svg += `<line x1="16" y1="26" x2="36" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
   } else {
     // Diamond quarters as triangles from center
     const paths = [
@@ -928,6 +1049,7 @@ function makeQuarteredFill(shape, quarters) {
 // ══════════════════════════
 
 function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex) {
+  if (!customId) pushUndo();
   const id = customId || 'person-' + (++personIdCounter);
   if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n; }
   else { const n = parseInt(id.split('-')[1]) || 0; if (n >= personIdCounter) personIdCounter = n; }
@@ -989,15 +1111,18 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
     if (currentTool === 'partner') { startPartnerConnect(id); return; }
     if (currentTool === 'child') {
       if (childPartnershipSource) {
-        addChildLink(childPartnershipSource, id);
+        const result = addChildLink(childPartnershipSource, id);
         childPartnershipSource = null;
-        document.getElementById('statusBar').textContent = 'Child connected!';
-        updateBanner();
+        document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+        if (result) {
+          document.getElementById('statusBar').textContent = 'Child connected!';
+        }
+        setTool('move');
       }
       return;
     }
     if (currentTool === 'twin') { startTwinConnect(id); return; }
-    if (e.shiftKey || currentTool === 'select') { toggleMultiSelect(id); return; }
+    if (e.shiftKey) { toggleMultiSelect(id); return; }
     selectPerson(id);
     startDrag(id, e);
   };
@@ -1015,6 +1140,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
     quarters: [...quarters],
     centerText, miscarriageSex,
     noSnap: false,
+    customLabel: 'Lbl',
     el
   };
   persons.set(id, personData);
@@ -1040,6 +1166,7 @@ function addProbandArrow(el) {
 }
 
 function removePerson(id) {
+  pushUndo();
   const p = persons.get(id);
   if (!p) return;
   for (let i = partnerships.length - 1; i >= 0; i--) {
@@ -1162,6 +1289,7 @@ function updatePersonText() {
 
 function toggleDeceased() {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
   p.deceased = !p.deceased;
@@ -1172,6 +1300,7 @@ function toggleDeceased() {
 
 function toggleProband() {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
   persons.forEach(op => {
@@ -1189,6 +1318,7 @@ function toggleProband() {
 
 function toggleNoSnap() {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
   p.noSnap = !p.noSnap;
@@ -1198,6 +1328,7 @@ function toggleNoSnap() {
 
 function changeShape(newShape) {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
   p.shape = newShape;
@@ -1229,6 +1360,7 @@ function refreshPersonShape(p) {
 
 function setFillMode(mode) {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
   p.fillMode = mode;
@@ -1243,6 +1375,7 @@ function setFillMode(mode) {
 
 function applyFillColor(color) {
   if (!selectedPerson) return;
+  pushUndo();
   const p = persons.get(selectedPerson);
   if (!p) return;
 
@@ -1302,14 +1435,16 @@ function isLight(hex) {
 // FREE TEXT LABELS
 // ══════════════════════
 
-function createLabel(x, y, customId, customText, customSize) {
+function createLabel(x, y, customId, customText, customSize, customBordered) {
+  if (!customId) pushUndo();
   const id = customId || 'label-' + (++labelIdCounter);
   if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > labelIdCounter) labelIdCounter = n; }
   else { const n = parseInt(id.split('-')[1]) || 0; if (n >= labelIdCounter) labelIdCounter = n; }
 
   const size = customSize || currentLabelSize;
+  const bordered = customBordered !== undefined ? customBordered : false;
   const label = document.createElement('div');
-  label.className = 'label';
+  label.className = 'label' + (bordered ? ' bordered' : '');
   label.id = id;
   label.style.left = x + 'px';
   label.style.top = y + 'px';
@@ -1318,7 +1453,7 @@ function createLabel(x, y, customId, customText, customSize) {
   const textEl = document.createElement('div');
   textEl.className = 'label-text';
   textEl.contentEditable = 'false';
-  textEl.textContent = customText || 'Label';
+  textEl.innerText = customText || 'Label';
 
   textEl.addEventListener('dblclick', (e) => { e.stopPropagation(); enterEditMode(textEl); });
   let lastTap = 0;
@@ -1351,13 +1486,17 @@ function createLabel(x, y, customId, customText, customSize) {
     selectedLabel = id;
     
     document.getElementById('labelSizeDisplay').textContent = parseInt(label.style.fontSize) + 'px';
+    const lData = labels.get(id);
+    document.getElementById('labelBorderToggle').innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Border Box: ' +
+      (lData && lData.bordered ? 'On' : 'Off');
     startLabelDrag(label, e);
   };
   label.addEventListener('mousedown', onDown);
   label.addEventListener('touchstart', onDown, { passive: false });
 
   document.getElementById('canvas').appendChild(label);
-  labels.set(id, { id, el: label, text: customText || 'Label', size });
+  labels.set(id, { id, el: label, text: customText || 'Label', size, bordered });
 
   if (!customId) setTimeout(() => enterEditMode(textEl), 50);
   scheduleSave();
@@ -1365,6 +1504,7 @@ function createLabel(x, y, customId, customText, customSize) {
 }
 
 function removeLabel(id) {
+  pushUndo();
   const l = labels.get(id);
   if (!l) return;
   l.el.remove();
@@ -1379,6 +1519,7 @@ function activateLabelTool() {
 }
 
 function enterEditMode(textEl) {
+  pushUndo();
   exitAllEditModes();
   textEl.contentEditable = 'true';
   textEl.style.touchAction = 'auto';
@@ -1409,13 +1550,32 @@ function changeLabelSize(delta) {
   currentLabelSize = Math.max(8, Math.min(48, currentLabelSize + delta));
   document.getElementById('labelSizeDisplay').textContent = currentLabelSize + 'px';
   if (selectedLabel) {
+    pushUndo();
     const l = labels.get(selectedLabel);
     if (l) { l.el.style.fontSize = currentLabelSize + 'px'; l.size = currentLabelSize; scheduleSave(); }
   }
 }
 
+function toggleLabelBorder() {
+  if (selectedLabel) {
+    pushUndo();
+    const l = labels.get(selectedLabel);
+    if (l) {
+      l.bordered = !l.bordered;
+      l.el.classList.toggle('bordered', l.bordered);
+      document.getElementById('labelBorderToggle').innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Border Box: ' +
+        (l.bordered ? 'On' : 'Off');
+      scheduleSave();
+    }
+  } else {
+    document.getElementById('statusBar').textContent = 'Select a label first to toggle its border';
+  }
+}
+
 let labelDragState = null;
 function startLabelDrag(el, e) {
+  pushUndo();
   const pos = getPointerPos(e);
   labelDragState = { el, startX: pos.clientX, startY: pos.clientY, origLeft: parseFloat(el.style.left), origTop: parseFloat(el.style.top) };
   el.classList.add('dragging');
@@ -1431,6 +1591,25 @@ function toggleIndividualMove() {
   updateStatus();
 }
 
+function setPartnerGap(val) {
+  partnerGap = SHAPE_SIZE * parseFloat(val);
+  document.getElementById('partnerGapLabel').textContent = val + '×';
+  scheduleSave();
+}
+
+function setChildHeight(val) {
+  childHeight = SHAPE_SIZE * parseFloat(val);
+  document.getElementById('childHeightLabel').textContent = val + '×';
+  scheduleSave();
+}
+
+function setNumberingMode(mode) {
+  numberingMode = mode;
+  document.querySelectorAll('[data-nm]').forEach(b => b.classList.toggle('active', b.dataset.nm === mode));
+  updateNumbering();
+  scheduleSave();
+}
+
 // ══════════════════════
 // PARTNERSHIP CONNECTIONS
 // ══════════════════════
@@ -1442,14 +1621,208 @@ function startPartnerConnect(id) {
     document.getElementById('statusBar').textContent = 'Now click the partner';
   } else if (connectSource !== id) {
     const exists = partnerships.some(p => (p.fromId === connectSource && p.toId === id) || (p.fromId === id && p.toId === connectSource));
-    if (!exists) { addPartnership(connectSource, id); document.getElementById('statusBar').textContent = 'Partnership connected!'; }
+    if (!exists) {
+      const result = addPartnership(connectSource, id);
+      if (result) { document.getElementById('statusBar').textContent = 'Partnership connected!'; }
+      else { document.getElementById('statusBar').textContent = 'Partnership cancelled'; }
+    }
     else { document.getElementById('statusBar').textContent = 'Partnership already exists'; }
     document.querySelectorAll('.person.selected').forEach(el => el.classList.remove('selected'));
     connectSource = null;
+    setTool('move');
   }
 }
 
+
+function canReorderChildToEdge(childId, edge) {
+  // Dry-run check: can this child be moved to the edge of their sibling row?
+  const parentCL = childLinks.find(cl => cl.childId === childId);
+  if (!parentCL) return true; // not a child, no reordering needed
+  const siblings = childLinks.filter(cl => cl.partnershipId === parentCL.partnershipId).map(cl => cl.childId);
+  if (siblings.length <= 1) return true;
+  const sorted = siblings.map(id => ({ id, x: parseFloat(persons.get(id).el.style.left) })).sort((a, b) => a.x - b.x);
+  const edgeIdx = edge === 'right' ? sorted.length - 1 : 0;
+  if (sorted[edgeIdx].id === childId) return true; // already at edge
+  return !partnerships.some(p => p.fromId === sorted[edgeIdx].id || p.toId === sorted[edgeIdx].id);
+}
+
+function getOverlappingPairs() {
+  const margin = 4;
+  const pairs = new Set();
+  const arr = [...persons.values()];
+
+  // Shape-shape overlaps
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      const a = arr[i], b = arr[j];
+      const ax = parseFloat(a.el.style.left), ay = parseFloat(a.el.style.top);
+      const bx = parseFloat(b.el.style.left), by = parseFloat(b.el.style.top);
+      if (ax < bx + SHAPE_SIZE - margin && ax + SHAPE_SIZE - margin > bx &&
+          ay < by + SHAPE_SIZE - margin && ay + SHAPE_SIZE - margin > by) {
+        pairs.add([a.id, b.id].sort().join('|'));
+      }
+    }
+  }
+
+  // Partnership line through shape: check if any partnership line passes through
+  // any person that isn't one of the two partners
+  partnerships.forEach(ps => {
+    const fp = persons.get(ps.fromId), tp = persons.get(ps.toId);
+    if (!fp || !tp) return;
+    const x1 = parseFloat(fp.el.style.left) + SHAPE_HALF;
+    const y1 = parseFloat(fp.el.style.top) + SHAPE_HALF;
+    const x2 = parseFloat(tp.el.style.left) + SHAPE_HALF;
+    const y2 = parseFloat(tp.el.style.top) + SHAPE_HALF;
+    arr.forEach(p => {
+      if (p.id === ps.fromId || p.id === ps.toId) return;
+      const px = parseFloat(p.el.style.left) + margin;
+      const py = parseFloat(p.el.style.top) + margin;
+      const pw = SHAPE_SIZE - margin * 2;
+      const ph = SHAPE_SIZE - margin * 2;
+      if (lineIntersectsRect(x1, y1, x2, y2, px, py, pw, ph)) {
+        pairs.add(['line:' + ps.id, p.id].sort().join('|'));
+      }
+    });
+  });
+
+  return pairs;
+}
+
+function lineIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  // Check if line segment (x1,y1)-(x2,y2) intersects rectangle (rx,ry,rw,rh)
+  // First check if either endpoint is inside the rect
+  if (x1 >= rx && x1 <= rx + rw && y1 >= ry && y1 <= ry + rh) return true;
+  if (x2 >= rx && x2 <= rx + rw && y2 >= ry && y2 <= ry + rh) return true;
+
+  // Check intersection with each edge of the rectangle
+  return lineSegmentsIntersect(x1, y1, x2, y2, rx, ry, rx + rw, ry) ||
+         lineSegmentsIntersect(x1, y1, x2, y2, rx + rw, ry, rx + rw, ry + rh) ||
+         lineSegmentsIntersect(x1, y1, x2, y2, rx, ry + rh, rx + rw, ry + rh) ||
+         lineSegmentsIntersect(x1, y1, x2, y2, rx, ry, rx, ry + rh);
+}
+
+function lineSegmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+  if (Math.abs(d) < 0.001) return false;
+  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+function hasNewOverlaps(beforePairs) {
+  const afterPairs = getOverlappingPairs();
+  for (const key of afterPairs) {
+    if (!beforePairs.has(key)) return true;
+  }
+  return false;
+}
+
+function revertLastAction() {
+  if (undoStack.length === 0) return;
+  const state = JSON.parse(undoStack.pop());
+  const savedGap = partnerGap, savedHeight = childHeight;
+  isRestoring = true;
+  restoreSession(state);
+  isRestoring = false;
+  partnerGap = savedGap; childHeight = savedHeight;
+  document.getElementById('partnerGapSlider').value = partnerGap / SHAPE_SIZE;
+  document.getElementById('partnerGapLabel').textContent = (partnerGap / SHAPE_SIZE) + '×';
+  document.getElementById('childHeightSlider').value = childHeight / SHAPE_SIZE;
+  document.getElementById('childHeightLabel').textContent = (childHeight / SHAPE_SIZE) + '×';
+  updateUndoRedoUI();
+  scheduleSave();
+}
+
+function reorderChildToEdge(childId, edge) {
+  // Find parent partnership where this person is a child
+  const parentCL = childLinks.find(cl => cl.childId === childId);
+  if (!parentCL) return true; // not a child in any row, no reordering needed
+
+  const partnershipId = parentCL.partnershipId;
+  const siblings = childLinks
+    .filter(cl => cl.partnershipId === partnershipId)
+    .map(cl => cl.childId);
+
+  if (siblings.length <= 1) return true; // only child, already at edge
+
+  // Sort siblings by X position
+  const sorted = siblings
+    .map(id => ({ id, x: parseFloat(persons.get(id).el.style.left) }))
+    .sort((a, b) => a.x - b.x);
+
+  const edgeIdx = edge === 'right' ? sorted.length - 1 : 0;
+  const edgeEntry = sorted[edgeIdx];
+
+  if (edgeEntry.id === childId) return true; // already at edge
+
+  // Check if edge sibling has partnerships — if so, can't displace them
+  const edgeHasPartnership = partnerships.some(p =>
+    p.fromId === edgeEntry.id || p.toId === edgeEntry.id);
+
+  if (edgeHasPartnership) return false;
+
+  // Swap X positions of the connecting child and the edge child
+  const childEntry = sorted.find(s => s.id === childId);
+  const childP = persons.get(childId);
+  const edgeP = persons.get(edgeEntry.id);
+  const dx = edgeEntry.x - childEntry.x;
+
+  childP.el.style.left = edgeEntry.x + 'px';
+  childP.x = edgeEntry.x;
+  edgeP.el.style.left = childEntry.x + 'px';
+  edgeP.x = childEntry.x;
+
+  // Shift subtrees of each swapped child (everything connected except through parent partnership)
+  const childSub = getSubtree(childId, partnershipId);
+  childSub.delete(childId);
+  childSub.forEach(sid => {
+    const sp = persons.get(sid);
+    if (sp) {
+      const nx = parseFloat(sp.el.style.left) + dx;
+      sp.el.style.left = nx + 'px';
+      sp.x = nx;
+    }
+  });
+
+  const edgeSub = getSubtree(edgeEntry.id, partnershipId);
+  edgeSub.delete(edgeEntry.id);
+  edgeSub.forEach(sid => {
+    const sp = persons.get(sid);
+    if (sp) {
+      const nx = parseFloat(sp.el.style.left) - dx;
+      sp.el.style.left = nx + 'px';
+      sp.x = nx;
+    }
+  });
+
+  return true;
+}
+
 function addPartnership(fromId, toId, customId, type) {
+  // Pre-check: in default mode, verify we can position this partnership without overlap
+  let skipPositioning = false;
+  let placeLeft = false; // whether to place toId to the LEFT of fromId
+  if (!customId && !individualMoveMode) {
+    // Try right placement first (default): fromId→right edge, toId→left edge
+    // Then try left placement: fromId→left edge, toId→right edge
+    const canRight = canReorderChildToEdge(fromId, 'right') && canReorderChildToEdge(toId, 'left');
+    const canLeft = canReorderChildToEdge(fromId, 'left') && canReorderChildToEdge(toId, 'right');
+    if (!canRight && !canLeft) {
+      const proceed = confirm(
+        'This partnership cannot be automatically positioned without overlapping existing connections.\n\n' +
+        'Cancel to rearrange the pedigree first using Individual Move mode or Free Position (No Snap), then add the partnership.\n\n' +
+        'Press OK to add the partnership line anyway (manual adjustment will be needed).'
+      );
+      if (!proceed) return null;
+      skipPositioning = true;
+    } else if (!canRight && canLeft) {
+      placeLeft = true;
+    }
+  }
+
+  const overlapsBefore = !customId ? getOverlappingPairs() : null;
+
+  if (!customId) pushUndo();
   const id = customId || 'pship-' + (++lineIdCounter);
   const pType = type || currentPartnershipType;
   const svg = document.getElementById('lines-layer');
@@ -1477,7 +1850,14 @@ function addPartnership(fromId, toId, customId, type) {
   }
 
   const onLineClick = (ev) => {
-    if (currentTool === 'child') { childPartnershipSource = id; document.getElementById('statusBar').textContent = 'Now click a person to add as child'; return; }
+    if (currentTool === 'child') {
+      // Clear previous highlight
+      document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+      childPartnershipSource = id;
+      line.classList.add('highlighted');
+      document.getElementById('statusBar').textContent = 'Partnership selected — now click a person to add as child';
+      return;
+    }
     if (currentTool === 'move') {
       // Select this partnership so panel buttons can change its type
       selectedPartnershipId = id;
@@ -1499,15 +1879,93 @@ function addPartnership(fromId, toId, customId, type) {
   svg.appendChild(hitArea);
   svg.appendChild(line);
   const pship = { id, fromId, toId, type: pType, el: line, hitEl: hitArea, el2: line2, slash: null };
+
+  // In default mode, capture toId's connected group and reorder siblings if needed
+  let toGroup = null;
+  let crossPedigree = false;
+  if (!customId && !individualMoveMode && !skipPositioning) {
+    toGroup = getConnectedGroup(toId);
+    crossPedigree = !toGroup.has(fromId); // true if they're in different pedigrees
+    toGroup.delete(toId); // toId handled separately
+
+    // Reorder children to edges so partnerships don't overlap
+    if (placeLeft) {
+      reorderChildToEdge(fromId, 'left');
+      reorderChildToEdge(toId, 'right');
+    } else {
+      reorderChildToEdge(fromId, 'right');
+      reorderChildToEdge(toId, 'left');
+    }
+
+    if (crossPedigree) {
+      // Re-capture toGroup after reorder since positions changed
+      toGroup = getConnectedGroup(toId);
+      toGroup.delete(toId);
+    }
+  }
+
   partnerships.push(pship);
+
+  if (!customId && !individualMoveMode && !skipPositioning) {
+    const fromP = persons.get(fromId), toP = persons.get(toId);
+    if (fromP && toP) {
+      const oldX = parseFloat(toP.el.style.left);
+      const oldY = parseFloat(toP.el.style.top);
+
+      // Position toId relative to fromId at default partner gap
+      const fromX = parseFloat(fromP.el.style.left);
+      const fromY = parseFloat(fromP.el.style.top);
+      const newX = placeLeft ? fromX - partnerGap : fromX + partnerGap;
+      toP.el.style.left = newX + 'px';
+      toP.x = newX;
+      toP.el.style.top = fromY + 'px';
+      toP.y = fromY;
+
+      // Move toId's entire pre-existing group by the same delta (only when merging separate pedigrees)
+      if (crossPedigree && toGroup && toGroup.size > 0) {
+        const dx = newX - oldX;
+        const dy = fromY - oldY;
+        if (dx !== 0 || dy !== 0) {
+          toGroup.forEach(gid => {
+            const gp = persons.get(gid);
+            if (gp) {
+              const gpx = parseFloat(gp.el.style.left) + dx;
+              const gpy = parseFloat(gp.el.style.top) + dy;
+              gp.el.style.left = gpx + 'px';
+              gp.el.style.top = gpy + 'px';
+              gp.x = gpx;
+              gp.y = gpy;
+            }
+          });
+        }
+      }
+    }
+  }
   updatePartnershipPos(pship);
   alignConnectedPersons();
   updateTextWrapping();
+  updateAllConnections();
+
+  // Check for new overlaps introduced by this action
+  if (!customId && !individualMoveMode && overlapsBefore && hasNewOverlaps(overlapsBefore)) {
+    const proceed = confirm(
+      'This partnership has created overlapping shapes or connections.\n\n' +
+      'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this partnership.\n\n' +
+      'Press OK to keep the partnership as-is (manual adjustment will be needed).'
+    );
+    if (!proceed) {
+      revertLastAction();
+      document.getElementById('statusBar').textContent = 'Partnership cancelled — rearrange in Individual Move mode first';
+      return null;
+    }
+  }
+
   scheduleSave();
   return pship;
 }
 
 function removePartnership(id) {
+  pushUndo();
   const idx = partnerships.findIndex(p => p.id === id);
   if (idx === -1) return;
   for (let i = childLinks.length - 1; i >= 0; i--) {
@@ -1545,7 +2003,7 @@ function updatePartnershipPos(pship) {
   if (pship.type === 'separated') {
     if (pship.slash) pship.slash.forEach(s => s.remove());
     const mx = (fc.x + tc.x) / 2, my = (fc.y + tc.y) / 2;
-    const offX = -25; // shift left to avoid child line at midpoint
+    const offX = -20; // shift left to avoid child line at midpoint
     const svg = document.getElementById('lines-layer');
     const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     s1.setAttribute('x1', mx + offX - 5); s1.setAttribute('y1', my - 8);
@@ -1569,6 +2027,8 @@ function updatePartnershipPos(pship) {
 // ══════════════════════
 
 function addChildLink(partnershipId, childId, customId) {
+  const childOverlapsBefore = !customId ? getOverlappingPairs() : null;
+  if (!customId) pushUndo();
   const id = customId || 'child-' + (++lineIdCounter);
   const pship = partnerships.find(p => p.id === partnershipId);
   if (!pship) return;
@@ -1610,40 +2070,300 @@ function addChildLink(partnershipId, childId, customId) {
   svg.appendChild(vertLine);
   const els = [vertLine, hitPath];
   const cl = { id, partnershipId, childId, els };
+
+  // In default mode, capture child's connected group BEFORE the link merges the two pedigrees
+  let childGroup = null;
+  let crossPedigree = false;
+  if (!customId && !individualMoveMode) {
+    childGroup = getConnectedGroup(childId);
+    crossPedigree = !childGroup.has(pship.fromId) && !childGroup.has(pship.toId);
+    childGroup.delete(childId); // childId handled separately
+  }
+
   childLinks.push(cl);
+  if (!customId && !individualMoveMode) {
+    const child = persons.get(childId);
+    const oldX = child ? parseFloat(child.el.style.left) : 0;
+    const oldY = child ? parseFloat(child.el.style.top) : 0;
+
+    // Snap child height: place child at fixed distance below parents
+    const existingSiblings = childLinks.filter(cl => cl.partnershipId === partnershipId && cl.childId !== childId);
+    if (existingSiblings.length === 0) {
+      // First child: snap to fixed height below parents
+      snapChildHeight(partnershipId, childId);
+    } else {
+      // Joining existing siblings: snap new child to the existing children's Y
+      if (child && !child.noSnap) {
+        let targetY = null;
+        for (const sib of existingSiblings) {
+          const sp = persons.get(sib.childId);
+          if (sp && !sp.noSnap) { targetY = parseFloat(sp.el.style.top); break; }
+        }
+        if (targetY !== null) {
+          child.el.style.top = targetY + 'px';
+          child.y = targetY;
+        }
+      }
+    }
+    // Snapshot all children's X positions before distribution
+    const allKids = childLinks.filter(c => c.partnershipId === partnershipId).map(c => c.childId);
+    const preDistX = new Map();
+    allKids.forEach(cid => {
+      const cp = persons.get(cid);
+      if (cp) preDistX.set(cid, parseFloat(cp.el.style.left));
+    });
+
+    distributeChildren(partnershipId);
+
+    // After distribution, shift each child's downstream connections by their dx
+    // (so partners and descendants move with the child, not overlap)
+    // IMPORTANT: only traverse DOWNWARD (through the child's own partnerships),
+    // never upward through child links to parents — prevents consanguineous cascade
+    const siblingSet = new Set(allKids);
+    allKids.forEach(cid => {
+      // Skip the newly added child in cross-pedigree merges — its group is handled below
+      if (crossPedigree && cid === childId) return;
+      const cp = persons.get(cid);
+      if (!cp || cp.noSnap) return;
+      const prevX = preDistX.get(cid);
+      if (prevX === undefined) return;
+      const dx = parseFloat(cp.el.style.left) - prevX;
+      if (Math.abs(dx) < 0.5) return;
+      // Downward-only traversal: through child's own partnerships to partners + descendants
+      const downstream = new Set();
+      const dQueue = [cid];
+      while (dQueue.length) {
+        const did = dQueue.shift();
+        if (downstream.has(did)) continue;
+        downstream.add(did);
+        partnerships.forEach(ps => {
+          if (ps.fromId === did || ps.toId === did) {
+            const pid = ps.fromId === did ? ps.toId : ps.fromId;
+            if (!downstream.has(pid)) dQueue.push(pid);
+            childLinks.forEach(cl2 => {
+              if (cl2.partnershipId === ps.id && !downstream.has(cl2.childId)) dQueue.push(cl2.childId);
+            });
+          }
+        });
+      }
+      downstream.delete(cid); // child itself already moved by distributeChildren
+      // Remove siblings — they were already positioned by distributeChildren
+      siblingSet.forEach(sid => downstream.delete(sid));
+      downstream.forEach(sid => {
+        const sp = persons.get(sid);
+        if (sp) {
+          const spx = parseFloat(sp.el.style.left) + dx;
+          sp.el.style.left = spx + 'px';
+          sp.x = spx;
+        }
+      });
+    });
+
+    // Move cross-pedigree child's pre-existing group by the total delta from original position
+    if (crossPedigree && child && childGroup && childGroup.size > 0) {
+      const dx = parseFloat(child.el.style.left) - oldX;
+      const dy = parseFloat(child.el.style.top) - oldY;
+      if (dx !== 0 || dy !== 0) {
+        childGroup.forEach(gid => {
+          // Skip anyone already shifted by the subtree logic above
+          if (siblingSet.has(gid)) return;
+          const gp = persons.get(gid);
+          if (gp) {
+            const gpx = parseFloat(gp.el.style.left) + dx;
+            const gpy = parseFloat(gp.el.style.top) + dy;
+            gp.el.style.left = gpx + 'px';
+            gp.el.style.top = gpy + 'px';
+            gp.x = gpx;
+            gp.y = gpy;
+          }
+        });
+      }
+    }
+  }
   updateChildLinkPos(cl);
-  alignConnectedPersons();
+  updateAllConnections();
+
+  // For cross-pedigree child adds, ensure child is at the correct default height
+  if (crossPedigree && !customId && !individualMoveMode) {
+    const child = persons.get(childId);
+    if (child && !child.noSnap) {
+      const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+      if (fp && tp) {
+        let correctY;
+        const sibs = childLinks.filter(c => c.partnershipId === partnershipId && c.childId !== childId);
+        if (sibs.length === 0) {
+          correctY = Math.min(parseFloat(fp.el.style.top), parseFloat(tp.el.style.top)) + childHeight;
+        } else {
+          for (const sib of sibs) {
+            const sp = persons.get(sib.childId);
+            if (sp && !sp.noSnap) { correctY = parseFloat(sp.el.style.top); break; }
+          }
+        }
+        if (correctY !== undefined) {
+          const drift = correctY - parseFloat(child.el.style.top);
+          if (Math.abs(drift) > 0.5) {
+            child.el.style.top = correctY + 'px';
+            child.y = correctY;
+            if (childGroup && childGroup.size > 0) {
+              childGroup.forEach(gid => {
+                const gp = persons.get(gid);
+                if (gp) {
+                  const gpy = parseFloat(gp.el.style.top) + drift;
+                  gp.el.style.top = gpy + 'px';
+                  gp.y = gpy;
+                }
+              });
+            }
+            updateAllConnections();
+          }
+        }
+      }
+    }
+  }
+
+  // Check for new overlaps introduced by this action
+  if (!customId && !individualMoveMode && childOverlapsBefore && hasNewOverlaps(childOverlapsBefore)) {
+    const proceed = confirm(
+      'Adding this child has created overlapping shapes or connections.\n\n' +
+      'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this child.\n\n' +
+      'Press OK to keep the child link as-is (manual adjustment will be needed).'
+    );
+    if (!proceed) {
+      revertLastAction();
+      document.getElementById('statusBar').textContent = 'Child link cancelled — rearrange in Individual Move mode first';
+      return null;
+    }
+  }
+
   scheduleSave();
   return cl;
 }
 
+function snapPartnerGap(pship) {
+  const p1 = persons.get(pship.fromId), p2 = persons.get(pship.toId);
+  if (!p1 || !p2) return;
+  const x1 = parseFloat(p1.el.style.left), x2 = parseFloat(p2.el.style.left);
+  const leftP = x1 <= x2 ? p1 : p2;
+  const rightP = x1 <= x2 ? p2 : p1;
+  const leftX = parseFloat(leftP.el.style.left);
+  const newRightX = leftX + partnerGap;
+  rightP.el.style.left = newRightX + 'px';
+  rightP.x = newRightX;
+}
+
+function snapChildHeight(partnershipId, childId) {
+  const pship = partnerships.find(p => p.id === partnershipId);
+  if (!pship) return;
+  const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+  if (!fp || !tp) return;
+  const child = persons.get(childId);
+  if (!child) return;
+  const parentY = Math.min(parseFloat(fp.el.style.top), parseFloat(tp.el.style.top));
+  const newY = parentY + childHeight;
+  child.el.style.top = newY + 'px';
+  child.y = newY;
+}
+
+function distributeChildren(partnershipId) {
+  const pship = partnerships.find(p => p.id === partnershipId);
+  if (!pship) return;
+  const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+  if (!fp || !tp) return;
+  const leftX = Math.min(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
+  const rightX = Math.max(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
+  const midX = (leftX + rightX) / 2;
+  const parentGap = rightX - leftX;
+
+  const kids = childLinks.filter(cl => cl.partnershipId === partnershipId).map(cl => cl.childId);
+  if (kids.length === 0) return;
+
+  if (kids.length === 1) {
+    // Single child: centre under parents
+    const child = persons.get(kids[0]);
+    if (child && !child.noSnap) {
+      child.el.style.left = midX + 'px';
+      child.x = midX;
+    }
+    return;
+  }
+
+  const childSpacing = Math.min(parentGap, partnerGap);
+
+  // Check if any child has a partnership (bridge child) — if so, anchor on them
+  // and expand in the opposite direction to their partner
+  let anchorId = null;
+  let expandDir = null; // 'left' or 'right'
+  for (const kid of kids) {
+    const kidP = persons.get(kid);
+    if (!kidP) continue;
+    const kidPships = partnerships.filter(p => p.fromId === kid || p.toId === kid);
+    for (const kp of kidPships) {
+      const partnerId = kp.fromId === kid ? kp.toId : kp.fromId;
+      const partner = persons.get(partnerId);
+      if (!partner) continue;
+      // Only anchor if the partner is NOT a sibling in this same row
+      if (kids.includes(partnerId)) continue;
+      const partnerX = parseFloat(partner.el.style.left);
+      const kidX = parseFloat(kidP.el.style.left);
+      anchorId = kid;
+      expandDir = partnerX > kidX ? 'left' : 'right';
+      break;
+    }
+    if (anchorId) break;
+  }
+
+  // Sort by current X to preserve relative order
+  kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+
+  if (anchorId && expandDir) {
+    // Anchored distribution: bridge child stays fixed, others expand away from partner
+    const anchorP = persons.get(anchorId);
+    const anchorX = parseFloat(anchorP.el.style.left);
+    const anchorIdx = kids.indexOf(anchorId);
+
+    if (expandDir === 'left') {
+      // Anchor is at the right edge, expand left
+      kids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        if (child && !child.noSnap) {
+          const newX = anchorX - (kids.length - 1 - i) * childSpacing;
+          child.el.style.left = newX + 'px';
+          child.x = newX;
+        }
+      });
+    } else {
+      // Anchor is at the left edge, expand right
+      kids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        if (child && !child.noSnap) {
+          const newX = anchorX + i * childSpacing;
+          child.el.style.left = newX + 'px';
+          child.x = newX;
+        }
+      });
+    }
+  } else {
+    // Normal centered distribution
+    const totalWidth = childSpacing * (kids.length - 1);
+    const startX = midX - totalWidth / 2;
+    kids.forEach((cid, i) => {
+      const child = persons.get(cid);
+      if (child && !child.noSnap) {
+        const newX = startX + childSpacing * i;
+        child.el.style.left = newX + 'px';
+        child.x = newX;
+      }
+    });
+  }
+}
+
 function removeChildLink(id) {
+  pushUndo();
   const idx = childLinks.findIndex(c => c.id === id);
   if (idx === -1) return;
   childLinks[idx].els.forEach(el => el.remove());
   childLinks.splice(idx, 1);
   scheduleSave();
-}
-
-function getSafeBranchY(defaultY, minX, maxX, excludeIds) {
-  // Check if the branch line at defaultY would cross any person shapes
-  // If so, push it up to at least SHAPE_HALF above that person's top
-  let safeY = defaultY;
-  persons.forEach(p => {
-    if (excludeIds.has(p.id)) return;
-    const px = parseFloat(p.el.style.left);
-    const py = parseFloat(p.el.style.top);
-    const pRight = px + SHAPE_SIZE;
-    const pBottom = py + SHAPE_SIZE;
-    // Check horizontal overlap: does this person sit in the branch's horizontal span?
-    if (pRight < minX - 4 || px > maxX + 4) return;
-    // Check if the branch Y falls within or near the person's vertical extent
-    // Include SHAPE_SIZE below the shape to cover child line descent zone
-    if (safeY > py - SHAPE_HALF && safeY < pBottom + SHAPE_SIZE) {
-      safeY = py - SHAPE_HALF;
-    }
-  });
-  return safeY;
 }
 
 function updateChildLinkPos(cl) {
@@ -1659,7 +2379,6 @@ function updateChildLinkPos(cl) {
 
   // Gather all children of same partnership for horizontal span
   const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
-  const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
 
   // Check if this child is part of a twin link
   const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
@@ -1668,14 +2387,12 @@ function updateChildLinkPos(cl) {
     const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
     const otherChild = persons.get(otherChildId);
     if (otherChild) {
+      const otherChildCenter = getPersonCenter(otherChild);
+      const forkX = (childCenter.x + otherChildCenter.x) / 2;
       const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
       let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-      // Check for collisions across the horizontal span
-      const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
-      allXs.push(midX);
-      branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-      branchY = Math.max(midY + 4, branchY);
-      const pathD = `M ${midX} ${branchY} L ${childCenter.x} ${childTop}`;
+      // Path: vertical from partnership to branch, horizontal to fork point, diagonal to child
+      const pathD = `M ${midX} ${midY} L ${midX} ${branchY} L ${forkX} ${branchY} L ${childCenter.x} ${childTop}`;
       cl.els[0].setAttribute('d', pathD);
       cl.els[1].setAttribute('d', pathD);
       return;
@@ -1683,12 +2400,25 @@ function updateChildLinkPos(cl) {
   }
 
   // Normal: right-angle path at fixed height above children
-  let dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-  // Check for collisions across the horizontal span
-  const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
-  allXs.push(midX);
-  dropY = getSafeBranchY(dropY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-  dropY = Math.max(midY + 4, dropY);
+  // For noSnap children BELOW the sibling branch line, use the siblings' branch height
+  // so the line drops down from the shared branch point.
+  // Above the branch: use original child-based calculation (line rises to meet the child).
+  let dropY;
+  const nonSnapSiblings = siblingIds.filter(id => {
+    const p = persons.get(id);
+    return p && !p.noSnap && id !== cl.childId;
+  });
+  if (child.noSnap && nonSnapSiblings.length > 0) {
+    const siblingTops = nonSnapSiblings.map(id => parseFloat(persons.get(id).el.style.top));
+    const siblingBranchY = Math.max(midY + 4, Math.min(...siblingTops) - SHAPE_HALF);
+    if (childTop > siblingBranchY) {
+      dropY = siblingBranchY;
+    } else {
+      dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+    }
+  } else {
+    dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+  }
   const pathD = `M ${midX} ${midY} L ${midX} ${dropY} L ${childCenter.x} ${dropY} L ${childCenter.x} ${childTop}`;
   cl.els[0].setAttribute('d', pathD);
   cl.els[1].setAttribute('d', pathD);
@@ -1770,10 +2500,12 @@ function startTwinConnect(id) {
     addTwinLink(twinSource, id, currentTwinType);
     document.querySelectorAll('.person.selected').forEach(el => el.classList.remove('selected'));
     twinSource = null;
+    setTool('move');
   }
 }
 
 function addTwinLink(child1Id, child2Id, type, customId) {
+  if (!customId) pushUndo();
   // Find shared partnership
   const c1Links = childLinks.filter(cl => cl.childId === child1Id);
   const c2Links = childLinks.filter(cl => cl.childId === child2Id);
@@ -1811,6 +2543,7 @@ function addTwinLink(child1Id, child2Id, type, customId) {
 }
 
 function removeTwinLink(id) {
+  pushUndo();
   const idx = twinLinks.findIndex(t => t.id === id);
   if (idx === -1) return;
   const tl = twinLinks[idx];
@@ -1835,26 +2568,23 @@ function updateTwinLinkPos(tl) {
   const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
   const avgChildTop = (c1Top + c2Top) / 2;
 
+  // Fork point: centered above the two twins on the branch line
+  const forkX = (cc1.x + cc2.x) / 2;
+
   const siblingIds = childLinks.filter(c => c.partnershipId === tl.partnershipId).map(c => c.childId);
-  const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
-  const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
-  allXs.push(midX);
 
   let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-  branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-  branchY = Math.max(midY + 4, branchY);
 
-  // Build path: vertical drop from partnership midpoint to branch point
-  let d = `M ${midX} ${midY} L ${midX} ${branchY}`;
+  let d = '';
 
-  // For identical twins: add horizontal bar at 50% down the diagonals
+  // For identical twins: add horizontal bar at 50% down the diagonals from fork point
   if (tl.type === 'identical') {
     const frac = 0.5;
-    const bar1X = midX + (cc1.x - midX) * frac;
+    const bar1X = forkX + (cc1.x - forkX) * frac;
     const bar1Y = branchY + (c1Top - branchY) * frac;
-    const bar2X = midX + (cc2.x - midX) * frac;
+    const bar2X = forkX + (cc2.x - forkX) * frac;
     const bar2Y = branchY + (c2Top - branchY) * frac;
-    d += ` M ${bar1X} ${bar1Y} L ${bar2X} ${bar2Y}`;
+    d = `M ${bar1X} ${bar1Y} L ${bar2X} ${bar2Y}`;
   }
 
   tl.els[0].setAttribute('d', d);
@@ -1888,11 +2618,40 @@ function getConnectedGroup(startId) {
   return visited;
 }
 
+// Like getConnectedGroup but skips one specific partnership (used to find a child's own subtree
+// without traversing back up through the parent partnership that connects them to the sibling row)
+function getSubtree(startId, excludePartnershipId) {
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(p => {
+      if (p.id === excludePartnershipId) return;
+      if (p.fromId === id && !visited.has(p.toId)) queue.push(p.toId);
+      if (p.toId === id && !visited.has(p.fromId)) queue.push(p.fromId);
+      if (p.fromId === id || p.toId === id) {
+        childLinks.forEach(cl => { if (cl.partnershipId === p.id && !visited.has(cl.childId)) queue.push(cl.childId); });
+      }
+    });
+    childLinks.forEach(cl => {
+      if (cl.childId === id) {
+        if (cl.partnershipId === excludePartnershipId) return;
+        const ps = partnerships.find(p => p.id === cl.partnershipId);
+        if (ps) { if (!visited.has(ps.fromId)) queue.push(ps.fromId); if (!visited.has(ps.toId)) queue.push(ps.toId); }
+      }
+    });
+  }
+  return visited;
+}
+
 // ══════════════════════
 // DRAG SYSTEM
 // ══════════════════════
 
 function startDrag(personId, e) {
+  pushUndo();
   const pos = getPointerPos(e);
   let dragIds;
   if (multiSelected.size > 0 && multiSelected.has(personId)) dragIds = new Set(multiSelected);
@@ -1905,23 +2664,97 @@ function startDrag(personId, e) {
     if (p) { origins.set(id, { x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) }); p.el.classList.add('dragging'); }
   });
   dragState = { personId, dragIds, origins, startX: pos.clientX, startY: pos.clientY };
+
+  // Individual move mode: compute parent floor and descendants for the dragged person
+  if (individualMoveMode && dragIds.size === 1) {
+    // Parent floor: find all parents of this person and get the lowest bottom
+    const parentFloor = getParentFloor(personId);
+    if (parentFloor !== null) dragState.parentFloor = parentFloor;
+
+    // Descendants: everything reachable going only downward (children, their partners, their children, etc.)
+    const descendants = getDescendantsWithPartners(personId);
+    if (descendants.size > 0) {
+      const descOrigins = new Map();
+      descendants.forEach(id => {
+        const p = persons.get(id);
+        if (p) descOrigins.set(id, { x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) });
+      });
+      dragState.descendants = descendants;
+      dragState.descOrigins = descOrigins;
+    }
+  }
 }
 
-let selectDragState = null;
+function getPersonBottom(personId) {
+  const p = persons.get(personId);
+  if (!p) return 0;
+  const py = parseFloat(p.el.style.top);
+  let bottom = py + SHAPE_SIZE;
+  // Check text annotation height
+  const textEl = p.el.querySelector('.person-text');
+  if (textEl && p.text) {
+    const textBottom = py + 56 + textEl.offsetHeight;
+    if (textBottom > bottom) bottom = textBottom;
+  }
+  // Check miscarriage sex label
+  const msEl = p.el.querySelector('.miscarriage-sex');
+  if (msEl && msEl.textContent) {
+    const msBottom = py + 56 + msEl.offsetHeight;
+    if (msBottom > bottom) bottom = msBottom;
+  }
+  return bottom;
+}
+
+function getParentFloor(personId) {
+  let maxBottom = null;
+  childLinks.forEach(cl => {
+    if (cl.childId !== personId) return;
+    const pship = partnerships.find(p => p.id === cl.partnershipId);
+    if (!pship) return;
+    const b1 = getPersonBottom(pship.fromId);
+    const b2 = getPersonBottom(pship.toId);
+    const parentBottom = Math.max(b1, b2);
+    if (maxBottom === null || parentBottom > maxBottom) maxBottom = parentBottom;
+  });
+  return maxBottom;
+}
+
+function getDescendantsWithPartners(startId) {
+  // Traverse downward: from startId find children of their partnerships,
+  // then from each child include their partners and continue to their children, etc.
+  // Does NOT include startId's own partners (they're on the same row, not below).
+  const visited = new Set();
+  // First pass: find direct children of startId's partnerships
+  const firstChildren = [];
+  partnerships.forEach(ps => {
+    if (ps.fromId === startId || ps.toId === startId) {
+      childLinks.forEach(cl => {
+        if (cl.partnershipId === ps.id) firstChildren.push(cl.childId);
+      });
+    }
+  });
+  // BFS from children onward, including their partners
+  const queue = [...firstChildren];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(ps => {
+      if (ps.fromId === id || ps.toId === id) {
+        // Add partner
+        const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
+        if (!visited.has(partnerId) && partnerId !== startId) queue.push(partnerId);
+        // Add children
+        childLinks.forEach(cl => {
+          if (cl.partnershipId === ps.id && !visited.has(cl.childId)) queue.push(cl.childId);
+        });
+      }
+    });
+  }
+  return visited;
+}
 
 function onPointerMove(e) {
-  // Rubber-band
-  if (selectDragState) {
-    if (e.cancelable) e.preventDefault();
-    const pos = getPointerPos(e);
-    const rect = document.getElementById('selectRect');
-    rect.style.left = Math.min(selectDragState.startX, pos.clientX) + 'px';
-    rect.style.top = Math.min(selectDragState.startY, pos.clientY) + 'px';
-    rect.style.width = Math.abs(pos.clientX - selectDragState.startX) + 'px';
-    rect.style.height = Math.abs(pos.clientY - selectDragState.startY) + 'px';
-    rect.style.display = 'block';
-    return;
-  }
   // Label drag
   if (labelDragState) {
     if (e.cancelable) e.preventDefault();
@@ -1956,32 +2789,38 @@ function onPointerMove(e) {
   if (e.cancelable) e.preventDefault();
   const pos = getPointerPos(e);
   const dx = (pos.clientX - dragState.startX) / zoomLevel;
-  const dy = (pos.clientY - dragState.startY) / zoomLevel;
+  let dy = (pos.clientY - dragState.startY) / zoomLevel;
+
+  // Individual move mode: enforce parent floor constraint
+  if (individualMoveMode && dragState.parentFloor !== undefined) {
+    const orig = dragState.origins.get(dragState.personId);
+    if (orig) {
+      const minY = dragState.parentFloor;
+      if (orig.y + dy < minY) dy = minY - orig.y;
+    }
+  }
+
   dragState.dragIds.forEach(id => {
     const p = persons.get(id);
     const orig = dragState.origins.get(id);
     if (p && orig) { p.el.style.left = (orig.x + dx) + 'px'; p.el.style.top = (orig.y + dy) + 'px'; }
   });
+
+  // Individual move mode: push descendants to track the person's Y movement
+  if (individualMoveMode && dragState.descendants && dragState.descOrigins) {
+    dragState.descendants.forEach(id => {
+      const p = persons.get(id);
+      const orig = dragState.descOrigins.get(id);
+      if (p && orig) {
+        p.el.style.top = (orig.y + Math.max(0, dy)) + 'px';
+      }
+    });
+  }
+
   updateAllConnections();
 }
 
 function onPointerUp(e) {
-  if (selectDragState) {
-    document.getElementById('selectRect').style.display = 'none';
-    const pos = getPointerPos(e);
-    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-    const x1 = (Math.min(selectDragState.startX, pos.clientX) - canvasRect.left) / zoomLevel;
-    const y1 = (Math.min(selectDragState.startY, pos.clientY) - canvasRect.top) / zoomLevel;
-    const x2 = (Math.max(selectDragState.startX, pos.clientX) - canvasRect.left) / zoomLevel;
-    const y2 = (Math.max(selectDragState.startY, pos.clientY) - canvasRect.top) / zoomLevel;
-    persons.forEach((p, id) => {
-      const px = parseFloat(p.el.style.left) + SHAPE_HALF, py = parseFloat(p.el.style.top) + SHAPE_HALF;
-      if (px >= x1 && px <= x2 && py >= y1 && py <= y2) { multiSelected.add(id); p.el.classList.add('multi-selected'); }
-    });
-    selectDragState = null;
-    if (multiSelected.size > 0) document.getElementById('statusBar').textContent = `Selected ${multiSelected.size} individuals`;
-    return;
-  }
   if (labelDragState) { labelDragState.el.classList.remove('dragging'); labelDragState = null; scheduleSave(); return; }
   if (legendDragState) {
     legendDragState.el.classList.remove('dragging');
@@ -1997,6 +2836,13 @@ function onPointerUp(e) {
       const p = persons.get(id);
       if (p) { p.el.classList.remove('dragging'); p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
     });
+    // Save descendant positions if they were moved
+    if (dragState.descendants) {
+      dragState.descendants.forEach(id => {
+        const p = persons.get(id);
+        if (p) { p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
+      });
+    }
     dragState = null;
     alignConnectedPersons();
     updateNumbering();
@@ -2028,12 +2874,6 @@ function onCanvasDown(e) {
     return;
   }
 
-  if (currentTool === 'select') {
-    const pos = getPointerPos(e);
-    selectDragState = { startX: pos.clientX, startY: pos.clientY };
-    if (!e.shiftKey) deselectAll();
-    return;
-  }
   if (currentTool === 'move') {
     deselectAll();
     const pos = getPointerPos(e);
@@ -2113,7 +2953,7 @@ function updateTextWrapping() {
   persons.forEach(p => {
     const textEl = p.el.querySelector('.person-text');
     if (!textEl) return;
-    if (!p.text) { textEl.style.maxWidth = ''; textEl.classList.remove('wrapped', 'text-left'); return; }
+    if (!p.text) { textEl.style.maxWidth = ''; textEl.classList.remove('wrapped', 'text-left', 'proband-left'); return; }
 
     const px = parseFloat(p.el.style.left);
     const py = parseFloat(p.el.style.top);
@@ -2133,8 +2973,9 @@ function updateTextWrapping() {
 
     if (isLeftPartner) {
       textEl.classList.add('text-left');
+      textEl.classList.toggle('proband-left', !!p.proband);
     } else {
-      textEl.classList.remove('text-left');
+      textEl.classList.remove('text-left', 'proband-left');
     }
 
     // Reset to unwrapped to measure natural width
@@ -2208,6 +3049,74 @@ function updateTextWrapping() {
 // ══════════════════════
 
 function updateNumbering() {
+  if (numberingMode === 'off') {
+    persons.forEach(p => {
+      const ne = p.el.querySelector('.person-number');
+      if (ne) { ne.textContent = ''; ne.contentEditable = 'false'; ne.classList.remove('editable'); }
+    });
+    return;
+  }
+  if (numberingMode === 'freetext') {
+    persons.forEach(p => {
+      const ne = p.el.querySelector('.person-number');
+      if (!ne) return;
+      ne.textContent = p.customLabel || 'Lbl';
+      ne.classList.add('editable');
+      ne.contentEditable = 'false'; // not in active edit — click to edit
+
+      // Attach handlers only once
+      if (!ne._freetextInit) {
+        ne._freetextInit = true;
+        ne.addEventListener('dblclick', (e) => {
+          if (numberingMode !== 'freetext') return;
+          e.stopPropagation();
+          ne.contentEditable = 'true';
+          ne.focus();
+          // Select all text
+          const range = document.createRange();
+          range.selectNodeContents(ne);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+        let lastTapNum = 0;
+        ne.addEventListener('touchend', (e) => {
+          if (numberingMode !== 'freetext') return;
+          const now = Date.now();
+          if (now - lastTapNum < 350) {
+            e.preventDefault(); e.stopPropagation();
+            ne.contentEditable = 'true';
+            ne.focus();
+          }
+          lastTapNum = now;
+        });
+        ne.addEventListener('blur', () => {
+          ne.contentEditable = 'false';
+          const pid = ne.closest('.person')?.id;
+          if (pid) {
+            const pd = persons.get(pid);
+            if (pd) { pd.customLabel = ne.textContent.trim() || 'Lbl'; }
+          }
+          scheduleSave();
+        });
+        ne.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); ne.blur(); }
+        });
+        ne.addEventListener('mousedown', (e) => {
+          if (ne.contentEditable === 'true') e.stopPropagation();
+        });
+        ne.addEventListener('touchstart', (e) => {
+          if (ne.contentEditable === 'true') e.stopPropagation();
+        }, { passive: true });
+      }
+    });
+    return;
+  }
+  // Non-freetext modes: remove editable state
+  persons.forEach(p => {
+    const ne = p.el.querySelector('.person-number');
+    if (ne) { ne.contentEditable = 'false'; ne.classList.remove('editable'); }
+  });
   if (persons.size === 0) return;
   const list = [];
   persons.forEach(p => { list.push({ id: p.id, x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) }); });
@@ -2222,13 +3131,22 @@ function updateNumbering() {
   generations.push(currentGen);
 
   const roman = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  const toLetter = (n) => { let s = ''; while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } return s; };
+  let globalIdx = 0;
   generations.forEach((gen, gi) => {
     gen.sort((a, b) => a.x - b.x);
     gen.forEach((item, pi) => {
       const p = persons.get(item.id);
       if (p) {
         const numEl = p.el.querySelector('.person-number');
-        numEl.textContent = `${gi < roman.length ? roman[gi] : (gi+1)}-${pi+1}`;
+        if (numberingMode === 'lettersonly') {
+          numEl.textContent = toLetter(globalIdx);
+        } else {
+          const genLabel = gi < roman.length ? roman[gi] : (gi + 1);
+          const posLabel = numberingMode === 'letters' ? toLetter(pi) : (pi + 1);
+          numEl.textContent = `${genLabel}-${posLabel}`;
+        }
+        globalIdx++;
         const hasChildLine = childLinks.some(cl => cl.childId === p.id);
         // Check if this person is part of a twin link
         const twinLink = twinLinks.find(t => t.child1Id === p.id || t.child2Id === p.id);
@@ -2319,6 +3237,7 @@ function buildLegendBox() {
   const onDown = (e) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.cancelable) e.preventDefault();
+    pushUndo();
     const pos = getPointerPos(e);
     legendDragState = {
       el: box,
@@ -2342,10 +3261,27 @@ let legendDragState = null;
 // ══════════════════════
 
 document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
+    e.preventDefault(); undo(); return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey) || (e.key === 'Z' && e.shiftKey))) {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
+    e.preventDefault(); redo(); return;
+  }
   if (e.key === 'Delete' || e.key === 'Backspace') {
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
-    if (multiSelected.size > 0) { if (confirm(`Remove ${multiSelected.size} selected individuals?`)) { [...multiSelected].forEach(id => removePerson(id)); multiSelected.clear(); } return; }
+    if (multiSelected.size > 0) {
+      if (confirm(`Remove ${multiSelected.size} selected individuals?`)) {
+        pushUndo(); undoGroupActive = true;
+        [...multiSelected].forEach(id => removePerson(id));
+        undoGroupActive = false; multiSelected.clear();
+      }
+      return;
+    }
     if (selectedPerson) removePerson(selectedPerson);
     if (selectedLabel) removeLabel(selectedLabel);
   }
@@ -2363,6 +3299,7 @@ document.addEventListener('keydown', (e) => {
 
 function clearAll() {
   if (!confirm('Remove everything from the canvas?')) return;
+  pushUndo();
   document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
   document.getElementById('lines-layer').innerHTML = '';
   persons.clear(); labels.clear();
@@ -2381,6 +3318,13 @@ function clearAll() {
 // ══════════════════════
 
 function buildSessionData() {
+  // Sync freetext labels from DOM before saving
+  if (numberingMode === 'freetext') {
+    persons.forEach(p => {
+      const ne = p.el.querySelector('.person-number');
+      if (ne && ne.textContent) p.customLabel = ne.textContent.trim() || 'Lbl';
+    });
+  }
   const personArr = [];
   persons.forEach(p => {
     personArr.push({
@@ -2389,15 +3333,17 @@ function buildSessionData() {
       text: p.text, deceased: p.deceased, proband: p.proband,
       fillMode: p.fillMode, fillColor: p.fillColor, quarters: [...p.quarters],
       centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown',
-      noSnap: !!p.noSnap
+      noSnap: !!p.noSnap,
+      customLabel: p.customLabel || 'Lbl'
     });
   });
   const labelArr = [];
   labels.forEach(l => {
     labelArr.push({
       id: l.id, x: parseFloat(l.el.style.left), y: parseFloat(l.el.style.top),
-      text: l.el.querySelector('.label-text')?.textContent || l.text,
-      size: parseInt(l.el.style.fontSize) || l.size
+      text: l.el.querySelector('.label-text')?.innerText || l.text,
+      size: parseInt(l.el.style.fontSize) || l.size,
+      bordered: !!l.bordered
     });
   });
   return {
@@ -2410,7 +3356,10 @@ function buildSessionData() {
     twinLinks: twinLinks.map(t => ({ id: t.id, child1Id: t.child1Id, child2Id: t.child2Id, type: t.type, partnershipId: t.partnershipId })),
     legendLabels,
     legendVisible, legendX, legendY,
-    zoom: zoomLevel, panX, panY
+    zoom: zoomLevel, panX, panY,
+    numberingMode,
+    partnerGapMultiplier: partnerGap / SHAPE_SIZE,
+    childHeightMultiplier: childHeight / SHAPE_SIZE
   };
 }
 
@@ -2437,10 +3386,11 @@ function restoreSession(data) {
     if (pd.affected && fm === 'none') { fm = 'solid'; fc = '#1a2332'; }
     addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown');
     if (pd.noSnap) { const pp = persons.get(pd.id); if (pp) pp.noSnap = true; }
+    if (pd.customLabel) { const pp = persons.get(pd.id); if (pp) pp.customLabel = pd.customLabel; }
     const n = parseInt(pd.id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n;
   });
   (data.labels || []).forEach(ld => {
-    createLabel(ld.x, ld.y, ld.id, ld.text, ld.size);
+    createLabel(ld.x, ld.y, ld.id, ld.text, ld.size, !!ld.bordered);
     const n = parseInt(ld.id.split('-')[1]) || 0; if (n > labelIdCounter) labelIdCounter = n;
   });
   (data.partnerships || []).forEach(pd => {
@@ -2459,6 +3409,19 @@ function restoreSession(data) {
   if (data.zoom) zoomLevel = data.zoom;
   if (data.panX !== undefined) panX = data.panX;
   if (data.panY !== undefined) panY = data.panY;
+  if (data.numberingMode !== undefined) numberingMode = data.numberingMode;
+  else if (data.showNumbering === false) numberingMode = 'off';
+  document.querySelectorAll('[data-nm]').forEach(b => b.classList.toggle('active', b.dataset.nm === numberingMode));
+  if (data.partnerGapMultiplier !== undefined) {
+    partnerGap = SHAPE_SIZE * data.partnerGapMultiplier;
+    document.getElementById('partnerGapSlider').value = data.partnerGapMultiplier;
+    document.getElementById('partnerGapLabel').textContent = data.partnerGapMultiplier + '×';
+  }
+  if (data.childHeightMultiplier !== undefined) {
+    childHeight = SHAPE_SIZE * data.childHeightMultiplier;
+    document.getElementById('childHeightSlider').value = data.childHeightMultiplier;
+    document.getElementById('childHeightLabel').textContent = data.childHeightMultiplier + '×';
+  }
   document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
   applyTransform();
   updateNumbering();
@@ -2486,7 +3449,10 @@ function importJSON(event) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      pushUndo();
+      isRestoring = true;
       restoreSession(data);
+      isRestoring = false;
       document.getElementById('statusBar').textContent = 'Session loaded!';
       document.getElementById('splashOverlay').classList.add('hidden');
     } catch (err) { alert('Could not read session file: ' + err.message); }
@@ -2572,7 +3538,7 @@ function saveAsImage() {
     // Separated: slash marks
     if (pship.type === 'separated') {
       const mx = (fc.x+tc.x)/2, my = (fc.y+tc.y)/2;
-      const sx = mx - 25;
+      const sx = mx - 20;
       ctx.beginPath(); ctx.moveTo(sx-5, my-8); ctx.lineTo(sx+5, my+8); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(sx+3, my-8); ctx.lineTo(sx+13, my+8); ctx.stroke();
     }
@@ -2591,9 +3557,6 @@ function saveAsImage() {
     ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
 
     const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
-    const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
-    const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
-    allXs.push(midX);
 
     // Check if twin
     const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
@@ -2601,23 +3564,34 @@ function saveAsImage() {
       const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
       const otherChild = persons.get(otherChildId);
       if (otherChild) {
+        const otherChildCenter = getPersonCenter(otherChild);
+        const forkX = (childCenter.x + otherChildCenter.x) / 2;
         const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
         let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-        branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-        branchY = Math.max(midY + 4, branchY);
-        ctx.beginPath(); ctx.moveTo(midX, branchY); ctx.lineTo(childCenter.x, childTop); ctx.stroke();
+        // Path: vertical from partnership to branch, horizontal to fork point, diagonal to child
+        ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, branchY); ctx.lineTo(forkX, branchY); ctx.lineTo(childCenter.x, childTop); ctx.stroke();
         return;
       }
     }
     // Normal right-angle
-    let dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-    dropY = getSafeBranchY(dropY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-    dropY = Math.max(midY + 4, dropY);
+    let dropY;
+    const nonSnapSibs = siblingIds.filter(id => { const p = persons.get(id); return p && !p.noSnap && id !== cl.childId; });
+    if (child.noSnap && nonSnapSibs.length > 0) {
+      const sibTops = nonSnapSibs.map(id => parseFloat(persons.get(id).el.style.top));
+      const sibBranchY = Math.max(midY + 4, Math.min(...sibTops) - SHAPE_HALF);
+      if (childTop > sibBranchY) {
+        dropY = sibBranchY;
+      } else {
+        dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+      }
+    } else {
+      dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+    }
     ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, dropY); ctx.lineTo(childCenter.x, dropY); ctx.lineTo(childCenter.x, childTop);
     ctx.stroke();
   });
 
-  // Twin links (V-shape from branch point + bar for identical)
+  // Twin links (identical twin bar only — fork structure drawn by child links)
   twinLinks.forEach(tl => {
     const c1 = persons.get(tl.child1Id), c2 = persons.get(tl.child2Id);
     if (!c1 || !c2) return;
@@ -2630,21 +3604,14 @@ function saveAsImage() {
     const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
     const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
     const avgChildTop = (c1Top + c2Top) / 2;
-    const siblingIds = childLinks.filter(c => c.partnershipId === tl.partnershipId).map(c => c.childId);
-    const excludeIds = new Set([pship.fromId, pship.toId, ...siblingIds]);
-    const allXs = siblingIds.map(id => { const p = persons.get(id); return p ? getPersonCenter(p).x : midX; });
-    allXs.push(midX);
+    const forkX = (cc1.x + cc2.x) / 2;
     let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-    branchY = getSafeBranchY(branchY, Math.min(...allXs) - SHAPE_HALF, Math.max(...allXs) + SHAPE_HALF, excludeIds);
-    branchY = Math.max(midY + 4, branchY);
     ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
-    // Vertical drop
-    ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, branchY); ctx.stroke();
-    // Identical: horizontal bar
+    // Identical: horizontal bar at 50% down the diagonals from fork point
     if (tl.type === 'identical') {
       const frac = 0.5;
-      const b1x = midX+(cc1.x-midX)*frac, b1y = branchY+(c1Top-branchY)*frac;
-      const b2x = midX+(cc2.x-midX)*frac, b2y = branchY+(c2Top-branchY)*frac;
+      const b1x = forkX+(cc1.x-forkX)*frac, b1y = branchY+(c1Top-branchY)*frac;
+      const b2x = forkX+(cc2.x-forkX)*frac, b2y = branchY+(c2Top-branchY)*frac;
       ctx.beginPath(); ctx.moveTo(b1x, b1y); ctx.lineTo(b2x, b2y); ctx.stroke();
     }
   });
@@ -2673,8 +3640,13 @@ function saveAsImage() {
     // Quarter dividers if quartered
     if (p.fillMode === 'quartered') {
       ctx.save(); ctx.strokeStyle = 'rgba(26,35,50,0.3)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(cx, y + 4); ctx.lineTo(cx, y + 48); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x + 48, cy); ctx.stroke();
+      if (p.shape === 'miscarriage') {
+        ctx.beginPath(); ctx.moveTo(cx, y + 8); ctx.lineTo(cx, y + 44); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 16, y + 26); ctx.lineTo(x + 36, y + 26); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(cx, y + 4); ctx.lineTo(cx, y + 48); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x + 48, cy); ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -2745,7 +3717,8 @@ function saveAsImage() {
       ctx.textBaseline = 'top';
       if (isLeftPartner) {
         ctx.textAlign = 'right';
-        p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x - 4, y + 56 + i * 15); });
+        const textY = (p.proband) ? y + 74 : y + 56;
+        p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x - 4, textY + i * 15); });
       } else {
         ctx.textAlign = 'left';
         p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x + 30, y + 56 + i * 15); });
@@ -2763,12 +3736,40 @@ function saveAsImage() {
   // Draw labels
   labels.forEach(l => {
     const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
-    const text = l.el.querySelector('.label-text')?.textContent || '';
+    const text = l.el.querySelector('.label-text')?.innerText || '';
     const fontSize = parseInt(l.el.style.fontSize) || 14;
-    ctx.fillStyle = '#6b7a8d';
     ctx.font = 'italic ' + fontSize + 'px Georgia, "Times New Roman", serif';
     ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    ctx.fillText(text, x + 8, y + 4);
+    const lines = text.split('\n');
+    const lineHeight = fontSize * 1.3;
+    const padding = l.bordered ? 8 : 0;
+    const textX = x + 8 + padding;
+    const textY = y + 4 + padding;
+
+    if (l.bordered) {
+      // Measure max width
+      let maxWidth = 0;
+      lines.forEach(line => { const w = ctx.measureText(line).width; if (w > maxWidth) maxWidth = w; });
+      const boxW = maxWidth + 16 + padding * 2;
+      const boxH = lines.length * lineHeight + 8 + padding * 2;
+      ctx.save();
+      ctx.strokeStyle = '#6b7a8d';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const bx = x + 4, by2 = y, bw = boxW, bh = boxH, br = 4;
+      ctx.moveTo(bx + br, by2); ctx.lineTo(bx + bw - br, by2); ctx.quadraticCurveTo(bx + bw, by2, bx + bw, by2 + br);
+      ctx.lineTo(bx + bw, by2 + bh - br); ctx.quadraticCurveTo(bx + bw, by2 + bh, bx + bw - br, by2 + bh);
+      ctx.lineTo(bx + br, by2 + bh); ctx.quadraticCurveTo(bx, by2 + bh, bx, by2 + bh - br);
+      ctx.lineTo(bx, by2 + br); ctx.quadraticCurveTo(bx, by2, bx + br, by2);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = '#6b7a8d';
+    lines.forEach((line, i) => {
+      ctx.fillText(line, textX, textY + i * lineHeight);
+    });
   });
 
   // Draw legend at its canvas position
@@ -2845,6 +3846,21 @@ function drawQuarteredCanvas(ctx, shape, x, y, quarters) {
       ctx.fillStyle = quarters[i] || '#ffffff';
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 22, a[0], a[1]); ctx.closePath(); ctx.fill();
     });
+  } else if (shape === 'miscarriage') {
+    // Triangle quarters: top=(cx, y+8), bottom-right=(x+46, y+44), bottom-left=(x+6, y+44)
+    // Horizontal cut at y+26: left=(x+16, y+26), right=(x+36, y+26)
+    const quads = [
+      [[cx, y+8],[x+36, y+26],[cx, y+26]],                     // TR
+      [[cx, y+26],[x+36, y+26],[x+46, y+44],[cx, y+44]],       // BR
+      [[cx, y+26],[cx, y+44],[x+6, y+44],[x+16, y+26]],        // BL
+      [[cx, y+8],[cx, y+26],[x+16, y+26]]                       // TL
+    ];
+    quads.forEach((pts, i) => {
+      ctx.fillStyle = quarters[i] || '#ffffff';
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
+      ctx.closePath(); ctx.fill();
+    });
   } else {
     const pts = [
       [[cx,cy],[cx,y+3],[x+49,cy]],
@@ -2878,6 +3894,7 @@ function tryAutoRestore() {
 initColorPickers();
 tryAutoRestore();
 updateStatus();
+updateUndoRedoUI();
 </script>
 </body>
 </html>

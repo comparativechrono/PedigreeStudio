@@ -1381,8 +1381,8 @@ function makeHalfFill(shape, halves) {
   const dl = halfDividerCoords(shape);
   let svg = '';
   paths.forEach((d, i) => {
-    const c = halves[i];
-    if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+    const c = halves[i] || '#ffffff';
+    svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
   });
   svg += `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="1" opacity="0.3"/>`;
   return svg;
@@ -1393,8 +1393,8 @@ function makeQuarteredFill(shape, quarters) {
   const dividers = quarterDividerCoords(shape);
   let svg = '';
   paths.forEach((d, i) => {
-    const c = quarters[i];
-    if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+    const c = quarters[i] || '#ffffff';
+    svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
   });
   dividers.forEach(dl => {
     svg += `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="1" opacity="0.3"/>`;

@@ -171,6 +171,20 @@
   .quarter-cell.active-quarter { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
   .quarter-label { font-size: 11px; color: var(--text-muted); margin-left: 10px; vertical-align: top; }
 
+  /* ── Half selector ── */
+  .half-grid {
+    display: inline-grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; margin: 6px 0; border: 1.5px solid var(--border); border-radius: 4px;
+    overflow: hidden; width: 60px; height: 60px;
+  }
+  .half-cell {
+    cursor: pointer; transition: all 0.15s; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--text-muted); font-weight: 600;
+  }
+  .half-cell:hover { filter: brightness(0.9); }
+  .half-cell.active-half { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+
   /* ── Canvas ── */
   .canvas-area {
     flex: 1; position: relative; overflow: hidden;
@@ -181,7 +195,8 @@
   }
   #canvas {
     position: absolute; top: 0; left: 0;
-    width: 6000px; height: 6000px; transform-origin: 0 0;
+    /* width/height set dynamically by applyCanvasSize() */
+    transform-origin: 0 0;
   }
   #lines-layer {
     position: absolute; top: 0; left: 0;
@@ -430,12 +445,12 @@
     <h3>How It Works</h3>
     <ol class="splash-steps">
       <li><span class="step-num">1</span>Choose a shape (male, female, unknown) and click <strong>Add Person</strong>.</li>
-      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid or quartered).</li>
+      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid, half, or quartered).</li>
       <li><span class="step-num">3</span>Use <strong>Partner</strong> mode to connect two people with a partnership line.</li>
       <li><span class="step-num">4</span>Use <strong>Child</strong> mode — click a partnership line, then a person — to draw a descent line.</li>
       <li><span class="step-num">5</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
       <li><span class="step-num">6</span>Connected people move as a unit. Toggle <strong>Individual Move</strong> for independent positioning. Use the <strong>Key</strong> button to generate a colour legend.</li>
-      <li><span class="step-num">7</span>People are auto-numbered by generation and position. <strong>Export Image</strong> to save a PNG.</li>
+      <li><span class="step-num">7</span>People are auto-numbered by generation and position. <strong>Export PNG</strong> for a raster image or <strong>Export SVG</strong> for a scalable vector file.</li>
     </ol>
     <button class="btn-start" onclick="dismissSplash()">Get Started</button>
   </div>
@@ -498,6 +513,31 @@
         <span>SAb</span>
       </div>
     </div>
+    <div style="text-align:center;margin-top:6px;">
+      <button class="btn btn-secondary" id="extraShapesToggle" style="width:100%;margin:0;padding:4px;font-size:11px;" onclick="toggleExtraShapes()">▼ Show further symbols</button>
+    </div>
+    <div class="shape-picker" id="extraShapes" style="display:none;margin-top:6px;flex-wrap:wrap;">
+      <div class="shape-option" data-shape="no-offspring" onclick="selectShape('no-offspring')">
+        <svg viewBox="0 0 40 40"><line x1="6" y1="6" x2="34" y2="6" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>No offspr.</span>
+      </div>
+      <div class="shape-option" data-shape="infertile" onclick="selectShape('infertile')">
+        <svg viewBox="0 0 40 40"><line x1="6" y1="6" x2="34" y2="6" stroke="#1a2332" stroke-width="2"/><line x1="6" y1="14" x2="34" y2="14" stroke="#1a2332" stroke-width="2"/></svg>
+        <span>Infertile</span>
+      </div>
+      <div class="shape-option" data-shape="adopted-male" onclick="selectShape('adopted-male')">
+        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><rect x="10" y="8" width="20" height="24" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
+        <span>Ad. Male</span>
+      </div>
+      <div class="shape-option" data-shape="adopted-female" onclick="selectShape('adopted-female')">
+        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><circle cx="20" cy="20" r="10" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
+        <span>Ad. Female</span>
+      </div>
+      <div class="shape-option" data-shape="adopted-unknown" onclick="selectShape('adopted-unknown')">
+        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><polygon points="20,6 34,20 20,34 6,20" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
+        <span>Ad. Unkn.</span>
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="addPerson()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Person
@@ -531,6 +571,15 @@
         <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('unknown')">◇ Unk</button>
         <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('miscarriage')">△ SAb</button>
       </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('no-offspring')">— No offspr.</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('infertile')">═ Infertile</button>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-male')">[♂] Ad.M</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-female')">[♀] Ad.F</button>
+        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-unknown')">[◇] Ad.U</button>
+      </div>
     </div>
 
     <div style="margin-top:8px;">
@@ -539,6 +588,7 @@
         <button class="btn btn-secondary" data-ct="" onclick="setCenterText('')" style="flex:1;margin:0;padding:5px;font-size:10px;">None</button>
         <button class="btn btn-secondary" data-ct="S" onclick="setCenterText('S')" style="flex:1;margin:0;padding:5px;font-size:10px;">S (multiple)</button>
         <button class="btn btn-secondary" data-ct="P" onclick="setCenterText('P')" style="flex:1;margin:0;padding:5px;font-size:10px;">P (pregnancy)</button>
+        <button class="btn btn-secondary" data-ct="dot" onclick="setCenterText('dot')" style="flex:1;margin:0;padding:5px;font-size:10px;">● (carrier)</button>
       </div>
     </div>
     <div id="miscarriageSexUI" style="display:none;margin-top:8px;">
@@ -556,11 +606,23 @@
       <div class="fill-mode-row">
         <button class="fill-mode-btn active" data-mode="none" onclick="setFillMode('none')">None</button>
         <button class="fill-mode-btn" data-mode="solid" onclick="setFillMode('solid')">Solid</button>
+        <button class="fill-mode-btn" data-mode="half" onclick="setFillMode('half')">Half</button>
         <button class="fill-mode-btn" data-mode="quartered" onclick="setFillMode('quartered')">Quartered</button>
       </div>
 
       <div id="solidFillUI" style="display:none;">
         <div class="fill-colors" id="solidColorPicker"></div>
+      </div>
+
+      <div id="halfFillUI" style="display:none;">
+        <div style="display:flex;align-items:flex-start;">
+          <div class="half-grid" id="halfGrid">
+            <div class="half-cell" data-h="0" onclick="selectHalf(0)" style="background:#fff;">L</div>
+            <div class="half-cell" data-h="1" onclick="selectHalf(1)" style="background:#fff;">R</div>
+          </div>
+          <span class="quarter-label" id="halfLabel">Click a half, then pick a colour</span>
+        </div>
+        <div class="fill-colors" id="halfColorPicker" style="margin-top:6px;"></div>
       </div>
 
       <div id="quarteredFillUI" style="display:none;">
@@ -647,7 +709,10 @@
 
   <div class="panel-section" style="display:flex; flex-direction:column; gap:4px;">
     <h3>File</h3>
-    <button class="btn btn-primary" onclick="saveAsImage()" style="margin-top:0;">Export Image</button>
+    <div style="display:flex; gap:4px;">
+      <button class="btn btn-primary" onclick="saveAsImage()" style="margin-top:0; flex:1;">Export PNG</button>
+      <button class="btn btn-primary" onclick="saveAsSVG()" style="margin-top:0; flex:1;">Export SVG</button>
+    </div>
     <button class="btn btn-secondary" onclick="toggleLegend()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Colour Key / Legend
@@ -725,11 +790,14 @@ let individualMoveMode = false;
 let panState = null;
 let currentLabelSize = 14;
 let activeQuarter = -1; // which quarter is being edited
+let activeHalf = -1;   // which half is being edited (0=left, 1=right)
 
 const SHAPE_SIZE = 52;
 const SHAPE_HALF = 26;
 let partnerGap = SHAPE_SIZE * 2;
 let childHeight = SHAPE_SIZE * 2.5;
+const BRANCH_Y_OFFSET = 5; // offset for branch lines when partner is between siblings (≥ 2×STROKE_W)
+const BRIDGE_RADIUS = 6;   // semicircle radius for line crossing bridges
 
 const FILL_COLORS = [
   '#1a2332','#c0392b','#2980b9','#27ae60','#e67e22',
@@ -749,6 +817,40 @@ let currentTwinType = 'identical';
 let twinSource = null; // { '#c0392b': 'Breast cancer', ... }
 
 let zoomLevel = 1, panX = 0, panY = 0;
+
+// ── Dynamic canvas sizing ──
+// Canvas starts at 6000×6000 and auto-expands when content nears the edge.
+let canvasWidth = 6000, canvasHeight = 6000;
+
+function expandCanvasIfNeeded() {
+  const margin = 600;       // extra space added when expanding
+  const threshold = 200;    // trigger expansion when content is within this distance of edge
+  let maxX = 0, maxY = 0;
+
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left) + SHAPE_SIZE + threshold;
+    const y = parseFloat(p.el.style.top) + SHAPE_SIZE + threshold;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  });
+  labels.forEach(l => {
+    const x = parseFloat(l.el.style.left) + (l.el.offsetWidth || 200) + threshold;
+    const y = parseFloat(l.el.style.top) + (l.el.offsetHeight || 40) + threshold;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  });
+
+  let changed = false;
+  if (maxX > canvasWidth)  { canvasWidth  = maxX + margin; changed = true; }
+  if (maxY > canvasHeight) { canvasHeight = maxY + margin; changed = true; }
+  if (changed) applyCanvasSize();
+}
+
+function applyCanvasSize() {
+  const el = document.getElementById('canvas');
+  el.style.width  = canvasWidth  + 'px';
+  el.style.height = canvasHeight + 'px';
+}
 
 // ── Auto-save ──
 let saveTimer = null;
@@ -826,6 +928,23 @@ function selectShape(shape) {
   currentShape = shape;
   document.querySelectorAll('.shape-option').forEach(el => el.classList.remove('active'));
   document.querySelector(`.shape-option[data-shape="${shape}"]`)?.classList.add('active');
+  // Auto-show extra shapes panel if an extra shape was selected programmatically
+  if (['no-offspring','infertile','adopted-male','adopted-female','adopted-unknown'].includes(shape)) {
+    const panel = document.getElementById('extraShapes');
+    if (panel.style.display === 'none') toggleExtraShapes();
+  }
+}
+
+function toggleExtraShapes() {
+  const panel = document.getElementById('extraShapes');
+  const btn = document.getElementById('extraShapesToggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'flex';
+    btn.textContent = '▲ Hide further symbols';
+  } else {
+    panel.style.display = 'none';
+    btn.textContent = '▼ Show further symbols';
+  }
 }
 
 function setPartnershipType(t) {
@@ -890,6 +1009,7 @@ function initColorPickers() {
     });
   };
   makePicker('solidColorPicker');
+  makePicker('halfColorPicker');
   makePicker('quarterColorPicker');
 }
 
@@ -937,110 +1057,289 @@ function updateStatus() {
   s.textContent = map[currentTool] || 'Ready';
 }
 
-// ══════════════════════════════════════════
-// SHAPE SVG RENDERING (solid + quartered)
-// ══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// SHARED GEOMETRY MODEL
+// All shape and connection geometry is defined once here.
+// Both the DOM/SVG rendering and the PNG Canvas export
+// consume these same definitions — no parallel maintenance.
+// ══════════════════════════════════════════════════════════
 
-function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText) {
-  const stroke = '#1a2332';
-  const sw = 2;
-  let fills = '', border = '', deathLine = '', extra = '';
-  const hasFill = fillMode === 'solid' || fillMode === 'quartered';
+const STROKE_COLOR = '#1a2332';
+const STROKE_W = 2;
 
-  if (fillMode === 'solid' && fillColor) fills = makeSolidFill(shape, fillColor);
-  else if (fillMode === 'quartered' && quarters) fills = makeQuarteredFill(shape, quarters);
+// ── Shape outline as SVG path d-string (in 0-52 viewBox coords) ──
 
-  if (shape === 'male') {
-    border = `<rect class="shape-border" x="4" y="4" width="44" height="44" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    if (deceased) deathLine = `<line x1="4" y1="48" x2="48" y2="4" stroke="${stroke}" stroke-width="${sw}"/>`;
-  } else if (shape === 'female') {
-    border = `<circle class="shape-border" cx="26" cy="26" r="22" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    if (deceased) deathLine = `<line x1="4" y1="48" x2="48" y2="4" stroke="${stroke}" stroke-width="${sw}"/>`;
-  } else if (shape === 'miscarriage') {
-    border = `<polygon class="shape-border" points="26,8 46,44 6,44" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    if (deceased) deathLine = `<line x1="6" y1="44" x2="46" y2="8" stroke="${stroke}" stroke-width="${sw}"/>`;
+function shapePathD(shape) {
+  if (shape === 'male')             return 'M 4 4 L 48 4 L 48 48 L 4 48 Z';
+  if (shape === 'female')           return 'M 48 26 A 22 22 0 0 1 4 26 A 22 22 0 0 1 48 26 Z';
+  if (shape === 'miscarriage')      return 'M 26 8 L 46 44 L 6 44 Z';
+  if (shape === 'no-offspring')     return 'M 8 4 L 44 4';
+  if (shape === 'infertile')        return 'M 8 4 L 44 4 M 8 12 L 44 12';
+  if (shape === 'adopted-male')     return 'M 13 9 L 39 9 L 39 43 L 13 43 Z';
+  if (shape === 'adopted-female')   return 'M 39 26 A 13 13 0 0 1 13 26 A 13 13 0 0 1 39 26 Z';
+  if (shape === 'adopted-unknown')  return 'M 26 7 L 43 26 L 26 45 L 9 26 Z';
+  return 'M 26 3 L 49 26 L 26 49 L 3 26 Z'; // unknown / diamond
+}
+
+const BRACKET_LEFT_D  = 'M 11 3 L 3 3 L 3 49 L 11 49';
+const BRACKET_RIGHT_D = 'M 41 3 L 49 3 L 49 49 L 41 49';
+
+function isAdoptedShape(shape) { return shape === 'adopted-male' || shape === 'adopted-female' || shape === 'adopted-unknown'; }
+function isLineShape(shape)    { return shape === 'no-offspring' || shape === 'infertile'; }
+
+// ── Quartered fill: 4 SVG path d-strings [TR, BR, BL, TL] ──
+
+function quarterPathDs(shape) {
+  if (shape === 'male') return [
+    'M 26 4 L 48 4 L 48 26 L 26 26 Z',
+    'M 26 26 L 48 26 L 48 48 L 26 48 Z',
+    'M 4 26 L 26 26 L 26 48 L 4 48 Z',
+    'M 4 4 L 26 4 L 26 26 L 4 26 Z'
+  ];
+  if (shape === 'female') return [
+    'M 26 26 L 26 4 A 22 22 0 0 1 48 26 Z',
+    'M 26 26 L 48 26 A 22 22 0 0 1 26 48 Z',
+    'M 26 26 L 26 48 A 22 22 0 0 1 4 26 Z',
+    'M 26 26 L 4 26 A 22 22 0 0 1 26 4 Z'
+  ];
+  if (shape === 'miscarriage') return [
+    'M 26 8 L 36 26 L 26 26 Z',
+    'M 26 26 L 36 26 L 46 44 L 26 44 Z',
+    'M 26 26 L 26 44 L 6 44 L 16 26 Z',
+    'M 26 8 L 26 26 L 16 26 Z'
+  ];
+  if (shape === 'adopted-male') return [
+    'M 26 9 L 39 9 L 39 26 L 26 26 Z',
+    'M 26 26 L 39 26 L 39 43 L 26 43 Z',
+    'M 13 26 L 26 26 L 26 43 L 13 43 Z',
+    'M 13 9 L 26 9 L 26 26 L 13 26 Z'
+  ];
+  if (shape === 'adopted-female') return [
+    'M 26 26 L 26 13 A 13 13 0 0 1 39 26 Z',
+    'M 26 26 L 39 26 A 13 13 0 0 1 26 39 Z',
+    'M 26 26 L 26 39 A 13 13 0 0 1 13 26 Z',
+    'M 26 26 L 13 26 A 13 13 0 0 1 26 13 Z'
+  ];
+  if (shape === 'adopted-unknown') return [
+    'M 26 26 L 26 7 L 43 26 Z',
+    'M 26 26 L 43 26 L 26 45 Z',
+    'M 26 26 L 26 45 L 9 26 Z',
+    'M 26 26 L 9 26 L 26 7 Z'
+  ];
+  return [ // diamond
+    'M 26 26 L 26 3 L 49 26 Z',
+    'M 26 26 L 49 26 L 26 49 Z',
+    'M 26 26 L 26 49 L 3 26 Z',
+    'M 26 26 L 3 26 L 26 3 Z'
+  ];
+}
+
+// ── Half fill: 2 SVG path d-strings [Left, Right] ──
+
+function halfPathDs(shape) {
+  if (shape === 'male') return [
+    'M 4 4 L 26 4 L 26 48 L 4 48 Z',
+    'M 26 4 L 48 4 L 48 48 L 26 48 Z'
+  ];
+  if (shape === 'female') return [
+    'M 26 26 L 26 4 A 22 22 0 0 0 26 48 Z',
+    'M 26 26 L 26 4 A 22 22 0 0 1 26 48 Z'
+  ];
+  if (shape === 'miscarriage') return [
+    'M 26 8 L 6 44 L 26 44 Z',
+    'M 26 8 L 46 44 L 26 44 Z'
+  ];
+  if (shape === 'adopted-male') return [
+    'M 13 9 L 26 9 L 26 43 L 13 43 Z',
+    'M 26 9 L 39 9 L 39 43 L 26 43 Z'
+  ];
+  if (shape === 'adopted-female') return [
+    'M 26 26 L 26 13 A 13 13 0 0 0 26 39 Z',
+    'M 26 26 L 26 13 A 13 13 0 0 1 26 39 Z'
+  ];
+  if (shape === 'adopted-unknown') return [
+    'M 26 7 L 9 26 L 26 45 Z',
+    'M 26 7 L 43 26 L 26 45 Z'
+  ];
+  return [ // diamond
+    'M 26 3 L 3 26 L 26 49 Z',
+    'M 26 3 L 49 26 L 26 49 Z'
+  ];
+}
+
+// ── Half divider line {x1,y1,x2,y2} ──
+
+function halfDividerCoords(shape) {
+  if (shape === 'miscarriage') return { x1: 26, y1: 8, x2: 26, y2: 44 };
+  if (shape === 'adopted-male')    return { x1: 26, y1: 9, x2: 26, y2: 43 };
+  if (shape === 'adopted-female')  return { x1: 26, y1: 13, x2: 26, y2: 39 };
+  if (shape === 'adopted-unknown') return { x1: 26, y1: 7, x2: 26, y2: 45 };
+  const e = (shape === 'unknown') ? 3 : 4;
+  const f = (shape === 'unknown') ? 49 : 48;
+  return { x1: 26, y1: e, x2: 26, y2: f };
+}
+
+// ── Quarter divider lines [{x1,y1,x2,y2}, …] ──
+
+function quarterDividerCoords(shape) {
+  if (shape === 'miscarriage') return [
+    { x1: 26, y1: 8, x2: 26, y2: 44 },
+    { x1: 16, y1: 26, x2: 36, y2: 26 }
+  ];
+  if (shape === 'adopted-male') return [
+    { x1: 26, y1: 9, x2: 26, y2: 43 },
+    { x1: 13, y1: 26, x2: 39, y2: 26 }
+  ];
+  if (shape === 'adopted-female') return [
+    { x1: 26, y1: 13, x2: 26, y2: 39 },
+    { x1: 13, y1: 26, x2: 39, y2: 26 }
+  ];
+  if (shape === 'adopted-unknown') return [
+    { x1: 26, y1: 7, x2: 26, y2: 45 },
+    { x1: 9, y1: 26, x2: 43, y2: 26 }
+  ];
+  const e = (shape === 'unknown') ? 3 : 4;
+  const f = (shape === 'unknown') ? 49 : 48;
+  return [
+    { x1: 26, y1: e, x2: 26, y2: f },
+    { x1: e, y1: 26, x2: f, y2: 26 }
+  ];
+}
+
+// ── Deceased line coords {x1,y1,x2,y2} ──
+
+function deceasedLineCoords(shape) {
+  if (shape === 'miscarriage')      return { x1: 6, y1: 44, x2: 46, y2: 8 };
+  if (shape === 'unknown')          return { x1: 3, y1: 49, x2: 49, y2: 3 };
+  if (shape === 'adopted-male')     return { x1: 13, y1: 43, x2: 39, y2: 9 };
+  if (shape === 'adopted-female')   return { x1: 13, y1: 39, x2: 39, y2: 13 };
+  if (shape === 'adopted-unknown')  return { x1: 9, y1: 45, x2: 43, y2: 7 };
+  if (shape === 'no-offspring' || shape === 'infertile') return { x1: 8, y1: 12, x2: 44, y2: 4 };
+  return { x1: 4, y1: 48, x2: 48, y2: 4 }; // male & female
+}
+
+// ── Center text Y position ──
+
+function centerTextY(shape) { return shape === 'miscarriage' ? 30 : 26; }
+
+// ── Partnership line geometry ──
+
+function computePartnershipGeom(fcx, fcy, tcx, tcy, type) {
+  const geom = { x1: fcx, y1: fcy, x2: tcx, y2: tcy, consang: null, slashLines: null };
+  if (type === 'consanguineous') {
+    const dx = tcx - fcx, dy = tcy - fcy, len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len * 4, ny = dx / len * 4;
+    geom.consang = { x1: fcx + nx, y1: fcy + ny, x2: tcx + nx, y2: tcy + ny };
+  }
+  if (type === 'separated') {
+    const mx = (fcx + tcx) / 2, my = (fcy + tcy) / 2, sx = mx - 20;
+    geom.slashLines = [
+      { x1: sx - 5, y1: my - 8, x2: sx + 5, y2: my + 8 },
+      { x1: sx + 3, y1: my - 8, x2: sx + 13, y2: my + 8 }
+    ];
+  }
+  return geom;
+}
+
+// ── Child link path d-string ──
+// siblingTops: array of non-noSnap sibling top positions (excl. this child)
+// twinInfo: null or { otherCenterX, otherTop }
+
+function computeChildLinkD(midX, midY, childCenterX, childTop, childNoSnap, siblingTops, twinInfo, branchYOffset) {
+  branchYOffset = branchYOffset || 0;
+  if (twinInfo) {
+    const forkX = (childCenterX + twinInfo.otherCenterX) / 2;
+    const avgTop = (childTop + twinInfo.otherTop) / 2;
+    const branchY = Math.max(midY + 4, avgTop - SHAPE_HALF) - branchYOffset;
+    return `M ${midX} ${midY} L ${midX} ${branchY} L ${forkX} ${branchY} L ${childCenterX} ${childTop}`;
+  }
+  let dropY;
+  if (childNoSnap && siblingTops.length > 0) {
+    const sibBranchY = Math.max(midY + 4, Math.min(...siblingTops) - SHAPE_HALF);
+    dropY = childTop > sibBranchY ? sibBranchY : Math.max(midY + 4, childTop - SHAPE_HALF);
   } else {
-    border = `<polygon class="shape-border" points="26,3 49,26 26,49 3,26" fill="${hasFill ? 'none' : '#fff'}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    if (deceased) deathLine = `<line x1="3" y1="49" x2="49" y2="3" stroke="${stroke}" stroke-width="${sw}"/>`;
+    dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
+  }
+  dropY -= branchYOffset;
+  return `M ${midX} ${midY} L ${midX} ${dropY} L ${childCenterX} ${dropY} L ${childCenterX} ${childTop}`;
+}
+
+// ── Twin bar path d-string ──
+
+function computeTwinBarD(type, forkX, branchY, cc1x, cc2x, c1Top, c2Top) {
+  if (type !== 'identical') return '';
+  const f = 0.5;
+  const b1x = forkX + (cc1x - forkX) * f, b1y = branchY + (c1Top - branchY) * f;
+  const b2x = forkX + (cc2x - forkX) * f, b2y = branchY + (c2Top - branchY) * f;
+  return `M ${b1x} ${b1y} L ${b2x} ${b2y}`;
+}
+
+// ── Proband arrow path d-string (in viewBox 0 0 18 18) ──
+
+const PROBAND_ARROW_D = 'M2 16L16 2 M16 2L9 2 M16 2L16 9';
+
+// ══════════════════════════════════════════
+// SHAPE SVG RENDERING (uses shared geometry)
+// ══════════════════════════════════════════
+
+function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText, halves) {
+  let fills = '', deathLine = '', extra = '';
+  const hasFill = fillMode === 'solid' || fillMode === 'quartered' || fillMode === 'half';
+
+  if (fillMode === 'solid' && fillColor)          fills = makeSolidFill(shape, fillColor);
+  else if (fillMode === 'half' && halves)          fills = makeHalfFill(shape, halves);
+  else if (fillMode === 'quartered' && quarters)   fills = makeQuarteredFill(shape, quarters);
+
+  const border = `<path class="shape-border" d="${shapePathD(shape)}" fill="${hasFill ? 'none' : (isLineShape(shape) ? 'none' : '#fff')}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}"/>`;
+
+  let brackets = '';
+  if (isAdoptedShape(shape)) {
+    brackets = `<path d="${BRACKET_LEFT_D}" fill="none" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}"/><path d="${BRACKET_RIGHT_D}" fill="none" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}"/>`;
+  }
+
+  if (deceased) {
+    const dl = deceasedLineCoords(shape);
+    deathLine = `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}"/>`;
   }
   if (centerText) {
-    const tc = (fillMode === 'solid' && fillColor && !isLight(fillColor)) ? '#fff' : stroke;
-    const cy = shape === 'miscarriage' ? 30 : 26;
-    extra = `<text x="26" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="-apple-system,sans-serif">${centerText}</text>`;
+    const tc = (fillMode === 'solid' && fillColor && !isLight(fillColor)) ? '#fff' : STROKE_COLOR;
+    const cy = centerTextY(shape);
+    if (centerText === 'dot') {
+      extra = `<circle cx="26" cy="${cy}" r="5" fill="${tc}"/>`;
+    } else {
+      extra = `<text x="26" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="-apple-system,sans-serif">${centerText}</text>`;
+    }
   }
-  return `<svg viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">${fills}${border}${deathLine}${extra}</svg>`;
+  return `<svg viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">${fills}${border}${brackets}${deathLine}${extra}</svg>`;
 }
 
 function makeSolidFill(shape, color) {
-  if (shape === 'male') return `<rect x="4" y="4" width="44" height="44" fill="${color}" stroke="none"/>`;
-  if (shape === 'female') return `<circle cx="26" cy="26" r="22" fill="${color}" stroke="none"/>`;
-  if (shape === 'miscarriage') return `<polygon points="26,8 46,44 6,44" fill="${color}" stroke="none"/>`;
-  return `<polygon points="26,3 49,26 26,49 3,26" fill="${color}" stroke="none"/>`;
+  return `<path d="${shapePathD(shape)}" fill="${color}" stroke="none"/>`;
+}
+
+function makeHalfFill(shape, halves) {
+  const paths = halfPathDs(shape);
+  const dl = halfDividerCoords(shape);
+  let svg = '';
+  paths.forEach((d, i) => {
+    const c = halves[i];
+    if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+  });
+  svg += `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="1" opacity="0.3"/>`;
+  return svg;
 }
 
 function makeQuarteredFill(shape, quarters) {
-  // quarters: [TR, BR, BL, TL]  — each is a color string or null
+  const paths = quarterPathDs(shape);
+  const dividers = quarterDividerCoords(shape);
   let svg = '';
-  if (shape === 'male') {
-    // Square quarters
-    const rects = [
-      [26, 4, 22, 22],  // TR
-      [26, 26, 22, 22], // BR
-      [4, 26, 22, 22],  // BL
-      [4, 4, 22, 22]    // TL
-    ];
-    rects.forEach((r, i) => {
-      const c = quarters[i];
-      if (c) svg += `<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" fill="${c}" stroke="none"/>`;
-    });
-    // Divider lines
-    svg += `<line x1="26" y1="4" x2="26" y2="48" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-    svg += `<line x1="4" y1="26" x2="48" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-  } else if (shape === 'female') {
-    // Circle quarters as pie slices: TR, BR, BL, TL
-    const paths = [
-      'M 26 26 L 26 4 A 22 22 0 0 1 48 26 Z',   // TR
-      'M 26 26 L 48 26 A 22 22 0 0 1 26 48 Z',   // BR
-      'M 26 26 L 26 48 A 22 22 0 0 1 4 26 Z',    // BL
-      'M 26 26 L 4 26 A 22 22 0 0 1 26 4 Z'      // TL
-    ];
-    paths.forEach((d, i) => {
-      const c = quarters[i];
-      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
-    });
-    svg += `<line x1="26" y1="4" x2="26" y2="48" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-    svg += `<line x1="4" y1="26" x2="48" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-  } else if (shape === 'miscarriage') {
-    // Triangle quarters: vertices at (26,8) top, (46,44) bottom-right, (6,44) bottom-left
-    // Divided by vertical line x=26 and horizontal line y=26
-    // At y=26: left edge x=16, right edge x=36
-    const paths = [
-      'M 26 8 L 36 26 L 26 26 Z',          // TR
-      'M 26 26 L 36 26 L 46 44 L 26 44 Z',  // BR
-      'M 26 26 L 26 44 L 6 44 L 16 26 Z',   // BL
-      'M 26 8 L 26 26 L 16 26 Z'            // TL
-    ];
-    paths.forEach((d, i) => {
-      const c = quarters[i];
-      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
-    });
-    svg += `<line x1="26" y1="8" x2="26" y2="44" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-    svg += `<line x1="16" y1="26" x2="36" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-  } else {
-    // Diamond quarters as triangles from center
-    const paths = [
-      'M 26 26 L 26 3 L 49 26 Z',  // TR
-      'M 26 26 L 49 26 L 26 49 Z',  // BR
-      'M 26 26 L 26 49 L 3 26 Z',   // BL
-      'M 26 26 L 3 26 L 26 3 Z'     // TL
-    ];
-    paths.forEach((d, i) => {
-      const c = quarters[i];
-      if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
-    });
-    svg += `<line x1="26" y1="3" x2="26" y2="49" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-    svg += `<line x1="3" y1="26" x2="49" y2="26" stroke="#1a2332" stroke-width="1" opacity="0.3"/>`;
-  }
+  paths.forEach((d, i) => {
+    const c = quarters[i];
+    if (c) svg += `<path d="${d}" fill="${c}" stroke="none"/>`;
+  });
+  dividers.forEach(dl => {
+    svg += `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="1" opacity="0.3"/>`;
+  });
   return svg;
 }
 
@@ -1048,7 +1347,7 @@ function makeQuarteredFill(shape, quarters) {
 // ADD / REMOVE PERSON
 // ══════════════════════════
 
-function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex) {
+function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex, customHalves) {
   if (!customId) pushUndo();
   const id = customId || 'person-' + (++personIdCounter);
   if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n; }
@@ -1063,6 +1362,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
   const fillMode = customFillMode || 'none';
   const fillColor = customFillColor || FILL_COLORS[0];
   const quarters = customQuarters || [null, null, null, null];
+  const halves = customHalves || [null, null];
   const centerText = customCenterText || '';
   const miscarriageSex = customMiscarriageSex || 'unknown';
 
@@ -1074,7 +1374,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
 
   const shapeDiv = document.createElement('div');
   shapeDiv.className = 'person-shape';
-  shapeDiv.innerHTML = makeShapeSVG(shape, !!customDeceased, fillMode, fillColor, quarters, centerText);
+  shapeDiv.innerHTML = makeShapeSVG(shape, !!customDeceased, fillMode, fillColor, quarters, centerText, halves);
   el.appendChild(shapeDiv);
 
   const numEl = document.createElement('div');
@@ -1138,6 +1438,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
     proband: !!customProband,
     fillMode, fillColor,
     quarters: [...quarters],
+    halves: [...halves],
     centerText, miscarriageSex,
     noSnap: false,
     customLabel: 'Lbl',
@@ -1147,6 +1448,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
 
   updateNumbering();
   updateTextWrapping();
+  expandCanvasIfNeeded();
   scheduleSave();
   if (!customId) {
     document.getElementById('statusBar').textContent = `Added ${shape}`;
@@ -1161,7 +1463,7 @@ function addProbandArrow(el) {
   const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   arrow.setAttribute('class', 'proband-arrow');
   arrow.setAttribute('viewBox', '0 0 18 18');
-  arrow.innerHTML = `<path d="M2 16L16 2" stroke="#1a2332" stroke-width="1.8" fill="none"/><path d="M16 2L9 2" stroke="#1a2332" stroke-width="1.8" fill="none"/><path d="M16 2L16 9" stroke="#1a2332" stroke-width="1.8" fill="none"/>`;
+  arrow.innerHTML = `<path d="${PROBAND_ARROW_D}" stroke="${STROKE_COLOR}" stroke-width="1.8" fill="none"/>`;
   el.appendChild(arrow);
 }
 
@@ -1258,10 +1560,13 @@ function showProps(p) {
   // Fill mode buttons
   document.querySelectorAll('.fill-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === p.fillMode));
   document.getElementById('solidFillUI').style.display = p.fillMode === 'solid' ? 'block' : 'none';
+  document.getElementById('halfFillUI').style.display = p.fillMode === 'half' ? 'block' : 'none';
   document.getElementById('quarteredFillUI').style.display = p.fillMode === 'quartered' ? 'block' : 'none';
 
   // Update quarter grid visuals
   updateQuarterGridUI(p);
+  // Update half grid visuals
+  updateHalfGridUI(p);
 
   // Highlight active solid color
   document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => s.classList.remove('active'));
@@ -1271,6 +1576,7 @@ function showProps(p) {
     });
   }
   activeQuarter = -1;
+  activeHalf = -1;
 }
 
 function hideProps() {
@@ -1341,7 +1647,7 @@ function changeShape(newShape) {
 function refreshPersonShape(p) {
   const shapeDiv = p.el.querySelector('.person-shape');
   const delBtn = shapeDiv.querySelector('.delete-btn');
-  shapeDiv.innerHTML = makeShapeSVG(p.shape, p.deceased, p.fillMode, p.fillColor, p.quarters, p.centerText);
+  shapeDiv.innerHTML = makeShapeSVG(p.shape, p.deceased, p.fillMode, p.fillColor, p.quarters, p.centerText, p.halves);
   if (delBtn) shapeDiv.appendChild(delBtn);
   if (p.proband) addProbandArrow(p.el);
   // Manage miscarriage sex label
@@ -1366,8 +1672,10 @@ function setFillMode(mode) {
   p.fillMode = mode;
   document.querySelectorAll('.fill-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   document.getElementById('solidFillUI').style.display = mode === 'solid' ? 'block' : 'none';
+  document.getElementById('halfFillUI').style.display = mode === 'half' ? 'block' : 'none';
   document.getElementById('quarteredFillUI').style.display = mode === 'quartered' ? 'block' : 'none';
   if (mode === 'quartered') updateQuarterGridUI(p);
+  if (mode === 'half') updateHalfGridUI(p);
   refreshPersonShape(p);
   if (legendVisible) buildLegendBox();
   scheduleSave();
@@ -1389,6 +1697,9 @@ function applyFillColor(color) {
         if (rgbToHex(s.style.background) === color || s.style.background === color) s.classList.add('active');
       });
     }
+  } else if (p.fillMode === 'half' && activeHalf >= 0) {
+    p.halves[activeHalf] = color;
+    updateHalfGridUI(p);
   } else if (p.fillMode === 'quartered' && activeQuarter >= 0) {
     p.quarters[activeQuarter] = color;
     updateQuarterGridUI(p);
@@ -1412,6 +1723,24 @@ function updateQuarterGridUI(p) {
   cells.forEach(cell => {
     const qi = parseInt(cell.dataset.q);
     const c = p.quarters[qi];
+    cell.style.background = c || '#fff';
+    cell.style.color = c ? (isLight(c) ? '#333' : '#fff') : '#aaa';
+  });
+}
+
+function selectHalf(hi) {
+  activeHalf = hi;
+  document.querySelectorAll('.half-cell').forEach(c => c.classList.remove('active-half'));
+  document.querySelector(`.half-cell[data-h="${hi}"]`)?.classList.add('active-half');
+  const hNames = ['left', 'right'];
+  document.getElementById('halfLabel').textContent = `Selected: ${hNames[hi]}`;
+}
+
+function updateHalfGridUI(p) {
+  const cells = document.querySelectorAll('.half-cell');
+  cells.forEach(cell => {
+    const hi = parseInt(cell.dataset.h);
+    const c = p.halves ? p.halves[hi] : null;
     cell.style.background = c || '#fff';
     cell.style.color = c ? (isLight(c) ? '#333' : '#fff') : '#aaa';
   });
@@ -1499,6 +1828,7 @@ function createLabel(x, y, customId, customText, customSize, customBordered) {
   labels.set(id, { id, el: label, text: customText || 'Label', size, bordered });
 
   if (!customId) setTimeout(() => enterEditMode(textEl), 50);
+  expandCanvasIfNeeded();
   scheduleSave();
   return label;
 }
@@ -1798,11 +2128,85 @@ function reorderChildToEdge(childId, edge) {
   return true;
 }
 
+// ── Detect if creating this partnership gives either person two partners who are
+// siblings (children of the same parent partnership). When that happens, the
+// person with two sibling-partners ends up positioned between them, and their
+// own child link branch line overlaps the siblings' branch line.
+// Works as a PRE-CHECK: the new partnership has NOT been added yet.
+// Returns array of { betweenPersonId, childLinkId, newPartnerId,
+//   existingPartnerId, siblingParentPshipId }. ──
+function detectPartnerBetweenSiblings(newFromId, newToId) {
+  const results = [];
+
+  [newFromId, newToId].forEach(personId => {
+    const newPartnerId = personId === newFromId ? newToId : newFromId;
+
+    // Get EXISTING partners of personId (new partnership not yet in array)
+    const existingPartners = [];
+    partnerships.forEach(p => {
+      if (p.fromId === personId) existingPartners.push(p.toId);
+      else if (p.toId === personId) existingPartners.push(p.fromId);
+    });
+
+    if (existingPartners.length === 0) return; // first partnership — skip
+
+    // Check if newPartnerId is a sibling of any existing partner
+    const newPartnerParentPships = new Set(
+      childLinks.filter(cl => cl.childId === newPartnerId).map(cl => cl.partnershipId)
+    );
+    if (newPartnerParentPships.size === 0) return; // new partner has no parents
+
+    for (const existingPartnerId of existingPartners) {
+      const sharedParentCL = childLinks.find(cl =>
+        cl.childId === existingPartnerId && newPartnerParentPships.has(cl.partnershipId)
+      );
+      if (sharedParentCL) {
+        // personId will be between siblings newPartnerId and existingPartnerId
+        const ownChildLink = childLinks.find(cl => cl.childId === personId);
+        results.push({
+          betweenPersonId: personId,
+          childLinkId: ownChildLink ? ownChildLink.id : null,
+          newPartnerId: newPartnerId,
+          existingPartnerId: existingPartnerId,
+          siblingParentPshipId: sharedParentCL.partnershipId
+        });
+        return; // found for this personId
+      }
+    }
+  });
+
+  // Deduplicate by betweenPersonId
+  const seen = new Set();
+  return results.filter(r => {
+    if (seen.has(r.betweenPersonId)) return false;
+    seen.add(r.betweenPersonId);
+    return true;
+  });
+}
+
 function addPartnership(fromId, toId, customId, type) {
+  // Between-siblings pre-check: detect if this partnership gives either person
+  // two partners who are siblings, requiring special repositioning.
+  // Runs before pushUndo so cancel is free.
+  let betweenSiblingsInfo = null;
+  if (!customId && !individualMoveMode) {
+    const detected = detectPartnerBetweenSiblings(fromId, toId);
+    if (detected.length > 0) {
+      const proceed = confirm(
+        'This partnership places a person between two siblings from a different family, causing overlapping parent branch lines that cannot be distinguished.\n\n' +
+        'Press OK to add the partnership — the siblings will be rearranged and branch lines offset for clarity.\n\n' +
+        'Cancel to abandon this partnership.'
+      );
+      if (!proceed) return null;
+      betweenSiblingsInfo = detected;
+    }
+  }
+
   // Pre-check: in default mode, verify we can position this partnership without overlap
+  // (skip when between-siblings handler will do its own positioning)
   let skipPositioning = false;
   let placeLeft = false; // whether to place toId to the LEFT of fromId
-  if (!customId && !individualMoveMode) {
+  if (!customId && !individualMoveMode && !betweenSiblingsInfo) {
     // Try right placement first (default): fromId→right edge, toId→left edge
     // Then try left placement: fromId→left edge, toId→right edge
     const canRight = canReorderChildToEdge(fromId, 'right') && canReorderChildToEdge(toId, 'left');
@@ -1883,7 +2287,7 @@ function addPartnership(fromId, toId, customId, type) {
   // In default mode, capture toId's connected group and reorder siblings if needed
   let toGroup = null;
   let crossPedigree = false;
-  if (!customId && !individualMoveMode && !skipPositioning) {
+  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo) {
     toGroup = getConnectedGroup(toId);
     crossPedigree = !toGroup.has(fromId); // true if they're in different pedigrees
     toGroup.delete(toId); // toId handled separately
@@ -1906,7 +2310,7 @@ function addPartnership(fromId, toId, customId, type) {
 
   partnerships.push(pship);
 
-  if (!customId && !individualMoveMode && !skipPositioning) {
+  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo) {
     const fromP = persons.get(fromId), toP = persons.get(toId);
     if (fromP && toP) {
       const oldX = parseFloat(toP.el.style.left);
@@ -1941,13 +2345,195 @@ function addPartnership(fromId, toId, customId, type) {
       }
     }
   }
+
+  // Between-siblings repositioning: move new sibling to the other side of
+  // the shared partner so no partnership line runs through shapes
+  if (betweenSiblingsInfo) {
+    betweenSiblingsInfo.forEach(info => {
+      const xPerson = persons.get(info.betweenPersonId); // the shared partner (X)
+      const cExisting = persons.get(info.existingPartnerId);
+      const cNew = persons.get(info.newPartnerId);
+      if (!xPerson || !cExisting || !cNew) return;
+
+      const xX = parseFloat(xPerson.el.style.left);
+      const ceX = parseFloat(cExisting.el.style.left);
+      const xIsRight = xX > ceX; // X is to the right of existing partner
+
+      // Place new sibling on the opposite side of X from existing partner
+      const targetX = xIsRight ? xX + partnerGap : xX - partnerGap;
+      const targetY = parseFloat(cExisting.el.style.top); // align Y with sibling row
+      const oldX = parseFloat(cNew.el.style.left);
+      const oldY = parseFloat(cNew.el.style.top);
+      const dx = targetX - oldX;
+      const dy = targetY - oldY;
+
+      cNew.el.style.left = targetX + 'px';
+      cNew.x = targetX;
+      cNew.el.style.top = targetY + 'px';
+      cNew.y = targetY;
+
+      // Build C_new's own subtree — exclude BOTH the sibling parent partnership
+      // AND the newly created partnership to avoid cascading through X
+      const cnSubtree = new Set();
+      const queue = [info.newPartnerId];
+      while (queue.length) {
+        const nid = queue.shift();
+        if (cnSubtree.has(nid)) continue;
+        cnSubtree.add(nid);
+        partnerships.forEach(p => {
+          if (p.id === pship.id) return; // exclude new partnership
+          if (p.fromId === nid || p.toId === nid) {
+            const other = p.fromId === nid ? p.toId : p.fromId;
+            if (!cnSubtree.has(other)) queue.push(other);
+            childLinks.forEach(cl => {
+              if (cl.partnershipId === p.id && !cnSubtree.has(cl.childId)) queue.push(cl.childId);
+            });
+          }
+        });
+        childLinks.forEach(cl => {
+          if (cl.childId === nid && cl.partnershipId !== info.siblingParentPshipId) {
+            const ps = partnerships.find(p => p.id === cl.partnershipId);
+            if (ps) {
+              if (!cnSubtree.has(ps.fromId)) queue.push(ps.fromId);
+              if (!cnSubtree.has(ps.toId)) queue.push(ps.toId);
+            }
+          }
+        });
+      }
+      cnSubtree.delete(info.newPartnerId); // C_new already moved above
+
+      // Move C_new's subtree by the initial delta
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        cnSubtree.forEach(sid => {
+          const sp = persons.get(sid);
+          if (sp) {
+            sp.el.style.left = (parseFloat(sp.el.style.left) + dx) + 'px';
+            sp.el.style.top = (parseFloat(sp.el.style.top) + dy) + 'px';
+            sp.x = parseFloat(sp.el.style.left);
+            sp.y = parseFloat(sp.el.style.top);
+          }
+        });
+      }
+
+      // Close the gap left by C_new's departure from the sibling row.
+      // Only compact siblings on the gap side of C_existing; leave X, C_new,
+      // and X's parents untouched. Skip if X's parents are complex (connected
+      // elsewhere) or if compaction would push siblings into the parents' space.
+      let xParentsSimple = true;
+      const xParentCL = childLinks.find(cl => cl.childId === info.betweenPersonId);
+      let xParentPship = null;
+      if (xParentCL) {
+        xParentPship = partnerships.find(p => p.id === xParentCL.partnershipId);
+        if (xParentPship) {
+          [xParentPship.fromId, xParentPship.toId].forEach(pid => {
+            if (partnerships.some(p => p.id !== xParentPship.id && (p.fromId === pid || p.toId === pid)))
+              xParentsSimple = false;
+            if (childLinks.some(cl => cl.childId === pid))
+              xParentsSimple = false;
+          });
+        }
+      }
+
+      if (xParentsSimple) {
+        // Get remaining siblings (not C_new), sorted by X position
+        const remainingKids = childLinks
+          .filter(cl => cl.partnershipId === info.siblingParentPshipId && cl.childId !== info.newPartnerId)
+          .map(cl => cl.childId)
+          .filter(id => { const p = persons.get(id); return p && !p.noSnap; })
+          .sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+
+        const ceIdx = remainingKids.indexOf(info.existingPartnerId);
+        if (ceIdx !== -1 && remainingKids.length > 1) {
+          const ceCurrentX = parseFloat(cExisting.el.style.left);
+          const xToRight = parseFloat(xPerson.el.style.left) > ceCurrentX;
+
+          // Compute spacing from siblings' parent partnership
+          const sibPship = partnerships.find(p => p.id === info.siblingParentPshipId);
+          const sibFp = sibPship ? persons.get(sibPship.fromId) : null;
+          const sibTp = sibPship ? persons.get(sibPship.toId) : null;
+          const sibParentGap = (sibFp && sibTp)
+            ? Math.abs(parseFloat(sibFp.el.style.left) - parseFloat(sibTp.el.style.left))
+            : partnerGap;
+          const spacing = Math.min(sibParentGap, partnerGap);
+
+          // Compute new positions for gap-side siblings (dry run for clash check)
+          const moves = []; // { id, newX }
+          if (xToRight) {
+            // Gap is to C_existing's left — compact leftward siblings toward C_existing
+            for (let i = ceIdx - 1; i >= 0; i--) {
+              moves.push({ id: remainingKids[i], newX: ceCurrentX - (ceIdx - i) * spacing });
+            }
+          } else {
+            // Gap is to C_existing's right — compact rightward siblings toward C_existing
+            for (let i = ceIdx + 1; i < remainingKids.length; i++) {
+              moves.push({ id: remainingKids[i], newX: ceCurrentX + (i - ceIdx) * spacing });
+            }
+          }
+
+          // Clash check: would any compacted sibling overlap with X's parents?
+          let clashes = false;
+          if (xParentPship) {
+            const xp1 = persons.get(xParentPship.fromId);
+            const xp2 = persons.get(xParentPship.toId);
+            const xpMinX = Math.min(
+              xp1 ? parseFloat(xp1.el.style.left) : Infinity,
+              xp2 ? parseFloat(xp2.el.style.left) : Infinity
+            );
+            const xpMaxX = Math.max(
+              xp1 ? parseFloat(xp1.el.style.left) + SHAPE_SIZE : -Infinity,
+              xp2 ? parseFloat(xp2.el.style.left) + SHAPE_SIZE : -Infinity
+            );
+            for (const m of moves) {
+              if (m.newX + SHAPE_SIZE > xpMinX && m.newX < xpMaxX) { clashes = true; break; }
+            }
+          }
+
+          // Apply moves if no clash — also shift each sibling's downstream
+          // connections (partners, descendants) to keep partnership lines intact
+          if (!clashes && moves.length > 0) {
+            const movedSibIds = new Set(moves.map(m => m.id));
+            moves.forEach(m => {
+              const sp = persons.get(m.id);
+              if (!sp) return;
+              const moveDx = m.newX - parseFloat(sp.el.style.left);
+              sp.el.style.left = m.newX + 'px';
+              sp.x = m.newX;
+
+              // Move this sibling's downstream subtree by the same delta
+              if (Math.abs(moveDx) > 0.5) {
+                const sub = getSubtree(m.id, info.siblingParentPshipId);
+                sub.delete(m.id); // already moved above
+                // Don't move other siblings being compacted or C_new/X
+                movedSibIds.forEach(sid => sub.delete(sid));
+                sub.delete(info.newPartnerId);
+                sub.delete(info.betweenPersonId);
+                sub.forEach(sid => {
+                  const subP = persons.get(sid);
+                  if (subP) {
+                    subP.el.style.left = (parseFloat(subP.el.style.left) + moveDx) + 'px';
+                    subP.x = parseFloat(subP.el.style.left);
+                  }
+                });
+              }
+            });
+          }
+        }
+      }
+
+      // Mark C_new so distributeChildren excludes it — it's been placed outside
+      // the normal row and must not inflate spacing or become an anchor
+      cNew.siblingFixed = true;
+    });
+  }
+
   updatePartnershipPos(pship);
   alignConnectedPersons();
   updateTextWrapping();
   updateAllConnections();
+  expandCanvasIfNeeded();
 
-  // Check for new overlaps introduced by this action
-  if (!customId && !individualMoveMode && overlapsBefore && hasNewOverlaps(overlapsBefore)) {
+  // Check for new overlaps introduced by this action (skip when between-siblings handled positioning)
+  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo && overlapsBefore && hasNewOverlaps(overlapsBefore)) {
     const proceed = confirm(
       'This partnership has created overlapping shapes or connections.\n\n' +
       'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this partnership.\n\n' +
@@ -1958,6 +2544,19 @@ function addPartnership(fromId, toId, customId, type) {
       document.getElementById('statusBar').textContent = 'Partnership cancelled — rearrange in Individual Move mode first';
       return null;
     }
+  }
+
+  // Apply branchYOffset for between-siblings situations
+  if (betweenSiblingsInfo) {
+    betweenSiblingsInfo.forEach(info => {
+      if (info.childLinkId) {
+        const cl = childLinks.find(c => c.id === info.childLinkId);
+        if (cl) {
+          cl.branchYOffset = BRANCH_Y_OFFSET;
+          updateChildLinkPos(cl);
+        }
+      }
+    });
   }
 
   scheduleSave();
@@ -1979,6 +2578,8 @@ function removePartnership(id) {
   ps.el.remove(); ps.hitEl.remove();
   if (ps.el2) ps.el2.remove();
   if (ps.slash) ps.slash.forEach(s => s.remove());
+  if (ps.bridgeMask) { ps.bridgeMask.remove(); ps.bridgeArc.remove(); }
+  if (ps.bridgeMask2) { ps.bridgeMask2.remove(); ps.bridgeArc2.remove(); }
   partnerships.splice(idx, 1);
   updateTextWrapping();
   scheduleSave();
@@ -1989,34 +2590,29 @@ function updatePartnershipPos(pship) {
   const toP = persons.get(pship.toId);
   if (!fromP || !toP) return;
   const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-  [pship.el, pship.hitEl].forEach(l => { l.setAttribute('x1', fc.x); l.setAttribute('y1', fc.y); l.setAttribute('x2', tc.x); l.setAttribute('y2', tc.y); });
+  const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+  [pship.el, pship.hitEl].forEach(l => { l.setAttribute('x1', geom.x1); l.setAttribute('y1', geom.y1); l.setAttribute('x2', geom.x2); l.setAttribute('y2', geom.y2); });
 
-  // Consanguineous: second parallel line offset by 4px
-  if (pship.type === 'consanguineous' && pship.el2) {
-    const dx = tc.x - fc.x, dy = tc.y - fc.y, len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = -dy / len * 4, ny = dx / len * 4;
-    pship.el2.setAttribute('x1', fc.x + nx); pship.el2.setAttribute('y1', fc.y + ny);
-    pship.el2.setAttribute('x2', tc.x + nx); pship.el2.setAttribute('y2', tc.y + ny);
+  // Consanguineous: second parallel line
+  if (geom.consang && pship.el2) {
+    pship.el2.setAttribute('x1', geom.consang.x1); pship.el2.setAttribute('y1', geom.consang.y1);
+    pship.el2.setAttribute('x2', geom.consang.x2); pship.el2.setAttribute('y2', geom.consang.y2);
   }
 
   // Separated: slash marks through the line
-  if (pship.type === 'separated') {
+  if (geom.slashLines) {
     if (pship.slash) pship.slash.forEach(s => s.remove());
-    const mx = (fc.x + tc.x) / 2, my = (fc.y + tc.y) / 2;
-    const offX = -20; // shift left to avoid child line at midpoint
     const svg = document.getElementById('lines-layer');
-    const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    s1.setAttribute('x1', mx + offX - 5); s1.setAttribute('y1', my - 8);
-    s1.setAttribute('x2', mx + offX + 5); s1.setAttribute('y2', my + 8);
-    s1.setAttribute('stroke', '#1a2332'); s1.setAttribute('stroke-width', '2');
-    s1.style.pointerEvents = 'none';
-    const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    s2.setAttribute('x1', mx + offX + 3); s2.setAttribute('y1', my - 8);
-    s2.setAttribute('x2', mx + offX + 13); s2.setAttribute('y2', my + 8);
-    s2.setAttribute('stroke', '#1a2332'); s2.setAttribute('stroke-width', '2');
-    s2.style.pointerEvents = 'none';
-    svg.appendChild(s1); svg.appendChild(s2);
-    pship.slash = [s1, s2];
+    const slashEls = geom.slashLines.map(sl => {
+      const s = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      s.setAttribute('x1', sl.x1); s.setAttribute('y1', sl.y1);
+      s.setAttribute('x2', sl.x2); s.setAttribute('y2', sl.y2);
+      s.setAttribute('stroke', STROKE_COLOR); s.setAttribute('stroke-width', '2');
+      s.style.pointerEvents = 'none';
+      svg.appendChild(s);
+      return s;
+    });
+    pship.slash = slashEls;
   } else {
     if (pship.slash) { pship.slash.forEach(s => s.remove()); pship.slash = null; }
   }
@@ -2069,7 +2665,7 @@ function addChildLink(partnershipId, childId, customId) {
   svg.appendChild(hitPath);
   svg.appendChild(vertLine);
   const els = [vertLine, hitPath];
-  const cl = { id, partnershipId, childId, els };
+  const cl = { id, partnershipId, childId, els, branchYOffset: 0 };
 
   // In default mode, capture child's connected group BEFORE the link merges the two pedigrees
   let childGroup = null;
@@ -2235,20 +2831,9 @@ function addChildLink(partnershipId, childId, customId) {
     }
   }
 
+  expandCanvasIfNeeded();
   scheduleSave();
   return cl;
-}
-
-function snapPartnerGap(pship) {
-  const p1 = persons.get(pship.fromId), p2 = persons.get(pship.toId);
-  if (!p1 || !p2) return;
-  const x1 = parseFloat(p1.el.style.left), x2 = parseFloat(p2.el.style.left);
-  const leftP = x1 <= x2 ? p1 : p2;
-  const rightP = x1 <= x2 ? p2 : p1;
-  const leftX = parseFloat(leftP.el.style.left);
-  const newRightX = leftX + partnerGap;
-  rightP.el.style.left = newRightX + 'px';
-  rightP.x = newRightX;
 }
 
 function snapChildHeight(partnershipId, childId) {
@@ -2274,7 +2859,11 @@ function distributeChildren(partnershipId) {
   const midX = (leftX + rightX) / 2;
   const parentGap = rightX - leftX;
 
-  const kids = childLinks.filter(cl => cl.partnershipId === partnershipId).map(cl => cl.childId);
+  // Include noSnap children (needed by other logic) but filter out siblingFixed
+  // children — these were placed outside the row by the between-siblings handler
+  // and must not inflate spacing or become anchors
+  const kids = childLinks.filter(cl => cl.partnershipId === partnershipId).map(cl => cl.childId)
+    .filter(id => { const p = persons.get(id); return !p || !p.siblingFixed; });
   if (kids.length === 0) return;
 
   if (kids.length === 1) {
@@ -2377,49 +2966,25 @@ function updateChildLinkPos(cl) {
   const childCenter = getPersonCenter(child);
   const childTop = parseFloat(child.el.style.top);
 
-  // Gather all children of same partnership for horizontal span
   const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
 
-  // Check if this child is part of a twin link
+  // Check if twin
   const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
-
+  let twinInfo = null;
   if (twinLink) {
     const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
     const otherChild = persons.get(otherChildId);
     if (otherChild) {
-      const otherChildCenter = getPersonCenter(otherChild);
-      const forkX = (childCenter.x + otherChildCenter.x) / 2;
-      const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
-      let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-      // Path: vertical from partnership to branch, horizontal to fork point, diagonal to child
-      const pathD = `M ${midX} ${midY} L ${midX} ${branchY} L ${forkX} ${branchY} L ${childCenter.x} ${childTop}`;
-      cl.els[0].setAttribute('d', pathD);
-      cl.els[1].setAttribute('d', pathD);
-      return;
+      twinInfo = { otherCenterX: getPersonCenter(otherChild).x, otherTop: parseFloat(otherChild.el.style.top) };
     }
   }
 
-  // Normal: right-angle path at fixed height above children
-  // For noSnap children BELOW the sibling branch line, use the siblings' branch height
-  // so the line drops down from the shared branch point.
-  // Above the branch: use original child-based calculation (line rises to meet the child).
-  let dropY;
-  const nonSnapSiblings = siblingIds.filter(id => {
-    const p = persons.get(id);
-    return p && !p.noSnap && id !== cl.childId;
-  });
-  if (child.noSnap && nonSnapSiblings.length > 0) {
-    const siblingTops = nonSnapSiblings.map(id => parseFloat(persons.get(id).el.style.top));
-    const siblingBranchY = Math.max(midY + 4, Math.min(...siblingTops) - SHAPE_HALF);
-    if (childTop > siblingBranchY) {
-      dropY = siblingBranchY;
-    } else {
-      dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-    }
-  } else {
-    dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-  }
-  const pathD = `M ${midX} ${midY} L ${midX} ${dropY} L ${childCenter.x} ${dropY} L ${childCenter.x} ${childTop}`;
+  // Gather non-noSnap sibling tops for noSnap branch calculation
+  const siblingTops = siblingIds
+    .filter(id => { const p = persons.get(id); return p && !p.noSnap && id !== cl.childId; })
+    .map(id => parseFloat(persons.get(id).el.style.top));
+
+  const pathD = computeChildLinkD(midX, midY, childCenter.x, childTop, child.noSnap, siblingTops, twinInfo, cl.branchYOffset || 0);
   cl.els[0].setAttribute('d', pathD);
   cl.els[1].setAttribute('d', pathD);
 }
@@ -2428,10 +2993,280 @@ function getPersonCenter(p) {
   return { x: parseFloat(p.el.style.left) + SHAPE_HALF, y: parseFloat(p.el.style.top) + SHAPE_HALF };
 }
 
+// ══════════════════════
+// LINE CROSSING BRIDGES
+// ══════════════════════
+
+// Parse an SVG path d-string (M/L commands only) into {x,y} points
+function parsePathPoints(d) {
+  const pts = [];
+  const re = /[ML]\s*([\d.\-e]+)[\s,]+([\d.\-e]+)/gi;
+  let m;
+  while ((m = re.exec(d)) !== null) {
+    pts.push({ x: parseFloat(m[1]), y: parseFloat(m[2]) });
+  }
+  return pts;
+}
+
+// Collect all horizontal and vertical line segments from all connections
+function collectAllSegments() {
+  const segs = [];
+  const eps = 0.5; // tolerance for axis-alignment
+
+  // Child link paths — tagged with parent partnership ID (fam) so siblings are recognised
+  childLinks.forEach(cl => {
+    const d = cl.els[0].getAttribute('d');
+    if (!d) return;
+    const pts = parsePathPoints(d);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (Math.abs(a.y - b.y) < eps) {
+        segs.push({ type: 'h', y: a.y, x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x), src: cl.id, fam: cl.partnershipId });
+      } else if (Math.abs(a.x - b.x) < eps) {
+        segs.push({ type: 'v', x: a.x, y1: Math.min(a.y, b.y), y2: Math.max(a.y, b.y), src: cl.id, fam: cl.partnershipId });
+      }
+    }
+  });
+
+  // Partnership lines (SVG <line> elements) — fam = own partnership ID
+  // so crossings with own children's stems are recognised as same-family
+  partnerships.forEach(p => {
+    const x1 = parseFloat(p.el.getAttribute('x1')), y1 = parseFloat(p.el.getAttribute('y1'));
+    const x2 = parseFloat(p.el.getAttribute('x2')), y2 = parseFloat(p.el.getAttribute('y2'));
+    if (Math.abs(y1 - y2) < eps) {
+      segs.push({ type: 'h', y: y1, x1: Math.min(x1, x2), x2: Math.max(x1, x2), src: p.id, fam: p.id });
+    } else if (Math.abs(x1 - x2) < eps) {
+      segs.push({ type: 'v', x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2), src: p.id, fam: p.id });
+    }
+    if (p.el2) {
+      const cx1 = parseFloat(p.el2.getAttribute('x1')), cy1 = parseFloat(p.el2.getAttribute('y1'));
+      const cx2 = parseFloat(p.el2.getAttribute('x2')), cy2 = parseFloat(p.el2.getAttribute('y2'));
+      if (Math.abs(cy1 - cy2) < eps) {
+        segs.push({ type: 'h', y: cy1, x1: Math.min(cx1, cx2), x2: Math.max(cx1, cx2), src: p.id + '-c', fam: p.id });
+      } else if (Math.abs(cx1 - cx2) < eps) {
+        segs.push({ type: 'v', x: cx1, y1: Math.min(cy1, cy2), y2: Math.max(cy1, cy2), src: p.id + '-c', fam: p.id });
+      }
+    }
+  });
+
+  return segs;
+}
+
+// Find all H-V intersections between segments from DIFFERENT sources
+function findLineCrossings(segs) {
+  const hSegs = segs.filter(s => s.type === 'h');
+  const vSegs = segs.filter(s => s.type === 'v');
+  const crossings = [];
+  const hMargin = BRIDGE_RADIUS + 2; // prevent false positives at shared branch midpoints
+
+  for (const h of hSegs) {
+    for (const v of vSegs) {
+      if (h.src === v.src) continue; // same child link — skip
+      if (h.fam && v.fam && h.fam === v.fam) continue; // siblings from same family — skip
+      if (v.x > h.x1 + hMargin && v.x < h.x2 - hMargin &&
+          h.y >= v.y1 && h.y <= v.y2) {
+        crossings.push({ cx: v.x, cy: h.y, hSrc: h.src, vSrc: v.src });
+      }
+    }
+  }
+  return crossings;
+}
+
+// Rebuild a path d-string inserting bridge arcs at crossing points.
+// crossings: array of {cx, cy} — cx is matched to each vertical segment's X
+// so bridges only appear on the segment where the crossing actually occurs.
+function rebuildPathWithBridges(d, crossings) {
+  if (!crossings || crossings.length === 0) return d;
+  const pts = parsePathPoints(d);
+  if (pts.length < 2) return d;
+
+  let out = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const isV = Math.abs(a.x - b.x) < 0.5;
+
+    if (isV) {
+      const x = a.x;
+      const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
+      const goDown = b.y > a.y;
+
+      // Filter crossings: must match this segment's X and fall within its Y range.
+      // Only clamp near segment END (so arc doesn't extend past). At segment START,
+      // the bridge extends above the corner — visually correct for crossings at
+      // the branch point where the vertical meets the horizontal.
+      const rel = crossings
+        .filter(c => Math.abs(c.cx - x) < 1 && c.cy >= minY && c.cy <= maxY)
+        .map(c => Math.min(c.cy, maxY - BRIDGE_RADIUS - 1))
+        .filter(cy => cy + BRIDGE_RADIUS < maxY); // arc end must fit in segment
+
+      if (rel.length > 0) {
+        const unique = [...new Set(rel)];
+        unique.sort((p, q) => goDown ? p - q : q - p);
+        for (const cy of unique) {
+          if (goDown) {
+            out += ` L ${x} ${cy - BRIDGE_RADIUS} A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${x} ${cy + BRIDGE_RADIUS}`;
+          } else {
+            out += ` L ${x} ${cy + BRIDGE_RADIUS} A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 0 ${x} ${cy - BRIDGE_RADIUS}`;
+          }
+        }
+      }
+      out += ` L ${b.x} ${b.y}`;
+    } else {
+      out += ` L ${b.x} ${b.y}`;
+    }
+  }
+  return out;
+}
+
+// Build a bridge overlay d-string for a vertical line element (rare — partnerships are usually horizontal)
+function buildLineBridgeD(x1, y1, x2, y2, crossingYs) {
+  if (!crossingYs || crossingYs.length === 0) return '';
+  const x = x1;
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  const rel = crossingYs.filter(cy => cy > minY + BRIDGE_RADIUS + 1 && cy < maxY - BRIDGE_RADIUS - 1);
+  if (rel.length === 0) return '';
+  rel.sort((a, b) => a - b);
+  let d = '';
+  for (const cy of rel) {
+    d += `M ${x} ${cy - BRIDGE_RADIUS} A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${x} ${cy + BRIDGE_RADIUS} `;
+  }
+  return d.trim();
+}
+
+// Merge crossing points that are close in Y and at the same X (e.g. double
+// consanguineous lines ~4px apart) into a single bridge at their midpoint
+function mergeNearbyCrossings(crossings) {
+  if (crossings.length <= 1) return crossings;
+  crossings.sort((a, b) => a.cy - b.cy);
+  const merged = [];
+  let i = 0;
+  while (i < crossings.length) {
+    let j = i;
+    while (j + 1 < crossings.length &&
+           crossings[j + 1].cy - crossings[i].cy <= BRIDGE_RADIUS &&
+           Math.abs(crossings[j + 1].cx - crossings[i].cx) < 1) j++;
+    merged.push({ cx: crossings[i].cx, cy: (crossings[i].cy + crossings[j].cy) / 2 });
+    i = j + 1;
+  }
+  return merged;
+}
+
+// Master function: detect all crossings and apply bridge arcs to DOM
+function applyLineCrossings() {
+  const segs = collectAllSegments();
+  const crossings = findLineCrossings(segs);
+
+  // Group crossings by VERTICAL source as {cx, cy} pairs
+  const byVSrc = new Map();
+  crossings.forEach(c => {
+    if (!byVSrc.has(c.vSrc)) byVSrc.set(c.vSrc, []);
+    byVSrc.get(c.vSrc).push({ cx: c.cx, cy: c.cy });
+  });
+  // Merge nearby crossings (e.g. consanguineous double lines)
+  byVSrc.forEach((pts, key) => byVSrc.set(key, mergeNearbyCrossings(pts)));
+
+  // Apply bridges to child link paths (vertical segments)
+  childLinks.forEach(cl => {
+    const pts = byVSrc.get(cl.id);
+    if (pts && pts.length > 0) {
+      const cleanD = cl.els[0].getAttribute('d');
+      const bridgedD = rebuildPathWithBridges(cleanD, pts);
+      cl.els[0].setAttribute('d', bridgedD);
+      cl.els[1].setAttribute('d', bridgedD);
+    }
+  });
+
+  // Apply bridge overlays to partnership lines (only fires for vertical partnerships)
+  const svg = document.getElementById('lines-layer');
+  partnerships.forEach(p => {
+    const pts = byVSrc.get(p.id);
+    if (pts && pts.length > 0) {
+      const x1 = parseFloat(p.el.getAttribute('x1')), y1 = parseFloat(p.el.getAttribute('y1'));
+      const x2 = parseFloat(p.el.getAttribute('x2')), y2 = parseFloat(p.el.getAttribute('y2'));
+      const d = buildLineBridgeD(x1, y1, x2, y2, pts.map(c => c.cy));
+      if (d) {
+        if (!p.bridgeMask) {
+          p.bridgeMask = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.bridgeMask.setAttribute('stroke', '#ffffff');
+          p.bridgeMask.setAttribute('stroke-width', String(STROKE_W + 4));
+          p.bridgeMask.setAttribute('fill', 'none');
+          p.bridgeMask.style.pointerEvents = 'none';
+          svg.appendChild(p.bridgeMask);
+          p.bridgeArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.bridgeArc.setAttribute('stroke', STROKE_COLOR);
+          p.bridgeArc.setAttribute('stroke-width', String(STROKE_W));
+          p.bridgeArc.setAttribute('fill', 'none');
+          p.bridgeArc.style.pointerEvents = 'none';
+          svg.appendChild(p.bridgeArc);
+        }
+        p.bridgeMask.setAttribute('d', d);
+        p.bridgeArc.setAttribute('d', d);
+        p.bridgeMask.style.display = '';
+        p.bridgeArc.style.display = '';
+      } else {
+        if (p.bridgeMask) { p.bridgeMask.style.display = 'none'; p.bridgeArc.style.display = 'none'; }
+      }
+    } else {
+      if (p.bridgeMask) { p.bridgeMask.style.display = 'none'; p.bridgeArc.style.display = 'none'; }
+    }
+
+    // Consanguineous second line
+    const pts2 = byVSrc.get(p.id + '-c');
+    if (pts2 && pts2.length > 0 && p.el2) {
+      const x1 = parseFloat(p.el2.getAttribute('x1')), y1 = parseFloat(p.el2.getAttribute('y1'));
+      const x2 = parseFloat(p.el2.getAttribute('x2')), y2 = parseFloat(p.el2.getAttribute('y2'));
+      const d = buildLineBridgeD(x1, y1, x2, y2, pts2.map(c => c.cy));
+      if (d) {
+        if (!p.bridgeMask2) {
+          p.bridgeMask2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.bridgeMask2.setAttribute('stroke', '#ffffff');
+          p.bridgeMask2.setAttribute('stroke-width', String(STROKE_W + 4));
+          p.bridgeMask2.setAttribute('fill', 'none');
+          p.bridgeMask2.style.pointerEvents = 'none';
+          svg.appendChild(p.bridgeMask2);
+          p.bridgeArc2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.bridgeArc2.setAttribute('stroke', STROKE_COLOR);
+          p.bridgeArc2.setAttribute('stroke-width', String(STROKE_W));
+          p.bridgeArc2.setAttribute('fill', 'none');
+          p.bridgeArc2.style.pointerEvents = 'none';
+          svg.appendChild(p.bridgeArc2);
+        }
+        p.bridgeMask2.setAttribute('d', d);
+        p.bridgeArc2.setAttribute('d', d);
+        p.bridgeMask2.style.display = '';
+        p.bridgeArc2.style.display = '';
+      } else {
+        if (p.bridgeMask2) { p.bridgeMask2.style.display = 'none'; p.bridgeArc2.style.display = 'none'; }
+      }
+    } else {
+      if (p.bridgeMask2) { p.bridgeMask2.style.display = 'none'; p.bridgeArc2.style.display = 'none'; }
+    }
+  });
+}
+
 function updateAllConnections() {
   partnerships.forEach(p => updatePartnershipPos(p));
   childLinks.forEach(c => updateChildLinkPos(c));
   twinLinks.forEach(t => updateTwinLinkPos(t));
+  applyLineCrossings();
+}
+
+// Throttled version for use during drags — collapses multiple per-frame
+// pointer-move events into a single rAF callback, preventing layout thrash
+// on large pedigrees (50+ persons).
+let _connRafId = 0;
+function scheduleConnectionUpdate() {
+  if (!_connRafId) {
+    _connRafId = requestAnimationFrame(() => {
+      _connRafId = 0;
+      updateAllConnections();
+    });
+  }
+}
+// Cancel any pending rAF (call on drag end so the final synchronous
+// updateAllConnections in alignConnectedPersons isn't stale).
+function flushConnectionUpdate() {
+  if (_connRafId) { cancelAnimationFrame(_connRafId); _connRafId = 0; }
 }
 
 // ══════════════════════
@@ -2563,31 +3398,13 @@ function updateTwinLinkPos(tl) {
   const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
   if (!fp || !tp) return;
   const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
-  const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+  const midY = (fc.y + tc.y) / 2;
   const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
   const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
-  const avgChildTop = (c1Top + c2Top) / 2;
-
-  // Fork point: centered above the two twins on the branch line
   const forkX = (cc1.x + cc2.x) / 2;
+  const branchY = Math.max(midY + 4, (c1Top + c2Top) / 2 - SHAPE_HALF);
 
-  const siblingIds = childLinks.filter(c => c.partnershipId === tl.partnershipId).map(c => c.childId);
-
-  let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-
-  let d = '';
-
-  // For identical twins: add horizontal bar at 50% down the diagonals from fork point
-  if (tl.type === 'identical') {
-    const frac = 0.5;
-    const bar1X = forkX + (cc1.x - forkX) * frac;
-    const bar1Y = branchY + (c1Top - branchY) * frac;
-    const bar2X = forkX + (cc2.x - forkX) * frac;
-    const bar2Y = branchY + (c2Top - branchY) * frac;
-    d = `M ${bar1X} ${bar1Y} L ${bar2X} ${bar2Y}`;
-  }
-
-  tl.els[0].setAttribute('d', d);
+  tl.els[0].setAttribute('d', computeTwinBarD(tl.type, forkX, branchY, cc1.x, cc2.x, c1Top, c2Top));
 }
 
 // ══════════════════════
@@ -2817,7 +3634,7 @@ function onPointerMove(e) {
     });
   }
 
-  updateAllConnections();
+  scheduleConnectionUpdate();
 }
 
 function onPointerUp(e) {
@@ -2832,6 +3649,7 @@ function onPointerUp(e) {
   }
   if (panState) { panState = null; return; }
   if (dragState) {
+    flushConnectionUpdate(); // cancel any pending rAF so alignment sees final positions
     dragState.dragIds.forEach(id => {
       const p = persons.get(id);
       if (p) { p.el.classList.remove('dragging'); p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
@@ -2847,6 +3665,7 @@ function onPointerUp(e) {
     alignConnectedPersons();
     updateNumbering();
     updateTextWrapping();
+    expandCanvasIfNeeded();
     scheduleSave();
   }
 }
@@ -3194,6 +4013,7 @@ function buildLegendBox() {
   const seen = new Set();
   persons.forEach(p => {
     if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); colorsInUse.push(p.fillColor); }
+    if (p.fillMode === 'half') p.halves.forEach(q => { if (q && !seen.has(q)) { seen.add(q); colorsInUse.push(q); } });
     if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); colorsInUse.push(q); } });
   });
 
@@ -3308,6 +4128,7 @@ function clearAll() {
   selectedPerson = null; selectedLabel = null; connectSource = null; childPartnershipSource = null; twinSource = null;
   personIdCounter = labelIdCounter = lineIdCounter = 0;
   legendLabels = {}; legendVisible = false;
+  canvasWidth = 6000; canvasHeight = 6000; applyCanvasSize();
   hideProps();
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
   document.getElementById('statusBar').textContent = 'Canvas cleared';
@@ -3332,8 +4153,10 @@ function buildSessionData() {
       x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top),
       text: p.text, deceased: p.deceased, proband: p.proband,
       fillMode: p.fillMode, fillColor: p.fillColor, quarters: [...p.quarters],
+      halves: [...(p.halves || [null, null])],
       centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown',
       noSnap: !!p.noSnap,
+      siblingFixed: !!p.siblingFixed,
       customLabel: p.customLabel || 'Lbl'
     });
   });
@@ -3352,7 +4175,7 @@ function buildSessionData() {
     persons: personArr,
     labels: labelArr,
     partnerships: partnerships.map(p => ({ id: p.id, fromId: p.fromId, toId: p.toId, type: p.type || 'normal' })),
-    childLinks: childLinks.map(c => ({ id: c.id, partnershipId: c.partnershipId, childId: c.childId })),
+    childLinks: childLinks.map(c => ({ id: c.id, partnershipId: c.partnershipId, childId: c.childId, branchYOffset: c.branchYOffset || 0 })),
     twinLinks: twinLinks.map(t => ({ id: t.id, child1Id: t.child1Id, child2Id: t.child2Id, type: t.type, partnershipId: t.partnershipId })),
     legendLabels,
     legendVisible, legendX, legendY,
@@ -3383,9 +4206,11 @@ function restoreSession(data) {
     let fm = pd.fillMode || 'none';
     let fc = pd.fillColor || FILL_COLORS[0];
     let q = pd.quarters || [null, null, null, null];
+    let h = pd.halves || [null, null];
     if (pd.affected && fm === 'none') { fm = 'solid'; fc = '#1a2332'; }
-    addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown');
+    addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown', h);
     if (pd.noSnap) { const pp = persons.get(pd.id); if (pp) pp.noSnap = true; }
+    if (pd.siblingFixed) { const pp = persons.get(pd.id); if (pp) pp.siblingFixed = true; }
     if (pd.customLabel) { const pp = persons.get(pd.id); if (pp) pp.customLabel = pd.customLabel; }
     const n = parseInt(pd.id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n;
   });
@@ -3399,6 +4224,10 @@ function restoreSession(data) {
   });
   (data.childLinks || []).forEach(cd => {
     addChildLink(cd.partnershipId, cd.childId, cd.id);
+    if (cd.branchYOffset) {
+      const cl = childLinks.find(c => c.id === cd.id);
+      if (cl) { cl.branchYOffset = cd.branchYOffset; updateChildLinkPos(cl); }
+    }
     const n = parseInt(cd.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
   });
   (data.twinLinks || []).forEach(td => {
@@ -3426,6 +4255,7 @@ function restoreSession(data) {
   applyTransform();
   updateNumbering();
   updateTextWrapping();
+  expandCanvasIfNeeded();
 
   // Restore legend if it was visible
   if (legendVisible) buildLegendBox();
@@ -3465,12 +4295,8 @@ function importJSON(event) {
 // EXPORT IMAGE
 // ══════════════════════
 
-function saveAsImage() {
-  document.getElementById('statusBar').textContent = 'Generating image…';
-  deselectAll();
-
-  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
-
+// ── Shared export bounds computation ──
+function computeExportBounds() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   persons.forEach(p => {
     const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
@@ -3490,26 +4316,31 @@ function saveAsImage() {
     minX = Math.min(minX, x); minY = Math.min(minY, y);
     maxX = Math.max(maxX, x + l.el.offsetWidth + 10); maxY = Math.max(maxY, y + l.el.offsetHeight + 10);
   });
-
-  // Include legend box in bounding box if visible
   const legendColors = [];
   if (legendVisible) {
     const seen = new Set();
     persons.forEach(p => {
       if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); legendColors.push({ color: p.fillColor, label: legendLabels[p.fillColor] || '' }); }
+      if (p.fillMode === 'half') p.halves.forEach(q => { if (q && !seen.has(q)) { seen.add(q); legendColors.push({ color: q, label: legendLabels[q] || '' }); } });
       if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); legendColors.push({ color: q, label: legendLabels[q] || '' }); } });
     });
     if (legendColors.length > 0) {
       const legendH = legendColors.length * 24 + 30;
-      minX = Math.min(minX, legendX - 10);
-      minY = Math.min(minY, legendY - 10);
-      maxX = Math.max(maxX, legendX + 220);
-      maxY = Math.max(maxY, legendY + legendH + 10);
+      minX = Math.min(minX, legendX - 10); minY = Math.min(minY, legendY - 10);
+      maxX = Math.max(maxX, legendX + 220); maxY = Math.max(maxY, legendY + legendH + 10);
     }
   }
-
   const pad = 60;
-  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, legendColors };
+}
+
+function saveAsImage() {
+  document.getElementById('statusBar').textContent = 'Generating image…';
+  deselectAll();
+
+  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
+
+  const { minX, minY, maxX, maxY, legendColors } = computeExportBounds();
 
   const scale = 2;
   const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
@@ -3518,32 +4349,38 @@ function saveAsImage() {
   const ctx = c.getContext('2d');
   ctx.scale(scale, scale);
   ctx.translate(-minX, -minY);
-
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
 
-  // Draw connections
+  const FONT = '-apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+
+  // ── Helper: draw an SVG-path-d string on Canvas via Path2D ──
+  function strokePathD(d) { const p = new Path2D(d); ctx.stroke(p); }
+  function fillPathD(d) { const p = new Path2D(d); ctx.fill(p); }
+
+  // ── Helper: draw a shape at canvas position (x,y) using shared geometry ──
+  // Shared paths are in 0-52 viewBox coords; translate to (x,y) in canvas space.
+  function drawShapeAtPos(dStr, x, y) {
+    const raw = new Path2D(dStr);
+    const out = new Path2D();
+    out.addPath(raw, new DOMMatrix().translateSelf(x, y));
+    return out;
+  }
+
+  // ── Draw partnerships (uses shared computePartnershipGeom) ──
+  ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = STROKE_W;
+
+  // Pre-compute all geometries for crossing detection
+  const pngPshipGeoms = [];
   partnerships.forEach(pship => {
     const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
     if (!fromP || !toP) return;
     const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-    ctx.beginPath(); ctx.moveTo(fc.x, fc.y); ctx.lineTo(tc.x, tc.y);
-    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2; ctx.stroke();
-    // Consanguineous: second parallel line
-    if (pship.type === 'consanguineous') {
-      const dx = tc.x - fc.x, dy = tc.y - fc.y, len = Math.sqrt(dx*dx+dy*dy) || 1;
-      const nx = -dy/len*4, ny = dx/len*4;
-      ctx.beginPath(); ctx.moveTo(fc.x+nx, fc.y+ny); ctx.lineTo(tc.x+nx, tc.y+ny); ctx.stroke();
-    }
-    // Separated: slash marks
-    if (pship.type === 'separated') {
-      const mx = (fc.x+tc.x)/2, my = (fc.y+tc.y)/2;
-      const sx = mx - 20;
-      ctx.beginPath(); ctx.moveTo(sx-5, my-8); ctx.lineTo(sx+5, my+8); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(sx+3, my-8); ctx.lineTo(sx+13, my+8); ctx.stroke();
-    }
+    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+    pngPshipGeoms.push({ pship, geom });
   });
 
+  const pngClPaths = [];
   childLinks.forEach(cl => {
     const pship = partnerships.find(p => p.id === cl.partnershipId);
     const child = persons.get(cl.childId);
@@ -3554,44 +4391,72 @@ function saveAsImage() {
     const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
     const childCenter = getPersonCenter(child);
     const childTop = parseFloat(child.el.style.top);
-    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
-
-    const siblingIds = childLinks.filter(c => c.partnershipId === cl.partnershipId).map(c => c.childId);
-
-    // Check if twin
+    const siblingIds = childLinks.filter(c2 => c2.partnershipId === cl.partnershipId).map(c2 => c2.childId);
     const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
+    let twinInfo = null;
     if (twinLink) {
-      const otherChildId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
-      const otherChild = persons.get(otherChildId);
-      if (otherChild) {
-        const otherChildCenter = getPersonCenter(otherChild);
-        const forkX = (childCenter.x + otherChildCenter.x) / 2;
-        const avgChildTop = (childTop + parseFloat(otherChild.el.style.top)) / 2;
-        let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-        // Path: vertical from partnership to branch, horizontal to fork point, diagonal to child
-        ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, branchY); ctx.lineTo(forkX, branchY); ctx.lineTo(childCenter.x, childTop); ctx.stroke();
-        return;
-      }
+      const otherId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
+      const otherChild = persons.get(otherId);
+      if (otherChild) twinInfo = { otherCenterX: getPersonCenter(otherChild).x, otherTop: parseFloat(otherChild.el.style.top) };
     }
-    // Normal right-angle
-    let dropY;
-    const nonSnapSibs = siblingIds.filter(id => { const p = persons.get(id); return p && !p.noSnap && id !== cl.childId; });
-    if (child.noSnap && nonSnapSibs.length > 0) {
-      const sibTops = nonSnapSibs.map(id => parseFloat(persons.get(id).el.style.top));
-      const sibBranchY = Math.max(midY + 4, Math.min(...sibTops) - SHAPE_HALF);
-      if (childTop > sibBranchY) {
-        dropY = sibBranchY;
-      } else {
-        dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-      }
-    } else {
-      dropY = Math.max(midY + 4, childTop - SHAPE_HALF);
-    }
-    ctx.beginPath(); ctx.moveTo(midX, midY); ctx.lineTo(midX, dropY); ctx.lineTo(childCenter.x, dropY); ctx.lineTo(childCenter.x, childTop);
-    ctx.stroke();
+    const siblingTops = siblingIds
+      .filter(id => { const p2 = persons.get(id); return p2 && !p2.noSnap && id !== cl.childId; })
+      .map(id => parseFloat(persons.get(id).el.style.top));
+    pngClPaths.push({ cl, d: computeChildLinkD(midX, midY, childCenter.x, childTop, child.noSnap, siblingTops, twinInfo, cl.branchYOffset || 0) });
   });
 
-  // Twin links (identical twin bar only — fork structure drawn by child links)
+  // Collect segments and find crossings for export
+  const pngSegs = [];
+  pngClPaths.forEach(item => {
+    const pts = parsePathPoints(item.d);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (Math.abs(a.y - b.y) < 0.5) pngSegs.push({ type: 'h', y: a.y, x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x), src: item.cl.id, fam: item.cl.partnershipId });
+      else if (Math.abs(a.x - b.x) < 0.5) pngSegs.push({ type: 'v', x: a.x, y1: Math.min(a.y, b.y), y2: Math.max(a.y, b.y), src: item.cl.id, fam: item.cl.partnershipId });
+    }
+  });
+  pngPshipGeoms.forEach(item => {
+    const g = item.geom;
+    if (Math.abs(g.y1 - g.y2) < 0.5) pngSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
+    else if (Math.abs(g.x1 - g.x2) < 0.5) pngSegs.push({ type: 'v', x: g.x1, y1: Math.min(g.y1, g.y2), y2: Math.max(g.y1, g.y2), src: item.pship.id, fam: item.pship.id });
+  });
+  const pngCrossings = findLineCrossings(pngSegs);
+  const pngByV = new Map();
+  pngCrossings.forEach(c => { if (!pngByV.has(c.vSrc)) pngByV.set(c.vSrc, []); pngByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy }); });
+  pngByV.forEach((pts, key) => pngByV.set(key, mergeNearbyCrossings(pts)));
+
+  // Draw partnerships (with bridge overlays for rare vertical partnerships)
+  pngPshipGeoms.forEach(item => {
+    const g = item.geom;
+    ctx.beginPath(); ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2); ctx.stroke();
+    if (g.consang) { ctx.beginPath(); ctx.moveTo(g.consang.x1, g.consang.y1); ctx.lineTo(g.consang.x2, g.consang.y2); ctx.stroke(); }
+    if (g.slashLines) g.slashLines.forEach(sl => { ctx.beginPath(); ctx.moveTo(sl.x1, sl.y1); ctx.lineTo(sl.x2, sl.y2); ctx.stroke(); });
+
+    // Partnership bridge arcs (vertical partnerships only)
+    const pPts = pngByV.get(item.pship.id);
+    if (pPts && pPts.length > 0) {
+      const bd = buildLineBridgeD(g.x1, g.y1, g.x2, g.y2, pPts.map(c => c.cy));
+      if (bd) {
+        ctx.save();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = STROKE_W + 4;
+        strokePathD(bd);
+        ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = STROKE_W;
+        strokePathD(bd);
+        ctx.restore();
+      }
+    }
+  });
+
+  // Draw child links with bridge arcs on vertical segments
+  ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = STROKE_W;
+  pngClPaths.forEach(item => {
+    const pts = pngByV.get(item.cl.id);
+    const d = (pts && pts.length > 0) ? rebuildPathWithBridges(item.d, pts) : item.d;
+    strokePathD(d);
+  });
+
+  // ── Draw twin bars (uses shared computeTwinBarD) ──
+  ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = STROKE_W;
   twinLinks.forEach(tl => {
     const c1 = persons.get(tl.child1Id), c2 = persons.get(tl.child2Id);
     if (!c1 || !c2) return;
@@ -3600,99 +4465,110 @@ function saveAsImage() {
     const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
     if (!fp || !tp) return;
     const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
-    const midX = (fc.x+tc.x)/2, midY = (fc.y+tc.y)/2;
+    const midY = (fc.y + tc.y) / 2;
     const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
     const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
-    const avgChildTop = (c1Top + c2Top) / 2;
     const forkX = (cc1.x + cc2.x) / 2;
-    let branchY = Math.max(midY + 4, avgChildTop - SHAPE_HALF);
-    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
-    // Identical: horizontal bar at 50% down the diagonals from fork point
-    if (tl.type === 'identical') {
-      const frac = 0.5;
-      const b1x = forkX+(cc1.x-forkX)*frac, b1y = branchY+(c1Top-branchY)*frac;
-      const b2x = forkX+(cc2.x-forkX)*frac, b2y = branchY+(c2Top-branchY)*frac;
-      ctx.beginPath(); ctx.moveTo(b1x, b1y); ctx.lineTo(b2x, b2y); ctx.stroke();
-    }
+    const branchY = Math.max(midY + 4, (c1Top + c2Top) / 2 - SHAPE_HALF);
+    const d = computeTwinBarD(tl.type, forkX, branchY, cc1.x, cc2.x, c1Top, c2Top);
+    if (d) strokePathD(d);
   });
 
-  // Draw persons
+  // ── Draw persons (uses shared shape geometry via Path2D) ──
   persons.forEach(p => {
     const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
     const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
     ctx.save();
-    ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 2;
+    ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = STROKE_W;
 
-    // Draw fills
+    const outline = drawShapeAtPos(shapePathD(p.shape), x, y);
+
+    // Fill
     if (p.fillMode === 'solid' && p.fillColor) {
-      ctx.fillStyle = p.fillColor;
-      drawShapePath(ctx, p.shape, x, y); ctx.fill();
+      ctx.fillStyle = p.fillColor; ctx.fill(outline);
+    } else if (p.fillMode === 'half') {
+      const hDs = halfPathDs(p.shape);
+      hDs.forEach((hd, i) => {
+        ctx.fillStyle = p.halves[i] || '#ffffff';
+        ctx.fill(drawShapeAtPos(hd, x, y));
+      });
     } else if (p.fillMode === 'quartered') {
-      drawQuarteredCanvas(ctx, p.shape, x, y, p.quarters);
+      const qDs = quarterPathDs(p.shape);
+      qDs.forEach((qd, i) => {
+        ctx.fillStyle = p.quarters[i] || '#ffffff';
+        ctx.fill(drawShapeAtPos(qd, x, y));
+      });
     } else {
-      ctx.fillStyle = '#ffffff';
-      drawShapePath(ctx, p.shape, x, y); ctx.fill();
+      if (!isLineShape(p.shape)) { ctx.fillStyle = '#ffffff'; ctx.fill(outline); }
     }
 
     // Border
-    drawShapePath(ctx, p.shape, x, y); ctx.stroke();
+    ctx.stroke(outline);
 
-    // Quarter dividers if quartered
-    if (p.fillMode === 'quartered') {
+    // Adopted brackets
+    if (isAdoptedShape(p.shape)) {
+      ctx.stroke(drawShapeAtPos(BRACKET_LEFT_D, x, y));
+      ctx.stroke(drawShapeAtPos(BRACKET_RIGHT_D, x, y));
+    }
+
+    // Half divider
+    if (p.fillMode === 'half') {
       ctx.save(); ctx.strokeStyle = 'rgba(26,35,50,0.3)'; ctx.lineWidth = 1;
-      if (p.shape === 'miscarriage') {
-        ctx.beginPath(); ctx.moveTo(cx, y + 8); ctx.lineTo(cx, y + 44); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 16, y + 26); ctx.lineTo(x + 36, y + 26); ctx.stroke();
-      } else {
-        ctx.beginPath(); ctx.moveTo(cx, y + 4); ctx.lineTo(cx, y + 48); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x + 48, cy); ctx.stroke();
-      }
+      const dl = halfDividerCoords(p.shape);
+      ctx.beginPath(); ctx.moveTo(x + dl.x1, y + dl.y1); ctx.lineTo(x + dl.x2, y + dl.y2); ctx.stroke();
       ctx.restore();
     }
 
-    // Deceased
-    if (p.deceased) {
-      ctx.beginPath();
-      if (p.shape === 'male') { ctx.moveTo(x + 4, y + 48); ctx.lineTo(x + 48, y + 4); }
-      else if (p.shape === 'female') { ctx.moveTo(x + 4, y + 48); ctx.lineTo(x + 48, y + 4); }
-      else if (p.shape === 'miscarriage') { ctx.moveTo(x + 6, y + 44); ctx.lineTo(x + 46, y + 8); }
-      else { ctx.moveTo(x + 3, y + 49); ctx.lineTo(x + 49, y + 3); }
-      ctx.stroke();
+    // Quarter dividers
+    if (p.fillMode === 'quartered') {
+      ctx.save(); ctx.strokeStyle = 'rgba(26,35,50,0.3)'; ctx.lineWidth = 1;
+      quarterDividerCoords(p.shape).forEach(dl => {
+        ctx.beginPath(); ctx.moveTo(x + dl.x1, y + dl.y1); ctx.lineTo(x + dl.x2, y + dl.y2); ctx.stroke();
+      });
+      ctx.restore();
     }
 
-    // Center text (S or P)
+    // Deceased line
+    if (p.deceased) {
+      const dl = deceasedLineCoords(p.shape);
+      ctx.beginPath(); ctx.moveTo(x + dl.x1, y + dl.y1); ctx.lineTo(x + dl.x2, y + dl.y2); ctx.stroke();
+    }
+
+    // Center text
     if (p.centerText) {
       ctx.save();
-      ctx.fillStyle = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : '#1a2332';
-      ctx.font = 'bold 16px -apple-system, sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(p.centerText, cx, cy + (p.shape === 'miscarriage' ? 4 : 0));
+      ctx.fillStyle = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : STROKE_COLOR;
+      if (p.centerText === 'dot') {
+        ctx.beginPath(); ctx.arc(cx, y + centerTextY(p.shape), 5, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.font = 'bold 16px -apple-system, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(p.centerText, cx, y + centerTextY(p.shape));
+      }
       ctx.restore();
     }
     ctx.restore();
 
-    // Proband arrow (below-left, pointing up toward shape)
+    // Proband arrow
     if (p.proband) {
-      ctx.save(); ctx.strokeStyle = '#1a2332'; ctx.lineWidth = 1.8;
-      // Arrow: line from bottom-left to upper-right, arrowhead at upper-right
+      ctx.save(); ctx.strokeStyle = STROKE_COLOR; ctx.lineWidth = 1.8;
       ctx.beginPath(); ctx.moveTo(x - 16, y + 70); ctx.lineTo(x - 2, y + 56); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x - 2, y + 56); ctx.lineTo(x - 9, y + 56); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x - 2, y + 56); ctx.lineTo(x - 2, y + 63); ctx.stroke();
       ctx.restore();
     }
 
-    // Number
+    // Number label
     const numEl = p.el.querySelector('.person-number');
     if (numEl && numEl.textContent) {
-      ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 9px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+      ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 9px ' + FONT;
       const hasChildLine = childLinks.some(cl => cl.childId === p.id);
       const twinLink = twinLinks.find(t => t.child1Id === p.id || t.child2Id === p.id);
       if (twinLink) {
         const otherId = twinLink.child1Id === p.id ? twinLink.child2Id : twinLink.child1Id;
         const other = persons.get(otherId);
         const isRightTwin = other && x > parseFloat(other.el.style.left);
-        ctx.textAlign = isRightTwin ? 'left' : 'right';
-        ctx.textBaseline = 'bottom';
+        ctx.textAlign = isRightTwin ? 'left' : 'right'; ctx.textBaseline = 'bottom';
         ctx.fillText(numEl.textContent, isRightTwin ? x + SHAPE_SIZE + 2 : x - 2, y - 4);
       } else if (hasChildLine) {
         ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
@@ -3703,7 +4579,7 @@ function saveAsImage() {
       }
     }
 
-    // Text (below shape: right-aligned, or left if left-partner)
+    // Text annotation
     if (p.text) {
       let isLeftPartner = false;
       partnerships.forEach(ps => {
@@ -3713,11 +4589,10 @@ function saveAsImage() {
           if (other && x < parseFloat(other.el.style.left)) isLeftPartner = true;
         }
       });
-      ctx.fillStyle = '#1a2332'; ctx.font = '11px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
-      ctx.textBaseline = 'top';
+      ctx.fillStyle = STROKE_COLOR; ctx.font = '11px ' + FONT; ctx.textBaseline = 'top';
       if (isLeftPartner) {
         ctx.textAlign = 'right';
-        const textY = (p.proband) ? y + 74 : y + 56;
+        const textY = p.proband ? y + 74 : y + 56;
         p.text.split('\n').forEach((line, i) => { ctx.fillText(line, x - 4, textY + i * 15); });
       } else {
         ctx.textAlign = 'left';
@@ -3733,7 +4608,7 @@ function saveAsImage() {
     }
   });
 
-  // Draw labels
+  // ── Draw labels ──
   labels.forEach(l => {
     const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
     const text = l.el.querySelector('.label-text')?.innerText || '';
@@ -3743,76 +4618,44 @@ function saveAsImage() {
     const lines = text.split('\n');
     const lineHeight = fontSize * 1.3;
     const padding = l.bordered ? 8 : 0;
-    const textX = x + 8 + padding;
-    const textY = y + 4 + padding;
+    const textX = x + 8 + padding, textY = y + 4 + padding;
 
     if (l.bordered) {
-      // Measure max width
       let maxWidth = 0;
-      lines.forEach(line => { const w = ctx.measureText(line).width; if (w > maxWidth) maxWidth = w; });
-      const boxW = maxWidth + 16 + padding * 2;
-      const boxH = lines.length * lineHeight + 8 + padding * 2;
-      ctx.save();
-      ctx.strokeStyle = '#6b7a8d';
-      ctx.lineWidth = 1.5;
+      lines.forEach(line => { const lw = ctx.measureText(line).width; if (lw > maxWidth) maxWidth = lw; });
+      const boxW = maxWidth + 16 + padding * 2, boxH = lines.length * lineHeight + 8 + padding * 2;
+      ctx.save(); ctx.strokeStyle = '#6b7a8d'; ctx.lineWidth = 1.5;
+      const bx = x + 4, by2 = y, br = 4;
       ctx.beginPath();
-      const bx = x + 4, by2 = y, bw = boxW, bh = boxH, br = 4;
-      ctx.moveTo(bx + br, by2); ctx.lineTo(bx + bw - br, by2); ctx.quadraticCurveTo(bx + bw, by2, bx + bw, by2 + br);
-      ctx.lineTo(bx + bw, by2 + bh - br); ctx.quadraticCurveTo(bx + bw, by2 + bh, bx + bw - br, by2 + bh);
-      ctx.lineTo(bx + br, by2 + bh); ctx.quadraticCurveTo(bx, by2 + bh, bx, by2 + bh - br);
+      ctx.moveTo(bx + br, by2); ctx.lineTo(bx + boxW - br, by2); ctx.quadraticCurveTo(bx + boxW, by2, bx + boxW, by2 + br);
+      ctx.lineTo(bx + boxW, by2 + boxH - br); ctx.quadraticCurveTo(bx + boxW, by2 + boxH, bx + boxW - br, by2 + boxH);
+      ctx.lineTo(bx + br, by2 + boxH); ctx.quadraticCurveTo(bx, by2 + boxH, bx, by2 + boxH - br);
       ctx.lineTo(bx, by2 + br); ctx.quadraticCurveTo(bx, by2, bx + br, by2);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
+      ctx.closePath(); ctx.stroke(); ctx.restore();
     }
-
     ctx.fillStyle = '#6b7a8d';
-    lines.forEach((line, i) => {
-      ctx.fillText(line, textX, textY + i * lineHeight);
-    });
+    lines.forEach((line, i) => { ctx.fillText(line, textX, textY + i * lineHeight); });
   });
 
-  // Draw legend at its canvas position
+  // ── Draw legend ──
   if (legendVisible && legendColors.length > 0) {
-    const lx = legendX;
-    const ly = legendY;
-    const lw = 200;
-    const rowH = 24;
+    const lx = legendX, ly = legendY, lw = 200, rowH = 24;
     const totalH = legendColors.length * rowH + 30;
-
-    // Background box
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#dde1e6';
-    ctx.lineWidth = 1.5;
+    ctx.save(); ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1.5;
     const br = 8;
     ctx.beginPath();
-    ctx.moveTo(lx + br, ly); ctx.lineTo(lx + lw - br, ly);
-    ctx.quadraticCurveTo(lx + lw, ly, lx + lw, ly + br);
-    ctx.lineTo(lx + lw, ly + totalH - br);
-    ctx.quadraticCurveTo(lx + lw, ly + totalH, lx + lw - br, ly + totalH);
-    ctx.lineTo(lx + br, ly + totalH);
-    ctx.quadraticCurveTo(lx, ly + totalH, lx, ly + totalH - br);
-    ctx.lineTo(lx, ly + br);
-    ctx.quadraticCurveTo(lx, ly, lx + br, ly);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.restore();
-
-    // Title
-    ctx.fillStyle = '#6b7a8d';
-    ctx.font = 'bold 10px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
-    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.moveTo(lx + br, ly); ctx.lineTo(lx + lw - br, ly); ctx.quadraticCurveTo(lx + lw, ly, lx + lw, ly + br);
+    ctx.lineTo(lx + lw, ly + totalH - br); ctx.quadraticCurveTo(lx + lw, ly + totalH, lx + lw - br, ly + totalH);
+    ctx.lineTo(lx + br, ly + totalH); ctx.quadraticCurveTo(lx, ly + totalH, lx, ly + totalH - br);
+    ctx.lineTo(lx, ly + br); ctx.quadraticCurveTo(lx, ly, lx + br, ly);
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 10px ' + FONT; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText('KEY', lx + 12, ly + 10);
-
-    // Rows
     legendColors.forEach((lc, i) => {
       const ry = ly + 28 + i * rowH;
-      ctx.fillStyle = lc.color;
-      ctx.fillRect(lx + 12, ry, 16, 16);
+      ctx.fillStyle = lc.color; ctx.fillRect(lx + 12, ry, 16, 16);
       ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1; ctx.strokeRect(lx + 12, ry, 16, 16);
-      ctx.fillStyle = '#1a2332';
-      ctx.font = '11px -apple-system, "Segoe UI", system-ui, Helvetica, sans-serif';
+      ctx.fillStyle = STROKE_COLOR; ctx.font = '11px ' + FONT;
       ctx.fillText(lc.label || '(unlabelled)', lx + 36, ry + 2);
     });
   }
@@ -3826,53 +4669,298 @@ function saveAsImage() {
   } catch (err) { document.getElementById('statusBar').textContent = 'Error exporting image'; }
 }
 
-function drawShapePath(ctx, shape, x, y) {
-  const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
-  ctx.beginPath();
-  if (shape === 'male') { ctx.rect(x + 4, y + 4, 44, 44); }
-  else if (shape === 'female') { ctx.arc(cx, cy, 22, 0, Math.PI * 2); }
-  else if (shape === 'miscarriage') { ctx.moveTo(cx, y + 8); ctx.lineTo(x + 46, y + 44); ctx.lineTo(x + 6, y + 44); ctx.closePath(); }
-  else { ctx.moveTo(cx, y + 3); ctx.lineTo(x + 49, cy); ctx.lineTo(cx, y + 49); ctx.lineTo(x + 3, cy); ctx.closePath(); }
-}
+// ══════════════════════════
+// SVG EXPORT (uses shared geometry — no duplication)
+// ══════════════════════════
 
-function drawQuarteredCanvas(ctx, shape, x, y, quarters) {
-  const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
-  if (shape === 'male') {
-    const rects = [[cx, y+4, 22, 22],[cx, cy, 22, 22],[x+4, cy, 22, 22],[x+4, y+4, 22, 22]];
-    rects.forEach((r, i) => { ctx.fillStyle = quarters[i] || '#ffffff'; ctx.fillRect(r[0], r[1], r[2], r[3]); });
-  } else if (shape === 'female') {
-    const angles = [[-Math.PI/2, 0], [0, Math.PI/2], [Math.PI/2, Math.PI], [Math.PI, 3*Math.PI/2]];
-    angles.forEach((a, i) => {
-      ctx.fillStyle = quarters[i] || '#ffffff';
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 22, a[0], a[1]); ctx.closePath(); ctx.fill();
+function saveAsSVG() {
+  document.getElementById('statusBar').textContent = 'Generating SVG…';
+  deselectAll();
+
+  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
+
+  const { minX, minY, maxX, maxY, legendColors } = computeExportBounds();
+  const w = maxX - minX, h = maxY - minY;
+  const FONT = "-apple-system, 'Segoe UI', system-ui, Helvetica, sans-serif";
+
+  // Collect SVG elements as strings
+  const els = [];
+
+  // Helper: escape text for SVG
+  function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // Helper: SVG line element
+  function svgLine(x1,y1,x2,y2,stroke,sw,opacity) {
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${sw}"${opacity ? ' opacity="'+opacity+'"' : ''}/>`;
+  }
+
+  // White background
+  els.push(`<rect x="${minX}" y="${minY}" width="${w}" height="${h}" fill="#ffffff"/>`);
+
+  // ── Pre-compute all geometries for crossing detection ──
+  const svgPshipGeoms = [];
+  partnerships.forEach(pship => {
+    const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+    if (!fromP || !toP) return;
+    const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+    svgPshipGeoms.push({ pship, geom });
+  });
+
+  const svgClPaths = [];
+  childLinks.forEach(cl => {
+    const pship = partnerships.find(p2 => p2.id === cl.partnershipId);
+    const child = persons.get(cl.childId);
+    if (!pship || !child) return;
+    const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+    if (!fromP || !toP) return;
+    const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+    const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+    const childCenter = getPersonCenter(child);
+    const childTop = parseFloat(child.el.style.top);
+    const siblingIds = childLinks.filter(c2 => c2.partnershipId === cl.partnershipId).map(c2 => c2.childId);
+    const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
+    let twinInfo = null;
+    if (twinLink) {
+      const otherId = twinLink.child1Id === cl.childId ? twinLink.child2Id : twinLink.child1Id;
+      const otherChild = persons.get(otherId);
+      if (otherChild) twinInfo = { otherCenterX: getPersonCenter(otherChild).x, otherTop: parseFloat(otherChild.el.style.top) };
+    }
+    const siblingTops = siblingIds
+      .filter(id => { const p2 = persons.get(id); return p2 && !p2.noSnap && id !== cl.childId; })
+      .map(id => parseFloat(persons.get(id).el.style.top));
+    svgClPaths.push({ cl, d: computeChildLinkD(midX, midY, childCenter.x, childTop, child.noSnap, siblingTops, twinInfo, cl.branchYOffset || 0) });
+  });
+
+  // Collect segments and find crossings
+  const svgSegs = [];
+  svgClPaths.forEach(item => {
+    const pts = parsePathPoints(item.d);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (Math.abs(a.y - b.y) < 0.5) svgSegs.push({ type: 'h', y: a.y, x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x), src: item.cl.id, fam: item.cl.partnershipId });
+      else if (Math.abs(a.x - b.x) < 0.5) svgSegs.push({ type: 'v', x: a.x, y1: Math.min(a.y, b.y), y2: Math.max(a.y, b.y), src: item.cl.id, fam: item.cl.partnershipId });
+    }
+  });
+  svgPshipGeoms.forEach(item => {
+    const g = item.geom;
+    if (Math.abs(g.y1 - g.y2) < 0.5) svgSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
+    else if (Math.abs(g.x1 - g.x2) < 0.5) svgSegs.push({ type: 'v', x: g.x1, y1: Math.min(g.y1, g.y2), y2: Math.max(g.y1, g.y2), src: item.pship.id, fam: item.pship.id });
+  });
+  const svgCrossings = findLineCrossings(svgSegs);
+  const svgByV = new Map();
+  svgCrossings.forEach(c => { if (!svgByV.has(c.vSrc)) svgByV.set(c.vSrc, []); svgByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy }); });
+  svgByV.forEach((pts, key) => svgByV.set(key, mergeNearbyCrossings(pts)));
+
+  // ── Partnerships ──
+  svgPshipGeoms.forEach(item => {
+    const g = item.geom;
+    els.push(svgLine(g.x1, g.y1, g.x2, g.y2, STROKE_COLOR, STROKE_W));
+    if (g.consang) els.push(svgLine(g.consang.x1, g.consang.y1, g.consang.x2, g.consang.y2, STROKE_COLOR, STROKE_W));
+    if (g.slashLines) g.slashLines.forEach(sl => els.push(svgLine(sl.x1, sl.y1, sl.x2, sl.y2, STROKE_COLOR, STROKE_W)));
+    const pPts = svgByV.get(item.pship.id);
+    if (pPts && pPts.length > 0) {
+      const bd = buildLineBridgeD(g.x1, g.y1, g.x2, g.y2, pPts.map(c => c.cy));
+      if (bd) {
+        els.push(`<path d="${bd}" stroke="#ffffff" stroke-width="${STROKE_W + 4}" fill="none"/>`);
+        els.push(`<path d="${bd}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+      }
+    }
+  });
+
+  // ── Child links ──
+  svgClPaths.forEach(item => {
+    const pts = svgByV.get(item.cl.id);
+    const d = (pts && pts.length > 0) ? rebuildPathWithBridges(item.d, pts) : item.d;
+    els.push(`<path d="${d}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+  });
+
+  // ── Twin bars ──
+  twinLinks.forEach(tl => {
+    const c1 = persons.get(tl.child1Id), c2 = persons.get(tl.child2Id);
+    if (!c1 || !c2) return;
+    const pship = partnerships.find(p2 => p2.id === tl.partnershipId);
+    if (!pship) return;
+    const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+    if (!fp || !tp) return;
+    const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
+    const midY = (fc.y + tc.y) / 2;
+    const cc1 = getPersonCenter(c1), cc2 = getPersonCenter(c2);
+    const c1Top = parseFloat(c1.el.style.top), c2Top = parseFloat(c2.el.style.top);
+    const forkX = (cc1.x + cc2.x) / 2;
+    const branchY = Math.max(midY + 4, (c1Top + c2Top) / 2 - SHAPE_HALF);
+    const d = computeTwinBarD(tl.type, forkX, branchY, cc1.x, cc2.x, c1Top, c2Top);
+    if (d) els.push(`<path d="${d}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+  });
+
+  // ── Persons ──
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+    const cx = x + SHAPE_HALF, cy = y + SHAPE_HALF;
+    const g = []; // group elements for this person
+
+    // Fill
+    if (p.fillMode === 'solid' && p.fillColor) {
+      g.push(`<path d="${shapePathD(p.shape)}" fill="${p.fillColor}" stroke="none" transform="translate(${x},${y})"/>`);
+    } else if (p.fillMode === 'half') {
+      const hDs = halfPathDs(p.shape);
+      hDs.forEach((hd, i) => {
+        g.push(`<path d="${hd}" fill="${p.halves[i] || '#ffffff'}" stroke="none" transform="translate(${x},${y})"/>`);
+      });
+    } else if (p.fillMode === 'quartered') {
+      const qDs = quarterPathDs(p.shape);
+      qDs.forEach((qd, i) => {
+        g.push(`<path d="${qd}" fill="${p.quarters[i] || '#ffffff'}" stroke="none" transform="translate(${x},${y})"/>`);
+      });
+    } else {
+      if (!isLineShape(p.shape)) g.push(`<path d="${shapePathD(p.shape)}" fill="#ffffff" stroke="none" transform="translate(${x},${y})"/>`);
+    }
+
+    // Border
+    g.push(`<path d="${shapePathD(p.shape)}" fill="none" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" transform="translate(${x},${y})"/>`);
+
+    // Adopted brackets
+    if (isAdoptedShape(p.shape)) {
+      g.push(`<path d="${BRACKET_LEFT_D}" fill="none" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" transform="translate(${x},${y})"/>`);
+      g.push(`<path d="${BRACKET_RIGHT_D}" fill="none" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" transform="translate(${x},${y})"/>`);
+    }
+    // Half divider
+    if (p.fillMode === 'half') {
+      const dl = halfDividerCoords(p.shape);
+      g.push(svgLine(x + dl.x1, y + dl.y1, x + dl.x2, y + dl.y2, STROKE_COLOR, 1, 0.3));
+    }
+
+    // Quarter dividers
+    if (p.fillMode === 'quartered') {
+      quarterDividerCoords(p.shape).forEach(dl => {
+        g.push(svgLine(x + dl.x1, y + dl.y1, x + dl.x2, y + dl.y2, STROKE_COLOR, 1, 0.3));
+      });
+    }
+
+    // Deceased line
+    if (p.deceased) {
+      const dl = deceasedLineCoords(p.shape);
+      g.push(svgLine(x + dl.x1, y + dl.y1, x + dl.x2, y + dl.y2, STROKE_COLOR, STROKE_W));
+    }
+
+    // Center text
+    if (p.centerText) {
+      const tc = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : STROKE_COLOR;
+      if (p.centerText === 'dot') {
+        g.push(`<circle cx="${cx}" cy="${y + centerTextY(p.shape)}" r="5" fill="${tc}"/>`);
+      } else {
+        g.push(`<text x="${cx}" y="${y + centerTextY(p.shape)}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="${FONT}">${esc(p.centerText)}</text>`);
+      }
+    }
+
+    // Proband arrow
+    if (p.proband) {
+      g.push(`<path d="M${x-16} ${y+70}L${x-2} ${y+56} M${x-2} ${y+56}L${x-9} ${y+56} M${x-2} ${y+56}L${x-2} ${y+63}" stroke="${STROKE_COLOR}" stroke-width="1.8" fill="none"/>`);
+    }
+
+    // Number label
+    const numEl = p.el.querySelector('.person-number');
+    if (numEl && numEl.textContent) {
+      const hasChildLine = childLinks.some(cl => cl.childId === p.id);
+      const twinLink = twinLinks.find(t => t.child1Id === p.id || t.child2Id === p.id);
+      let anchor = 'middle', nx = cx, ny = y - 5;
+      if (twinLink) {
+        const otherId = twinLink.child1Id === p.id ? twinLink.child2Id : twinLink.child1Id;
+        const other = persons.get(otherId);
+        const isRightTwin = other && x > parseFloat(other.el.style.left);
+        anchor = isRightTwin ? 'start' : 'end';
+        nx = isRightTwin ? x + SHAPE_SIZE + 2 : x - 2;
+      } else if (hasChildLine) {
+        anchor = 'end'; nx = x - 2;
+      }
+      g.push(`<text x="${nx}" y="${ny}" text-anchor="${anchor}" font-size="9" font-weight="700" fill="#6b7a8d" font-family="${FONT}">${esc(numEl.textContent)}</text>`);
+    }
+
+    // Text annotation
+    if (p.text) {
+      let isLeftPartner = false;
+      partnerships.forEach(ps => {
+        if (ps.fromId === p.id || ps.toId === p.id) {
+          const otherId = ps.fromId === p.id ? ps.toId : ps.fromId;
+          const other = persons.get(otherId);
+          if (other && x < parseFloat(other.el.style.left)) isLeftPartner = true;
+        }
+      });
+      const lines = p.text.split('\n');
+      if (isLeftPartner) {
+        const baseY = p.proband ? y + 74 : y + 56;
+        lines.forEach((line, i) => {
+          g.push(`<text x="${x - 4}" y="${baseY + i * 15}" text-anchor="end" dominant-baseline="hanging" font-size="11" fill="${STROKE_COLOR}" font-family="${FONT}">${esc(line)}</text>`);
+        });
+      } else {
+        lines.forEach((line, i) => {
+          g.push(`<text x="${x + 30}" y="${y + 56 + i * 15}" text-anchor="start" dominant-baseline="hanging" font-size="11" fill="${STROKE_COLOR}" font-family="${FONT}">${esc(line)}</text>`);
+        });
+      }
+    }
+
+    // Miscarriage sex label
+    if (p.shape === 'miscarriage' && p.miscarriageSex && p.miscarriageSex !== 'unknown') {
+      g.push(`<text x="${cx}" y="${y + 58}" text-anchor="middle" dominant-baseline="hanging" font-size="9" font-weight="700" fill="#6b7a8d" font-family="${FONT}">${esc(p.miscarriageSex)}</text>`);
+    }
+
+    els.push(g.join('\n'));
+  });
+
+  // ── Labels ──
+  labels.forEach(l => {
+    const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
+    const text = l.el.querySelector('.label-text')?.innerText || '';
+    const fontSize = parseInt(l.el.style.fontSize) || 14;
+    const lines = text.split('\n');
+    const lineHeight = fontSize * 1.3;
+    const padding = l.bordered ? 8 : 0;
+    const textX = x + 8 + padding, textY = y + 4 + padding;
+
+    if (l.bordered) {
+      // Estimate width: ~7px per char at 14px font, scale proportionally
+      let maxWidth = 0;
+      // Use a temporary canvas to measure text widths for SVG
+      const measureCanvas = document.createElement('canvas').getContext('2d');
+      measureCanvas.font = 'italic ' + fontSize + 'px Georgia, "Times New Roman", serif';
+      lines.forEach(line => { const lw = measureCanvas.measureText(line).width; if (lw > maxWidth) maxWidth = lw; });
+      const boxW = maxWidth + 16 + padding * 2, boxH = lines.length * lineHeight + 8 + padding * 2;
+      els.push(`<rect x="${x + 4}" y="${y}" width="${boxW}" height="${boxH}" rx="4" ry="4" fill="none" stroke="#6b7a8d" stroke-width="1.5"/>`);
+    }
+
+    lines.forEach((line, i) => {
+      els.push(`<text x="${textX}" y="${textY + i * lineHeight + fontSize * 0.8}" text-anchor="start" font-size="${fontSize}" font-style="italic" fill="#6b7a8d" font-family="Georgia, 'Times New Roman', serif">${esc(line)}</text>`);
     });
-  } else if (shape === 'miscarriage') {
-    // Triangle quarters: top=(cx, y+8), bottom-right=(x+46, y+44), bottom-left=(x+6, y+44)
-    // Horizontal cut at y+26: left=(x+16, y+26), right=(x+36, y+26)
-    const quads = [
-      [[cx, y+8],[x+36, y+26],[cx, y+26]],                     // TR
-      [[cx, y+26],[x+36, y+26],[x+46, y+44],[cx, y+44]],       // BR
-      [[cx, y+26],[cx, y+44],[x+6, y+44],[x+16, y+26]],        // BL
-      [[cx, y+8],[cx, y+26],[x+16, y+26]]                       // TL
-    ];
-    quads.forEach((pts, i) => {
-      ctx.fillStyle = quarters[i] || '#ffffff';
-      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
-      ctx.closePath(); ctx.fill();
-    });
-  } else {
-    const pts = [
-      [[cx,cy],[cx,y+3],[x+49,cy]],
-      [[cx,cy],[x+49,cy],[cx,y+49]],
-      [[cx,cy],[cx,y+49],[x+3,cy]],
-      [[cx,cy],[x+3,cy],[cx,y+3]]
-    ];
-    pts.forEach((tri, i) => {
-      ctx.fillStyle = quarters[i] || '#ffffff';
-      ctx.beginPath(); ctx.moveTo(tri[0][0],tri[0][1]); ctx.lineTo(tri[1][0],tri[1][1]); ctx.lineTo(tri[2][0],tri[2][1]); ctx.closePath(); ctx.fill();
+  });
+
+  // ── Legend ──
+  if (legendVisible && legendColors.length > 0) {
+    const lx = legendX, ly = legendY, lw = 200, rowH = 24;
+    const totalH = legendColors.length * rowH + 30;
+    els.push(`<rect x="${lx}" y="${ly}" width="${lw}" height="${totalH}" rx="8" ry="8" fill="#ffffff" stroke="#dde1e6" stroke-width="1.5"/>`);
+    els.push(`<text x="${lx + 12}" y="${ly + 18}" text-anchor="start" font-size="10" font-weight="700" fill="#6b7a8d" font-family="${FONT}">KEY</text>`);
+    legendColors.forEach((lc, i) => {
+      const ry = ly + 28 + i * rowH;
+      els.push(`<rect x="${lx + 12}" y="${ry}" width="16" height="16" fill="${lc.color}" stroke="#dde1e6" stroke-width="1"/>`);
+      els.push(`<text x="${lx + 36}" y="${ry + 12}" text-anchor="start" dominant-baseline="central" font-size="11" fill="${STROKE_COLOR}" font-family="${FONT}">${esc(lc.label || '(unlabelled)')}</text>`);
     });
   }
+
+  // ── Assemble SVG document ──
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${w} ${h}" width="${w}" height="${h}">
+${els.join('\n')}
+</svg>`;
+
+  try {
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const link = document.createElement('a');
+    link.download = 'pedigree.svg';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    document.getElementById('statusBar').textContent = 'SVG exported!';
+  } catch (err) { document.getElementById('statusBar').textContent = 'Error exporting SVG'; }
 }
 
 // ── Auto-restore ──
@@ -3891,6 +4979,7 @@ function tryAutoRestore() {
 }
 
 // ── Init ──
+applyCanvasSize();
 initColorPickers();
 tryAutoRestore();
 updateStatus();

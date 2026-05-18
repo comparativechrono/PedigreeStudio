@@ -185,6 +185,20 @@
   .half-cell:hover { filter: brightness(0.9); }
   .half-cell.active-half { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
 
+  /* ── Shading selector ── */
+  .shading-option-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .shading-option-btn {
+    flex: 1; padding: 6px 4px; border: 1px solid var(--border); border-radius: 5px;
+    background: #fff; font-family: inherit; font-size: 11px; font-weight: 500;
+    cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .shading-option-btn:hover { background: var(--bg); }
+  .shading-option-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .shading-preview {
+    display: inline-block; width: 32px; height: 32px; border: 1.5px solid var(--border);
+    border-radius: 4px; vertical-align: middle; margin-right: 6px; overflow: hidden;
+  }
+
   /* ── Canvas ── */
   .canvas-area {
     flex: 1; position: relative; overflow: hidden;
@@ -445,7 +459,7 @@
     <h3>How It Works</h3>
     <ol class="splash-steps">
       <li><span class="step-num">1</span>Choose a shape (male, female, unknown) and click <strong>Add Person</strong>.</li>
-      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid, half, or quartered).</li>
+      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid, half, quartered, or shading patterns).</li>
       <li><span class="step-num">3</span>Use <strong>Partner</strong> mode to connect two people with a partnership line.</li>
       <li><span class="step-num">4</span>Use <strong>Child</strong> mode — click a partnership line, then a person — to draw a descent line.</li>
       <li><span class="step-num">5</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
@@ -588,6 +602,7 @@
         <button class="btn btn-secondary" data-ct="" onclick="setCenterText('')" style="flex:1;margin:0;padding:5px;font-size:10px;">None</button>
         <button class="btn btn-secondary" data-ct="S" onclick="setCenterText('S')" style="flex:1;margin:0;padding:5px;font-size:10px;">S (multiple)</button>
         <button class="btn btn-secondary" data-ct="P" onclick="setCenterText('P')" style="flex:1;margin:0;padding:5px;font-size:10px;">P (pregnancy)</button>
+        <button class="btn btn-secondary" data-ct="D" onclick="setCenterText('D')" style="flex:1;margin:0;padding:5px;font-size:10px;">D (donor)</button>
         <button class="btn btn-secondary" data-ct="dot" onclick="setCenterText('dot')" style="flex:1;margin:0;padding:5px;font-size:10px;">● (carrier)</button>
       </div>
     </div>
@@ -608,6 +623,7 @@
         <button class="fill-mode-btn" data-mode="solid" onclick="setFillMode('solid')">Solid</button>
         <button class="fill-mode-btn" data-mode="half" onclick="setFillMode('half')">Half</button>
         <button class="fill-mode-btn" data-mode="quartered" onclick="setFillMode('quartered')">Quartered</button>
+        <button class="fill-mode-btn" data-mode="shading" onclick="setFillMode('shading')">Shading</button>
       </div>
 
       <div id="solidFillUI" style="display:none;">
@@ -637,6 +653,20 @@
         </div>
         <div class="fill-colors" id="quarterColorPicker" style="margin-top:6px;"></div>
       </div>
+
+      <div id="shadingFillUI" style="display:none;">
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Pattern</label>
+        <div class="shading-option-row">
+          <button class="shading-option-btn active" data-spattern="stripes" onclick="setShadingPattern('stripes')">Stripes</button>
+          <button class="shading-option-btn" data-spattern="dots" onclick="setShadingPattern('dots')">Dots</button>
+        </div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Coverage</label>
+        <div class="shading-option-row">
+          <button class="shading-option-btn active" data-scoverage="full" onclick="setShadingCoverage('full')">Full</button>
+          <button class="shading-option-btn" data-scoverage="half-left" onclick="setShadingCoverage('half-left')">Left Half</button>
+          <button class="shading-option-btn" data-scoverage="half-right" onclick="setShadingCoverage('half-right')">Right Half</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -657,6 +687,15 @@
       <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
     </div>
     <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Twin tool: click two children of same partnership.</p>
+  </div>
+
+  <div class="panel-section">
+    <h3>Child Line Style</h3>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
+      <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Click a child line in Move mode to select it, then use these buttons to change its style.</p>
   </div>
 
   <!-- Free Text Labels section -->
@@ -782,6 +821,7 @@ let lineIdCounter = 0;
 let selectedPerson = null;
 let selectedLabel = null;
 let selectedPartnershipId = null;
+let selectedChildLinkId = null;
 let connectSource = null;
 let childPartnershipSource = null;
 let dragState = null;
@@ -973,6 +1013,24 @@ function setPartnershipType(t) {
 function setTwinType(t) {
   currentTwinType = t;
   document.querySelectorAll('[data-tt]').forEach(b => b.classList.toggle('active', b.dataset.tt === t));
+}
+function setChildLineStyle(style) {
+  document.querySelectorAll('[data-cls]').forEach(b => b.classList.toggle('active', b.dataset.cls === style));
+  if (selectedChildLinkId) {
+    const cl = childLinks.find(c => c.id === selectedChildLinkId);
+    if (cl) {
+      pushUndo();
+      cl.dashed = (style === 'dashed');
+      // Update the visible path's dash attribute
+      if (cl.dashed) {
+        cl.els[0].setAttribute('stroke-dasharray', '6 4');
+      } else {
+        cl.els[0].removeAttribute('stroke-dasharray');
+      }
+      scheduleSave();
+      document.getElementById('statusBar').textContent = 'Child line changed to ' + style;
+    }
+  }
 }
 function setCenterText(ct) {
   if (!selectedPerson) return; pushUndo(); const p = persons.get(selectedPerson); if (!p) return;
@@ -1282,13 +1340,14 @@ const PROBAND_ARROW_D = 'M2 16L16 2 M16 2L9 2 M16 2L16 9';
 // SHAPE SVG RENDERING (uses shared geometry)
 // ══════════════════════════════════════════
 
-function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText, halves) {
+function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText, halves, shadingPattern, shadingCoverage) {
   let fills = '', deathLine = '', extra = '';
-  const hasFill = fillMode === 'solid' || fillMode === 'quartered' || fillMode === 'half';
+  const hasFill = fillMode === 'solid' || fillMode === 'quartered' || fillMode === 'half' || fillMode === 'shading';
 
   if (fillMode === 'solid' && fillColor)          fills = makeSolidFill(shape, fillColor);
   else if (fillMode === 'half' && halves)          fills = makeHalfFill(shape, halves);
   else if (fillMode === 'quartered' && quarters)   fills = makeQuarteredFill(shape, quarters);
+  else if (fillMode === 'shading')                 fills = makeShadingFill(shape, shadingPattern || 'stripes', shadingCoverage || 'full');
 
   const border = `<path class="shape-border" d="${shapePathD(shape)}" fill="${hasFill ? 'none' : (isLineShape(shape) ? 'none' : '#fff')}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}"/>`;
 
@@ -1343,11 +1402,55 @@ function makeQuarteredFill(shape, quarters) {
   return svg;
 }
 
+let shadingPatIdCounter = 0;
+
+function makeShadingFill(shape, shadingPattern, shadingCoverage) {
+  const pid = 'shpat-' + (++shadingPatIdCounter);
+  const clipId = pid + '-clip';
+  let patternDef = '';
+  if (shadingPattern === 'dots') {
+    patternDef = `<pattern id="${pid}" patternUnits="userSpaceOnUse" width="8" height="8">` +
+      `<circle cx="4" cy="4" r="1.6" fill="${STROKE_COLOR}"/>` +
+      `</pattern>`;
+  } else {
+    // stripes - diagonal lines
+    patternDef = `<pattern id="${pid}" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">` +
+      `<line x1="0" y1="0" x2="0" y2="7" stroke="${STROKE_COLOR}" stroke-width="1.8"/>` +
+      `</pattern>`;
+  }
+
+  let clipPath = '';
+  let fillRegion = '';
+
+  if (shadingCoverage === 'full') {
+    clipPath = `<clipPath id="${clipId}"><path d="${shapePathD(shape)}"/></clipPath>`;
+    fillRegion = `<path d="${shapePathD(shape)}" fill="#fff" stroke="none"/>` +
+      `<rect x="0" y="0" width="52" height="52" fill="url(#${pid})" clip-path="url(#${clipId})"/>`;
+  } else {
+    // half-left or half-right
+    const hDs = halfPathDs(shape);
+    const halfIdx = shadingCoverage === 'half-left' ? 0 : 1;
+    const solidIdx = shadingCoverage === 'half-left' ? 1 : 0;
+    // White fill on the non-shaded half
+    const clipIdSolid = pid + '-clip-s';
+    clipPath = `<clipPath id="${clipId}"><path d="${hDs[halfIdx]}"/></clipPath>` +
+      `<clipPath id="${clipIdSolid}"><path d="${hDs[solidIdx]}"/></clipPath>`;
+    fillRegion = `<rect x="0" y="0" width="52" height="52" fill="#fff" clip-path="url(#${clipIdSolid})"/>` +
+      `<path d="${hDs[halfIdx]}" fill="#fff" stroke="none"/>` +
+      `<rect x="0" y="0" width="52" height="52" fill="url(#${pid})" clip-path="url(#${clipId})"/>`;
+    // Add divider line
+    const dl = halfDividerCoords(shape);
+    fillRegion += `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${STROKE_COLOR}" stroke-width="1" opacity="0.3"/>`;
+  }
+
+  return `<defs>${patternDef}${clipPath}</defs>${fillRegion}`;
+}
+
 // ══════════════════════════
 // ADD / REMOVE PERSON
 // ══════════════════════════
 
-function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex, customHalves) {
+function addPerson(customId, customX, customY, customShape, customText, customDeceased, customProband, customFillMode, customFillColor, customQuarters, customCenterText, customMiscarriageSex, customHalves, customShadingPattern, customShadingCoverage) {
   if (!customId) pushUndo();
   const id = customId || 'person-' + (++personIdCounter);
   if (!customId) { const n = parseInt(id.split('-')[1]) || 0; if (n > personIdCounter) personIdCounter = n; }
@@ -1365,6 +1468,8 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
   const halves = customHalves || [null, null];
   const centerText = customCenterText || '';
   const miscarriageSex = customMiscarriageSex || 'unknown';
+  const shadingPattern = customShadingPattern || 'stripes';
+  const shadingCoverage = customShadingCoverage || 'full';
 
   const el = document.createElement('div');
   el.className = 'person';
@@ -1374,7 +1479,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
 
   const shapeDiv = document.createElement('div');
   shapeDiv.className = 'person-shape';
-  shapeDiv.innerHTML = makeShapeSVG(shape, !!customDeceased, fillMode, fillColor, quarters, centerText, halves);
+  shapeDiv.innerHTML = makeShapeSVG(shape, !!customDeceased, fillMode, fillColor, quarters, centerText, halves, shadingPattern, shadingCoverage);
   el.appendChild(shapeDiv);
 
   const numEl = document.createElement('div');
@@ -1439,6 +1544,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
     fillMode, fillColor,
     quarters: [...quarters],
     halves: [...halves],
+    shadingPattern, shadingCoverage,
     centerText, miscarriageSex,
     noSnap: false,
     customLabel: 'Lbl',
@@ -1520,6 +1626,7 @@ function deselectAll() {
   selectedPerson = null;
   selectedLabel = null;
   selectedPartnershipId = null;
+  selectedChildLinkId = null;
   multiSelected.clear();
   hideProps();
   
@@ -1562,11 +1669,14 @@ function showProps(p) {
   document.getElementById('solidFillUI').style.display = p.fillMode === 'solid' ? 'block' : 'none';
   document.getElementById('halfFillUI').style.display = p.fillMode === 'half' ? 'block' : 'none';
   document.getElementById('quarteredFillUI').style.display = p.fillMode === 'quartered' ? 'block' : 'none';
+  document.getElementById('shadingFillUI').style.display = p.fillMode === 'shading' ? 'block' : 'none';
 
   // Update quarter grid visuals
   updateQuarterGridUI(p);
   // Update half grid visuals
   updateHalfGridUI(p);
+  // Update shading UI visuals
+  if (p.fillMode === 'shading') updateShadingUI(p);
 
   // Highlight active solid color
   document.querySelectorAll('#solidColorPicker .fill-swatch').forEach(s => s.classList.remove('active'));
@@ -1647,7 +1757,7 @@ function changeShape(newShape) {
 function refreshPersonShape(p) {
   const shapeDiv = p.el.querySelector('.person-shape');
   const delBtn = shapeDiv.querySelector('.delete-btn');
-  shapeDiv.innerHTML = makeShapeSVG(p.shape, p.deceased, p.fillMode, p.fillColor, p.quarters, p.centerText, p.halves);
+  shapeDiv.innerHTML = makeShapeSVG(p.shape, p.deceased, p.fillMode, p.fillColor, p.quarters, p.centerText, p.halves, p.shadingPattern, p.shadingCoverage);
   if (delBtn) shapeDiv.appendChild(delBtn);
   if (p.proband) addProbandArrow(p.el);
   // Manage miscarriage sex label
@@ -1674,8 +1784,10 @@ function setFillMode(mode) {
   document.getElementById('solidFillUI').style.display = mode === 'solid' ? 'block' : 'none';
   document.getElementById('halfFillUI').style.display = mode === 'half' ? 'block' : 'none';
   document.getElementById('quarteredFillUI').style.display = mode === 'quartered' ? 'block' : 'none';
+  document.getElementById('shadingFillUI').style.display = mode === 'shading' ? 'block' : 'none';
   if (mode === 'quartered') updateQuarterGridUI(p);
   if (mode === 'half') updateHalfGridUI(p);
+  if (mode === 'shading') updateShadingUI(p);
   refreshPersonShape(p);
   if (legendVisible) buildLegendBox();
   scheduleSave();
@@ -1744,6 +1856,37 @@ function updateHalfGridUI(p) {
     cell.style.background = c || '#fff';
     cell.style.color = c ? (isLight(c) ? '#333' : '#fff') : '#aaa';
   });
+}
+
+function setShadingPattern(pattern) {
+  if (!selectedPerson) return;
+  pushUndo();
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.shadingPattern = pattern;
+  document.querySelectorAll('[data-spattern]').forEach(b => b.classList.toggle('active', b.dataset.spattern === pattern));
+  refreshPersonShape(p);
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function setShadingCoverage(coverage) {
+  if (!selectedPerson) return;
+  pushUndo();
+  const p = persons.get(selectedPerson);
+  if (!p) return;
+  p.shadingCoverage = coverage;
+  document.querySelectorAll('[data-scoverage]').forEach(b => b.classList.toggle('active', b.dataset.scoverage === coverage));
+  refreshPersonShape(p);
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function updateShadingUI(p) {
+  const pat = p.shadingPattern || 'stripes';
+  const cov = p.shadingCoverage || 'full';
+  document.querySelectorAll('[data-spattern]').forEach(b => b.classList.toggle('active', b.dataset.spattern === pat));
+  document.querySelectorAll('[data-scoverage]').forEach(b => b.classList.toggle('active', b.dataset.scoverage === cov));
 }
 
 function rgbToHex(rgb) {
@@ -2647,6 +2790,14 @@ function addChildLink(partnershipId, childId, customId) {
 
   const onChildClick = () => {
     if (currentTool === 'move') {
+      // Select this child link so panel buttons can change its style
+      selectedChildLinkId = id;
+      const thisCl = childLinks.find(c => c.id === id);
+      if (thisCl) {
+        const style = thisCl.dashed ? 'dashed' : 'solid';
+        document.querySelectorAll('[data-cls]').forEach(b => b.classList.toggle('active', b.dataset.cls === style));
+        document.getElementById('statusBar').textContent = 'Child line selected (' + style + '). Use Child Line Style buttons to change, or click again to remove.';
+      }
       // Check if this child is part of a twin link — offer to remove twin first
       const twinLink = twinLinks.find(t => t.child1Id === childId || t.child2Id === childId);
       if (twinLink) {
@@ -2654,7 +2805,7 @@ function addChildLink(partnershipId, childId, customId) {
           removeTwinLink(twinLink.id);
         }
       } else {
-        if (confirm('Remove this child connection?')) removeChildLink(id);
+        if (confirm('Remove this child connection?\n(Cancel to keep — use Child Line Style buttons to change style)')) { removeChildLink(id); selectedChildLinkId = null; }
       }
     }
   };
@@ -2665,7 +2816,7 @@ function addChildLink(partnershipId, childId, customId) {
   svg.appendChild(hitPath);
   svg.appendChild(vertLine);
   const els = [vertLine, hitPath];
-  const cl = { id, partnershipId, childId, els, branchYOffset: 0 };
+  const cl = { id, partnershipId, childId, els, branchYOffset: 0, dashed: false };
 
   // In default mode, capture child's connected group BEFORE the link merges the two pedigrees
   let childGroup = null;
@@ -3879,7 +4030,7 @@ function updateNumbering() {
     persons.forEach(p => {
       const ne = p.el.querySelector('.person-number');
       if (!ne) return;
-      ne.textContent = p.customLabel || 'Lbl';
+      ne.textContent = p.customLabel;
       ne.classList.add('editable');
       ne.contentEditable = 'false'; // not in active edit — click to edit
 
@@ -3914,7 +4065,7 @@ function updateNumbering() {
           const pid = ne.closest('.person')?.id;
           if (pid) {
             const pd = persons.get(pid);
-            if (pd) { pd.customLabel = ne.textContent.trim() || 'Lbl'; }
+            if (pd) { pd.customLabel = ne.textContent.trim(); }
           }
           scheduleSave();
         });
@@ -4011,10 +4162,17 @@ function buildLegendBox() {
   // Collect colours in use
   const colorsInUse = [];
   const seen = new Set();
+  // Also collect shading entries
+  const shadingsInUse = [];
+  const seenShading = new Set();
   persons.forEach(p => {
     if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); colorsInUse.push(p.fillColor); }
     if (p.fillMode === 'half') p.halves.forEach(q => { if (q && !seen.has(q)) { seen.add(q); colorsInUse.push(q); } });
     if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); colorsInUse.push(q); } });
+    if (p.fillMode === 'shading') {
+      const sKey = `shading:${p.shadingPattern || 'stripes'}:${p.shadingCoverage || 'full'}`;
+      if (!seenShading.has(sKey)) { seenShading.add(sKey); shadingsInUse.push({ pattern: p.shadingPattern || 'stripes', coverage: p.shadingCoverage || 'full', key: sKey }); }
+    }
   });
 
   box = document.createElement('div');
@@ -4027,10 +4185,10 @@ function buildLegendBox() {
   title.textContent = 'KEY';
   box.appendChild(title);
 
-  if (colorsInUse.length === 0) {
+  if (colorsInUse.length === 0 && shadingsInUse.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'legend-empty';
-    empty.textContent = 'No fill colours used yet.';
+    empty.textContent = 'No fill colours or shading used yet.';
     box.appendChild(empty);
   } else {
     colorsInUse.forEach(color => {
@@ -4045,6 +4203,42 @@ function buildLegendBox() {
       input.placeholder = 'Enter meaning…';
       input.value = legendLabels[color] || '';
       input.addEventListener('input', () => { legendLabels[color] = input.value; scheduleSave(); });
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+      row.appendChild(swatch);
+      row.appendChild(input);
+      box.appendChild(row);
+    });
+    shadingsInUse.forEach(sh => {
+      const row = document.createElement('div');
+      row.className = 'legend-row';
+      const swatch = document.createElement('div');
+      swatch.className = 'legend-swatch';
+      swatch.style.overflow = 'hidden';
+      swatch.style.position = 'relative';
+      // Build mini SVG pattern swatch
+      const pid = 'leg-' + sh.key.replace(/:/g, '-');
+      let patDef = '';
+      if (sh.pattern === 'dots') {
+        patDef = `<pattern id="${pid}" patternUnits="userSpaceOnUse" width="6" height="6"><circle cx="3" cy="3" r="1.2" fill="${STROKE_COLOR}"/></pattern>`;
+      } else {
+        patDef = `<pattern id="${pid}" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${STROKE_COLOR}" stroke-width="1.4"/></pattern>`;
+      }
+      let fillRect = '';
+      if (sh.coverage === 'full') {
+        fillRect = `<rect width="20" height="20" fill="url(#${pid})"/>`;
+      } else if (sh.coverage === 'half-left') {
+        fillRect = `<rect width="10" height="20" fill="url(#${pid})"/><rect x="10" width="10" height="20" fill="#fff"/>`;
+      } else {
+        fillRect = `<rect width="10" height="20" fill="#fff"/><rect x="10" width="10" height="20" fill="url(#${pid})"/>`;
+      }
+      swatch.innerHTML = `<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><defs>${patDef}</defs>${fillRect}<rect width="20" height="20" fill="none" stroke="${STROKE_COLOR}" stroke-width="1"/></svg>`;
+      const input = document.createElement('input');
+      input.className = 'legend-input';
+      input.type = 'text';
+      input.placeholder = 'Enter meaning…';
+      input.value = legendLabels[sh.key] || '';
+      input.addEventListener('input', () => { legendLabels[sh.key] = input.value; scheduleSave(); });
       input.addEventListener('mousedown', (e) => e.stopPropagation());
       input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
       row.appendChild(swatch);
@@ -4143,7 +4337,7 @@ function buildSessionData() {
   if (numberingMode === 'freetext') {
     persons.forEach(p => {
       const ne = p.el.querySelector('.person-number');
-      if (ne && ne.textContent) p.customLabel = ne.textContent.trim() || 'Lbl';
+      if (ne && ne.textContent !== undefined) p.customLabel = ne.textContent.trim();
     });
   }
   const personArr = [];
@@ -4154,10 +4348,12 @@ function buildSessionData() {
       text: p.text, deceased: p.deceased, proband: p.proband,
       fillMode: p.fillMode, fillColor: p.fillColor, quarters: [...p.quarters],
       halves: [...(p.halves || [null, null])],
+      shadingPattern: p.shadingPattern || 'stripes',
+      shadingCoverage: p.shadingCoverage || 'full',
       centerText: p.centerText || '', miscarriageSex: p.miscarriageSex || 'unknown',
       noSnap: !!p.noSnap,
       siblingFixed: !!p.siblingFixed,
-      customLabel: p.customLabel || 'Lbl'
+      customLabel: p.customLabel != null ? p.customLabel : 'Lbl'
     });
   });
   const labelArr = [];
@@ -4170,12 +4366,12 @@ function buildSessionData() {
     });
   });
   return {
-    version: 3,
+    version: 4,
     personIdCounter, labelIdCounter, lineIdCounter,
     persons: personArr,
     labels: labelArr,
     partnerships: partnerships.map(p => ({ id: p.id, fromId: p.fromId, toId: p.toId, type: p.type || 'normal' })),
-    childLinks: childLinks.map(c => ({ id: c.id, partnershipId: c.partnershipId, childId: c.childId, branchYOffset: c.branchYOffset || 0 })),
+    childLinks: childLinks.map(c => ({ id: c.id, partnershipId: c.partnershipId, childId: c.childId, branchYOffset: c.branchYOffset || 0, dashed: !!c.dashed })),
     twinLinks: twinLinks.map(t => ({ id: t.id, child1Id: t.child1Id, child2Id: t.child2Id, type: t.type, partnershipId: t.partnershipId })),
     legendLabels,
     legendVisible, legendX, legendY,
@@ -4208,7 +4404,7 @@ function restoreSession(data) {
     let q = pd.quarters || [null, null, null, null];
     let h = pd.halves || [null, null];
     if (pd.affected && fm === 'none') { fm = 'solid'; fc = '#1a2332'; }
-    addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown', h);
+    addPerson(pd.id, pd.x, pd.y, pd.shape, pd.text, pd.deceased, pd.proband, fm, fc, q, pd.centerText || '', pd.miscarriageSex || 'unknown', h, pd.shadingPattern || 'stripes', pd.shadingCoverage || 'full');
     if (pd.noSnap) { const pp = persons.get(pd.id); if (pp) pp.noSnap = true; }
     if (pd.siblingFixed) { const pp = persons.get(pd.id); if (pp) pp.siblingFixed = true; }
     if (pd.customLabel) { const pp = persons.get(pd.id); if (pp) pp.customLabel = pd.customLabel; }
@@ -4224,9 +4420,13 @@ function restoreSession(data) {
   });
   (data.childLinks || []).forEach(cd => {
     addChildLink(cd.partnershipId, cd.childId, cd.id);
-    if (cd.branchYOffset) {
-      const cl = childLinks.find(c => c.id === cd.id);
-      if (cl) { cl.branchYOffset = cd.branchYOffset; updateChildLinkPos(cl); }
+    const cl = childLinks.find(c => c.id === cd.id);
+    if (cl) {
+      if (cd.branchYOffset) { cl.branchYOffset = cd.branchYOffset; updateChildLinkPos(cl); }
+      if (cd.dashed) {
+        cl.dashed = true;
+        cl.els[0].setAttribute('stroke-dasharray', '6 4');
+      }
     }
     const n = parseInt(cd.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
   });
@@ -4317,21 +4517,28 @@ function computeExportBounds() {
     maxX = Math.max(maxX, x + l.el.offsetWidth + 10); maxY = Math.max(maxY, y + l.el.offsetHeight + 10);
   });
   const legendColors = [];
+  const legendShadings = [];
   if (legendVisible) {
     const seen = new Set();
+    const seenSh = new Set();
     persons.forEach(p => {
       if (p.fillMode === 'solid' && p.fillColor && !seen.has(p.fillColor)) { seen.add(p.fillColor); legendColors.push({ color: p.fillColor, label: legendLabels[p.fillColor] || '' }); }
       if (p.fillMode === 'half') p.halves.forEach(q => { if (q && !seen.has(q)) { seen.add(q); legendColors.push({ color: q, label: legendLabels[q] || '' }); } });
       if (p.fillMode === 'quartered') p.quarters.forEach(q => { if (q && !seen.has(q)) { seen.add(q); legendColors.push({ color: q, label: legendLabels[q] || '' }); } });
+      if (p.fillMode === 'shading') {
+        const sKey = `shading:${p.shadingPattern || 'stripes'}:${p.shadingCoverage || 'full'}`;
+        if (!seenSh.has(sKey)) { seenSh.add(sKey); legendShadings.push({ pattern: p.shadingPattern || 'stripes', coverage: p.shadingCoverage || 'full', key: sKey, label: legendLabels[sKey] || '' }); }
+      }
     });
-    if (legendColors.length > 0) {
-      const legendH = legendColors.length * 24 + 30;
+    const totalLegendItems = legendColors.length + legendShadings.length;
+    if (totalLegendItems > 0) {
+      const legendH = totalLegendItems * 24 + 30;
       minX = Math.min(minX, legendX - 10); minY = Math.min(minY, legendY - 10);
       maxX = Math.max(maxX, legendX + 220); maxY = Math.max(maxY, legendY + legendH + 10);
     }
   }
   const pad = 60;
-  return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, legendColors };
+  return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad, legendColors, legendShadings };
 }
 
 function saveAsImage() {
@@ -4340,7 +4547,7 @@ function saveAsImage() {
 
   if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
 
-  const { minX, minY, maxX, maxY, legendColors } = computeExportBounds();
+  const { minX, minY, maxX, maxY, legendColors, legendShadings } = computeExportBounds();
 
   const scale = 2;
   const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
@@ -4452,7 +4659,9 @@ function saveAsImage() {
   pngClPaths.forEach(item => {
     const pts = pngByV.get(item.cl.id);
     const d = (pts && pts.length > 0) ? rebuildPathWithBridges(item.d, pts) : item.d;
+    if (item.cl.dashed) ctx.setLineDash([6, 4]);
     strokePathD(d);
+    if (item.cl.dashed) ctx.setLineDash([]);
   });
 
   // ── Draw twin bars (uses shared computeTwinBarD) ──
@@ -4498,6 +4707,44 @@ function saveAsImage() {
         ctx.fillStyle = p.quarters[i] || '#ffffff';
         ctx.fill(drawShapeAtPos(qd, x, y));
       });
+    } else if (p.fillMode === 'shading') {
+      // Create canvas pattern for shading
+      const patCanvas = document.createElement('canvas');
+      const patCtx = patCanvas.getContext('2d');
+      const sPat = p.shadingPattern || 'stripes';
+      const sCov = p.shadingCoverage || 'full';
+      if (sPat === 'dots') {
+        patCanvas.width = 8; patCanvas.height = 8;
+        patCtx.fillStyle = STROKE_COLOR;
+        patCtx.beginPath(); patCtx.arc(4, 4, 1.6, 0, Math.PI * 2); patCtx.fill();
+      } else {
+        patCanvas.width = 7; patCanvas.height = 7;
+        patCtx.strokeStyle = STROKE_COLOR; patCtx.lineWidth = 1.8;
+        patCtx.beginPath(); patCtx.moveTo(-2, 7); patCtx.lineTo(7, -2); patCtx.stroke();
+        patCtx.beginPath(); patCtx.moveTo(-2 + 7, 7); patCtx.lineTo(7 + 7, -2); patCtx.stroke();
+        patCtx.beginPath(); patCtx.moveTo(-2 - 7, 7); patCtx.lineTo(7 - 7, -2); patCtx.stroke();
+      }
+      const canvasPat = ctx.createPattern(patCanvas, 'repeat');
+      if (sCov === 'full') {
+        ctx.fillStyle = '#ffffff'; ctx.fill(outline);
+        ctx.save(); ctx.clip(outline); ctx.fillStyle = canvasPat; ctx.fillRect(x, y, SHAPE_SIZE, SHAPE_SIZE); ctx.restore();
+      } else {
+        const hDs = halfPathDs(p.shape);
+        const shadedIdx = sCov === 'half-left' ? 0 : 1;
+        const clearIdx = sCov === 'half-left' ? 1 : 0;
+        // White fill on non-shaded half
+        ctx.fillStyle = '#ffffff';
+        ctx.fill(drawShapeAtPos(hDs[clearIdx], x, y));
+        // White background + pattern on shaded half
+        ctx.fillStyle = '#ffffff'; ctx.fill(drawShapeAtPos(hDs[shadedIdx], x, y));
+        const halfPath = drawShapeAtPos(hDs[shadedIdx], x, y);
+        ctx.save(); ctx.clip(halfPath); ctx.fillStyle = canvasPat; ctx.fillRect(x, y, SHAPE_SIZE, SHAPE_SIZE); ctx.restore();
+        // Divider line
+        ctx.save(); ctx.strokeStyle = 'rgba(26,35,50,0.3)'; ctx.lineWidth = 1;
+        const dl = halfDividerCoords(p.shape);
+        ctx.beginPath(); ctx.moveTo(x + dl.x1, y + dl.y1); ctx.lineTo(x + dl.x2, y + dl.y2); ctx.stroke();
+        ctx.restore();
+      }
     } else {
       if (!isLineShape(p.shape)) { ctx.fillStyle = '#ffffff'; ctx.fill(outline); }
     }
@@ -4638,9 +4885,10 @@ function saveAsImage() {
   });
 
   // ── Draw legend ──
-  if (legendVisible && legendColors.length > 0) {
+  const totalLegendItems = legendColors.length + legendShadings.length;
+  if (legendVisible && totalLegendItems > 0) {
     const lx = legendX, ly = legendY, lw = 200, rowH = 24;
-    const totalH = legendColors.length * rowH + 30;
+    const totalH = totalLegendItems * rowH + 30;
     ctx.save(); ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1.5;
     const br = 8;
     ctx.beginPath();
@@ -4651,12 +4899,45 @@ function saveAsImage() {
     ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     ctx.fillStyle = '#6b7a8d'; ctx.font = 'bold 10px ' + FONT; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillText('KEY', lx + 12, ly + 10);
-    legendColors.forEach((lc, i) => {
-      const ry = ly + 28 + i * rowH;
+    let legendIdx = 0;
+    legendColors.forEach((lc) => {
+      const ry = ly + 28 + legendIdx * rowH;
       ctx.fillStyle = lc.color; ctx.fillRect(lx + 12, ry, 16, 16);
       ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1; ctx.strokeRect(lx + 12, ry, 16, 16);
       ctx.fillStyle = STROKE_COLOR; ctx.font = '11px ' + FONT;
       ctx.fillText(lc.label || '(unlabelled)', lx + 36, ry + 2);
+      legendIdx++;
+    });
+    legendShadings.forEach((sh) => {
+      const ry = ly + 28 + legendIdx * rowH;
+      // Draw shading pattern swatch
+      const swX = lx + 12, swY = ry, swW = 16, swH = 16;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(swX, swY, swW, swH);
+      const patCanvas = document.createElement('canvas');
+      const patCtx = patCanvas.getContext('2d');
+      if (sh.pattern === 'dots') {
+        patCanvas.width = 6; patCanvas.height = 6;
+        patCtx.fillStyle = STROKE_COLOR;
+        patCtx.beginPath(); patCtx.arc(3, 3, 1.2, 0, Math.PI * 2); patCtx.fill();
+      } else {
+        patCanvas.width = 5; patCanvas.height = 5;
+        patCtx.strokeStyle = STROKE_COLOR; patCtx.lineWidth = 1.4;
+        patCtx.beginPath(); patCtx.moveTo(-2, 5); patCtx.lineTo(5, -2); patCtx.stroke();
+        patCtx.beginPath(); patCtx.moveTo(-2 + 5, 5); patCtx.lineTo(5 + 5, -2); patCtx.stroke();
+        patCtx.beginPath(); patCtx.moveTo(-2 - 5, 5); patCtx.lineTo(5 - 5, -2); patCtx.stroke();
+      }
+      const swPat = ctx.createPattern(patCanvas, 'repeat');
+      if (sh.coverage === 'full') {
+        ctx.fillStyle = swPat; ctx.fillRect(swX, swY, swW, swH);
+      } else if (sh.coverage === 'half-left') {
+        ctx.fillStyle = swPat; ctx.fillRect(swX, swY, swW / 2, swH);
+      } else {
+        ctx.fillStyle = swPat; ctx.fillRect(swX + swW / 2, swY, swW / 2, swH);
+      }
+      ctx.strokeStyle = '#dde1e6'; ctx.lineWidth = 1; ctx.strokeRect(swX, swY, swW, swH);
+      ctx.fillStyle = STROKE_COLOR; ctx.font = '11px ' + FONT;
+      ctx.fillText(sh.label || '(unlabelled)', lx + 36, ry + 2);
+      legendIdx++;
     });
   }
 
@@ -4679,7 +4960,7 @@ function saveAsSVG() {
 
   if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
 
-  const { minX, minY, maxX, maxY, legendColors } = computeExportBounds();
+  const { minX, minY, maxX, maxY, legendColors, legendShadings } = computeExportBounds();
   const w = maxX - minX, h = maxY - minY;
   const FONT = "-apple-system, 'Segoe UI', system-ui, Helvetica, sans-serif";
 
@@ -4772,7 +5053,8 @@ function saveAsSVG() {
   svgClPaths.forEach(item => {
     const pts = svgByV.get(item.cl.id);
     const d = (pts && pts.length > 0) ? rebuildPathWithBridges(item.d, pts) : item.d;
-    els.push(`<path d="${d}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+    const dashAttr = item.cl.dashed ? ' stroke-dasharray="6 4"' : '';
+    els.push(`<path d="${d}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"${dashAttr}/>`);
   });
 
   // ── Twin bars ──
@@ -4812,6 +5094,33 @@ function saveAsSVG() {
       qDs.forEach((qd, i) => {
         g.push(`<path d="${qd}" fill="${p.quarters[i] || '#ffffff'}" stroke="none" transform="translate(${x},${y})"/>`);
       });
+    } else if (p.fillMode === 'shading') {
+      const sPat = p.shadingPattern || 'stripes';
+      const sCov = p.shadingCoverage || 'full';
+      const patId = 'exp-pat-' + p.id;
+      let patDef = '';
+      if (sPat === 'dots') {
+        patDef = `<pattern id="${patId}" patternUnits="userSpaceOnUse" width="8" height="8"><circle cx="4" cy="4" r="1.6" fill="${STROKE_COLOR}"/></pattern>`;
+      } else {
+        patDef = `<pattern id="${patId}" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="${STROKE_COLOR}" stroke-width="1.8"/></pattern>`;
+      }
+      if (sCov === 'full') {
+        const clipId = patId + '-c';
+        g.push(`<defs>${patDef}<clipPath id="${clipId}"><path d="${shapePathD(p.shape)}" transform="translate(${x},${y})"/></clipPath></defs>`);
+        g.push(`<path d="${shapePathD(p.shape)}" fill="#ffffff" stroke="none" transform="translate(${x},${y})"/>`);
+        g.push(`<rect x="${x}" y="${y}" width="52" height="52" fill="url(#${patId})" clip-path="url(#${clipId})"/>`);
+      } else {
+        const hDs = halfPathDs(p.shape);
+        const shadedIdx = sCov === 'half-left' ? 0 : 1;
+        const clearIdx = sCov === 'half-left' ? 1 : 0;
+        const clipId = patId + '-c';
+        g.push(`<defs>${patDef}<clipPath id="${clipId}"><path d="${hDs[shadedIdx]}" transform="translate(${x},${y})"/></clipPath></defs>`);
+        g.push(`<path d="${hDs[clearIdx]}" fill="#ffffff" stroke="none" transform="translate(${x},${y})"/>`);
+        g.push(`<path d="${hDs[shadedIdx]}" fill="#ffffff" stroke="none" transform="translate(${x},${y})"/>`);
+        g.push(`<rect x="${x}" y="${y}" width="52" height="52" fill="url(#${patId})" clip-path="url(#${clipId})"/>`);
+        const dl = halfDividerCoords(p.shape);
+        g.push(svgLine(x + dl.x1, y + dl.y1, x + dl.x2, y + dl.y2, STROKE_COLOR, 1, 0.3));
+      }
     } else {
       if (!isLineShape(p.shape)) g.push(`<path d="${shapePathD(p.shape)}" fill="#ffffff" stroke="none" transform="translate(${x},${y})"/>`);
     }
@@ -4934,15 +5243,41 @@ function saveAsSVG() {
   });
 
   // ── Legend ──
-  if (legendVisible && legendColors.length > 0) {
+  const totalSvgLegendItems = legendColors.length + legendShadings.length;
+  if (legendVisible && totalSvgLegendItems > 0) {
     const lx = legendX, ly = legendY, lw = 200, rowH = 24;
-    const totalH = legendColors.length * rowH + 30;
+    const totalH = totalSvgLegendItems * rowH + 30;
     els.push(`<rect x="${lx}" y="${ly}" width="${lw}" height="${totalH}" rx="8" ry="8" fill="#ffffff" stroke="#dde1e6" stroke-width="1.5"/>`);
     els.push(`<text x="${lx + 12}" y="${ly + 18}" text-anchor="start" font-size="10" font-weight="700" fill="#6b7a8d" font-family="${FONT}">KEY</text>`);
-    legendColors.forEach((lc, i) => {
-      const ry = ly + 28 + i * rowH;
+    let svgLegIdx = 0;
+    legendColors.forEach((lc) => {
+      const ry = ly + 28 + svgLegIdx * rowH;
       els.push(`<rect x="${lx + 12}" y="${ry}" width="16" height="16" fill="${lc.color}" stroke="#dde1e6" stroke-width="1"/>`);
       els.push(`<text x="${lx + 36}" y="${ry + 12}" text-anchor="start" dominant-baseline="central" font-size="11" fill="${STROKE_COLOR}" font-family="${FONT}">${esc(lc.label || '(unlabelled)')}</text>`);
+      svgLegIdx++;
+    });
+    legendShadings.forEach((sh) => {
+      const ry = ly + 28 + svgLegIdx * rowH;
+      const spId = 'leg-exp-' + svgLegIdx;
+      let patDef = '';
+      if (sh.pattern === 'dots') {
+        patDef = `<pattern id="${spId}" patternUnits="userSpaceOnUse" width="6" height="6"><circle cx="3" cy="3" r="1.2" fill="${STROKE_COLOR}"/></pattern>`;
+      } else {
+        patDef = `<pattern id="${spId}" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${STROKE_COLOR}" stroke-width="1.4"/></pattern>`;
+      }
+      let fillRect = '';
+      if (sh.coverage === 'full') {
+        fillRect = `<rect x="${lx + 12}" y="${ry}" width="16" height="16" fill="url(#${spId})"/>`;
+      } else if (sh.coverage === 'half-left') {
+        fillRect = `<rect x="${lx + 12}" y="${ry}" width="8" height="16" fill="url(#${spId})"/><rect x="${lx + 20}" y="${ry}" width="8" height="16" fill="#fff"/>`;
+      } else {
+        fillRect = `<rect x="${lx + 12}" y="${ry}" width="8" height="16" fill="#fff"/><rect x="${lx + 20}" y="${ry}" width="8" height="16" fill="url(#${spId})"/>`;
+      }
+      els.push(`<defs>${patDef}</defs>`);
+      els.push(fillRect);
+      els.push(`<rect x="${lx + 12}" y="${ry}" width="16" height="16" fill="none" stroke="#dde1e6" stroke-width="1"/>`);
+      els.push(`<text x="${lx + 36}" y="${ry + 12}" text-anchor="start" dominant-baseline="central" font-size="11" fill="${STROKE_COLOR}" font-family="${FONT}">${esc(sh.label || '(unlabelled)')}</text>`);
+      svgLegIdx++;
     });
   }
 

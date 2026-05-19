@@ -62,6 +62,10 @@
     font-size: 10px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 10px;
   }
+  .config-group {
+    padding-bottom: 10px; margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+  }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 10px 14px; border: none; border-radius: 6px;
@@ -218,6 +222,20 @@
     pointer-events: none; z-index: 1; overflow: visible;
   }
   #lines-layer line, #lines-layer path { pointer-events: stroke; cursor: pointer; }
+  #draw-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 15; overflow: visible;
+  }
+  #canvas.eraser-active #draw-layer { pointer-events: auto; }
+  #canvas.eraser-active #draw-layer path { pointer-events: stroke; cursor: pointer; }
+  #canvas.eraser-active #draw-layer path:hover { opacity: 0.4; filter: drop-shadow(0 0 4px var(--danger)); }
+  .draw-settings-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .draw-color-btn {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border);
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .draw-color-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
 
   /* ── Person nodes ── */
   .person {
@@ -226,6 +244,10 @@
   }
   .person:hover .person-shape { filter: drop-shadow(0 0 3px rgba(42,125,140,0.35)); }
   .person.dragging { cursor: grabbing; z-index: 999; }
+  #canvas.draw-active .person,
+  #canvas.draw-active .label,
+  #canvas.draw-active .legend-box { pointer-events: none; }
+  #canvas.draw-active #draw-layer { pointer-events: auto; }
   .person.selected .shape-border { stroke: var(--accent) !important; stroke-width: 2.5 !important; }
   .person.multi-selected .shape-border { stroke: #e67e22 !important; stroke-width: 2.5 !important; stroke-dasharray: 4 3; }
   .person-shape { width: 52px; height: 52px; position: relative; transition: filter 0.15s; }
@@ -462,9 +484,10 @@
       <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid, half, quartered, or shading patterns).</li>
       <li><span class="step-num">3</span>Use <strong>Partner</strong> mode to connect two people with a partnership line.</li>
       <li><span class="step-num">4</span>Use <strong>Child</strong> mode — click a partnership line, then a person — to draw a descent line.</li>
-      <li><span class="step-num">5</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
-      <li><span class="step-num">6</span>Connected people move as a unit. Toggle <strong>Individual Move</strong> for independent positioning. Use the <strong>Key</strong> button to generate a colour legend.</li>
-      <li><span class="step-num">7</span>People are auto-numbered by generation and position. <strong>Export PNG</strong> for a raster image or <strong>Export SVG</strong> for a scalable vector file.</li>
+      <li><span class="step-num">5</span>Use <strong>Draw</strong> mode to sketch freely on the canvas — great for quick drafts on mobile. Drawings don't interfere with shapes.</li>
+      <li><span class="step-num">6</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
+      <li><span class="step-num">7</span>Connected people move as a unit. Toggle <strong>Individual Move</strong> for independent positioning. Use the <strong>Key</strong> button to generate a colour legend.</li>
+      <li><span class="step-num">8</span>People are auto-numbered by generation and position. <strong>Export PNG</strong> for a raster image or <strong>Export SVG</strong> for a scalable vector file.</li>
     </ol>
     <button class="btn-start" onclick="dismissSplash()">Get Started</button>
   </div>
@@ -494,9 +517,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
       Child
     </button>
-    <button class="tool-btn" id="tool-twin" onclick="setTool('twin')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
-      Twin
+    <button class="tool-btn" id="tool-draw" onclick="setTool('draw')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+      Draw
     </button>
     <span style="width:1px;height:24px;background:var(--border);margin:0 2px;"></span>
     <button class="tool-btn undo-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled style="opacity:0.35;">
@@ -670,32 +693,91 @@
     </div>
   </div>
 
-  <div class="panel-section">
-    <h3>Partnership Type</h3>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
-      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
-      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+  <!-- Draw Settings (shown when draw tool active) -->
+  <div class="panel-section" id="drawPanel" style="display:none;">
+    <h3>Draw Settings</h3>
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+      <button class="btn btn-secondary active" id="drawModePen" onclick="setDrawMode('pen')" style="flex:1;margin:0;padding:6px;font-size:11px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        Pen
+      </button>
+      <button class="btn btn-secondary" id="drawModeEraser" onclick="setDrawMode('eraser')" style="flex:1;margin:0;padding:6px;font-size:11px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+        Eraser
+      </button>
     </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Sets type for new partnerships. Click existing line in Move to select, then use these buttons to change type.</p>
+    <div id="drawPenSettings">
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Colour</label>
+      <div class="draw-settings-row" id="drawColorPicker" style="flex-wrap:wrap;margin-top:0;"></div>
+      <div style="margin-top:10px;">
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Line width: <span id="drawWidthLabel">2px</span></label>
+        <input type="range" min="1" max="12" step="1" value="2" id="drawWidthSlider" oninput="setDrawWidth(this.value)" style="width:100%;accent-color:var(--accent);">
+      </div>
+    </div>
+    <div id="drawEraserSettings" style="display:none;">
+      <p style="font-size:11px;color:var(--text-muted);line-height:1.4;">Tap or click on a drawing stroke to remove it. Only drawings are affected — shapes and lines are safe.</p>
+    </div>
+    <button class="btn btn-secondary" onclick="clearDrawings()" style="margin-top:10px;font-size:11px;padding:5px 10px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Clear All Drawings
+    </button>
   </div>
 
   <div class="panel-section">
-    <h3>Twin Type</h3>
-    <div style="display:flex;gap:4px;">
-      <button class="btn btn-secondary active" data-tt="identical" onclick="setTwinType('identical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Identical</button>
-      <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
+    <button class="btn btn-secondary" id="configToggle" style="width:100%;margin:0;padding:6px;font-size:11px;" onclick="toggleConfigSection()">▼ Configuration</button>
+    <div id="configSection" style="display:none;margin-top:10px;">
+      <div class="config-group">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
+          <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
+          <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+        </div>
+        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Sets type for new partnerships. Click existing line in Move to select, then use these buttons to change type.</p>
+      </div>
+      <div class="config-group">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Twin</label>
+        <button class="btn btn-primary" id="tool-twin" onclick="setTool('twin')" style="margin:0 0 8px 0;padding:7px 10px;font-size:12px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
+          Twin Tool — click two children
+        </button>
+        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:4px;">Type for new twin links:</label>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-secondary active" data-tt="identical" onclick="setTwinType('identical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Identical</button>
+          <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
+        </div>
+      </div>
+      <div class="config-group">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
+          <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
+        </div>
+        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Click a child line in Move mode to select it, then use these buttons to change its style.</p>
+      </div>
+      <div class="config-group">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Pedigree Labelling</label>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-secondary active" data-nm="numbers" onclick="setNumberingMode('numbers')" style="flex:1;margin:0;padding:5px;font-size:10px;">Numbers</button>
+          <button class="btn btn-secondary" data-nm="letters" onclick="setNumberingMode('letters')" style="flex:1;margin:0;padding:5px;font-size:10px;">Gen-Letters</button>
+          <button class="btn btn-secondary" data-nm="lettersonly" onclick="setNumberingMode('lettersonly')" style="flex:1;margin:0;padding:5px;font-size:10px;">Letters</button>
+          <button class="btn btn-secondary" data-nm="freetext" onclick="setNumberingMode('freetext')" style="flex:1;margin:0;padding:5px;font-size:10px;">Free Text</button>
+          <button class="btn btn-secondary" data-nm="off" onclick="setNumberingMode('off')" style="flex:1;margin:0;padding:5px;font-size:10px;">Off</button>
+        </div>
+      </div>
+      <div class="config-group" style="margin-bottom:0;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Spacing</label>
+        <div>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Partnership width: <span id="partnerGapLabel">2×</span></label>
+          <input type="range" min="1" max="5" step="0.5" value="2" id="partnerGapSlider" oninput="setPartnerGap(this.value)" style="width:100%;accent-color:var(--accent);">
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Child line height: <span id="childHeightLabel">2.5×</span></label>
+          <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)" style="width:100%;accent-color:var(--accent);">
+        </div>
+        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Multiples of shape size. Applied when individual move is off.</p>
+      </div>
     </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Twin tool: click two children of same partnership.</p>
-  </div>
-
-  <div class="panel-section">
-    <h3>Child Line Style</h3>
-    <div style="display:flex;gap:4px;">
-      <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
-      <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Click a child line in Move mode to select it, then use these buttons to change its style.</p>
   </div>
 
   <!-- Free Text Labels section -->
@@ -716,16 +798,6 @@
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
       Border Box: Off
     </button>
-    <div style="margin-top:10px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Pedigree labelling</label>
-      <div style="display:flex;gap:4px;">
-        <button class="btn btn-secondary active" data-nm="numbers" onclick="setNumberingMode('numbers')" style="flex:1;margin:0;padding:5px;font-size:10px;">Numbers</button>
-        <button class="btn btn-secondary" data-nm="letters" onclick="setNumberingMode('letters')" style="flex:1;margin:0;padding:5px;font-size:10px;">Gen-Letters</button>
-        <button class="btn btn-secondary" data-nm="lettersonly" onclick="setNumberingMode('lettersonly')" style="flex:1;margin:0;padding:5px;font-size:10px;">Letters</button>
-        <button class="btn btn-secondary" data-nm="freetext" onclick="setNumberingMode('freetext')" style="flex:1;margin:0;padding:5px;font-size:10px;">Free Text</button>
-        <button class="btn btn-secondary" data-nm="off" onclick="setNumberingMode('off')" style="flex:1;margin:0;padding:5px;font-size:10px;">Off</button>
-      </div>
-    </div>
   </div>
 
   <div class="panel-section">
@@ -735,15 +807,6 @@
       <button class="toggle-switch" id="individualMoveToggle" onclick="toggleIndividualMove()"></button>
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">Off = drag moves connected family. On = drag moves one person.</p>
-    <div style="margin-top:12px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Partnership width: <span id="partnerGapLabel">2×</span></label>
-      <input type="range" min="1" max="5" step="0.5" value="2" id="partnerGapSlider" oninput="setPartnerGap(this.value)" style="width:100%;accent-color:var(--accent);">
-    </div>
-    <div style="margin-top:8px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Child line height: <span id="childHeightLabel">2.5×</span></label>
-      <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)" style="width:100%;accent-color:var(--accent);">
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Multiples of shape size. Applied when individual move is off.</p>
   </div>
 
   <div class="panel-section" style="display:flex; flex-direction:column; gap:4px;">
@@ -779,7 +842,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
     Child
   </button>
-  <button class="tool-btn" id="m-tool-twin" onclick="setTool('twin')">Twin</button>
+  <button class="tool-btn" id="m-tool-draw" onclick="setTool('draw')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+    Draw
+  </button>
   <button class="tool-btn undo-btn" onclick="undo()" title="Undo" disabled style="opacity:0.35;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="7 14 3 10 7 6"/></svg>
   </button>
@@ -793,6 +859,7 @@
 <div class="canvas-area" id="canvasArea">
   <div id="canvas">
     <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="draw-layer" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
   <div class="zoom-controls">
     <button class="zoom-btn" onclick="doZoom(-0.1)">−</button>
@@ -857,6 +924,14 @@ let currentTwinType = 'identical';
 let twinSource = null; // { '#c0392b': 'Breast cancer', ... }
 
 let zoomLevel = 1, panX = 0, panY = 0;
+
+// ── Draw tool state ──
+const drawStrokes = [];         // completed strokes: [{ points: [{x,y}...], color, width, el }]
+let drawState = null;           // active stroke in progress
+let drawColor = '#c0392b';      // current draw colour
+let drawLineWidth = 2;          // current draw line width
+const DRAW_COLORS = ['#1a2332','#c0392b','#2980b9','#27ae60','#e67e22','#8e44ad','#7f8c8d','#d35400'];
+let drawEraser = false;          // eraser sub-mode within draw tool
 
 // ── Dynamic canvas sizing ──
 // Canvas starts at 6000×6000 and auto-expands when content nears the edge.
@@ -987,6 +1062,135 @@ function toggleExtraShapes() {
   }
 }
 
+function toggleConfigSection() {
+  const panel = document.getElementById('configSection');
+  const btn = document.getElementById('configToggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    btn.textContent = '▲ Configuration';
+  } else {
+    panel.style.display = 'none';
+    btn.textContent = '▼ Configuration';
+  }
+}
+
+// ══════════════════════
+// DRAW TOOL
+// ══════════════════════
+
+function initDrawColorPicker() {
+  const container = document.getElementById('drawColorPicker');
+  DRAW_COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'draw-color-btn' + (c === drawColor ? ' active' : '');
+    btn.style.background = c;
+    btn.onclick = () => setDrawColor(c);
+    container.appendChild(btn);
+  });
+}
+
+function setDrawColor(c) {
+  drawColor = c;
+  document.querySelectorAll('.draw-color-btn').forEach(b => {
+    b.classList.toggle('active', rgbToHex(b.style.backgroundColor) === c || b.style.background === c);
+  });
+}
+
+function setDrawWidth(val) {
+  drawLineWidth = parseInt(val);
+  document.getElementById('drawWidthLabel').textContent = drawLineWidth + 'px';
+}
+
+function buildStrokePathD(points) {
+  if (points.length < 2) return '';
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    d += ` L ${points[i].x} ${points[i].y}`;
+  }
+  return d;
+}
+
+function createStrokeSVG(stroke) {
+  const svg = document.getElementById('draw-layer');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', buildStrokePathD(stroke.points));
+  path.setAttribute('stroke', stroke.color);
+  path.setAttribute('stroke-width', stroke.width);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(path);
+  return path;
+}
+
+function clearDrawings() {
+  if (drawStrokes.length === 0) return;
+  if (!confirm('Remove all drawings from the canvas?')) return;
+  pushUndo();
+  drawStrokes.length = 0;
+  document.getElementById('draw-layer').innerHTML = '';
+  scheduleSave();
+  document.getElementById('statusBar').textContent = 'Drawings cleared';
+}
+
+function setDrawMode(mode) {
+  drawEraser = (mode === 'eraser');
+  document.getElementById('drawModePen').classList.toggle('active', !drawEraser);
+  document.getElementById('drawModeEraser').classList.toggle('active', drawEraser);
+  document.getElementById('drawPenSettings').style.display = drawEraser ? 'none' : '';
+  document.getElementById('drawEraserSettings').style.display = drawEraser ? '' : 'none';
+  document.getElementById('canvas').classList.toggle('eraser-active', drawEraser);
+  document.getElementById('canvasArea').style.cursor = drawEraser ? 'pointer' : 'crosshair';
+  updateBanner();
+  updateStatus();
+}
+
+function distanceToStroke(px, py, stroke) {
+  let minDist = Infinity;
+  for (let i = 0; i < stroke.points.length - 1; i++) {
+    const ax = stroke.points[i].x, ay = stroke.points[i].y;
+    const bx = stroke.points[i + 1].x, by = stroke.points[i + 1].y;
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    const cx = ax + t * dx, cy = ay + t * dy;
+    const dist = Math.hypot(px - cx, py - cy);
+    if (dist < minDist) minDist = dist;
+  }
+  if (stroke.points.length === 1) {
+    minDist = Math.hypot(px - stroke.points[0].x, py - stroke.points[0].y);
+  }
+  return minDist;
+}
+
+function eraseStrokeAt(clientX, clientY) {
+  const canvas = document.getElementById('canvas');
+  const r = canvas.getBoundingClientRect();
+  const px = (clientX - r.left) / zoomLevel;
+  const py = (clientY - r.top) / zoomLevel;
+  const tolerance = 15 / zoomLevel; // 15 CSS pixels, scaled for zoom
+  let bestIdx = -1, bestDist = Infinity;
+  for (let i = 0; i < drawStrokes.length; i++) {
+    const d = distanceToStroke(px, py, drawStrokes[i]);
+    // Bias toward wider strokes by subtracting half stroke width from distance
+    const effective = d - drawStrokes[i].width / 2;
+    if (effective < bestDist) { bestDist = effective; bestIdx = i; }
+  }
+  if (bestIdx >= 0 && bestDist <= tolerance) {
+    pushUndo();
+    const removed = drawStrokes.splice(bestIdx, 1)[0];
+    if (removed.el && removed.el.parentNode) removed.el.parentNode.removeChild(removed.el);
+    scheduleSave();
+    document.getElementById('statusBar').textContent = 'Drawing erased';
+  }
+}
+
+function rebuildDrawLayer() {
+  const svg = document.getElementById('draw-layer');
+  svg.innerHTML = '';
+  drawStrokes.forEach(s => { s.el = createStrokeSVG(s); });
+}
+
 function setPartnershipType(t) {
   currentPartnershipType = t;
   document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
@@ -1087,6 +1291,21 @@ function setTool(tool) {
     const btn = document.getElementById(prefix + tool);
     if (btn) btn.classList.add('active');
   });
+  // Show/hide draw settings panel
+  document.getElementById('drawPanel').style.display = tool === 'draw' ? '' : 'none';
+  // Set canvas cursor for draw mode
+  document.getElementById('canvasArea').style.cursor = tool === 'draw' ? (drawEraser ? 'pointer' : 'crosshair') : '';
+  // Toggle draw-active class on canvas so persons/labels don't intercept draw events
+  document.getElementById('canvas').classList.toggle('draw-active', tool === 'draw');
+  // Reset eraser state when leaving draw mode
+  if (tool !== 'draw') {
+    drawEraser = false;
+    document.getElementById('canvas').classList.remove('eraser-active');
+    document.getElementById('drawModePen').classList.add('active');
+    document.getElementById('drawModeEraser').classList.remove('active');
+    document.getElementById('drawPenSettings').style.display = '';
+    document.getElementById('drawEraserSettings').style.display = 'none';
+  }
   updateBanner();
   updateStatus();
 }
@@ -1097,7 +1316,8 @@ function updateBanner() {
     partner: 'Partner mode — click two people to connect them',
     child: 'Child mode — click a partnership line, then click a child',
     twin: 'Twin mode — click two children of the same partnership',
-    label: 'Label mode — click on the canvas to place a text label'
+    label: 'Label mode — click on the canvas to place a text label',
+    draw: drawEraser ? 'Eraser mode — tap a drawing stroke to remove it' : 'Draw mode — sketch freely on the canvas'
   };
   if (msgs[currentTool]) { banner.textContent = msgs[currentTool]; banner.classList.add('visible'); }
   else { banner.classList.remove('visible'); }
@@ -1110,7 +1330,8 @@ function updateStatus() {
     partner: 'Partner — click two people to draw a partnership line',
     child: 'Child — click a partnership line, then click a person',
     twin: 'Twin — click two children of same partnership to link',
-    label: 'Label — click on the canvas to add a text label'
+    label: 'Label — click on the canvas to add a text label',
+    draw: drawEraser ? 'Eraser — tap a stroke to remove it' : 'Draw — sketch on the canvas'
   };
   s.textContent = map[currentTool] || 'Ready';
 }
@@ -1512,6 +1733,7 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
   // Pointer events
   const onDown = (e) => {
     if (e.target.classList.contains('delete-btn')) return;
+    if (currentTool === 'draw') return; // let draw events pass through
     if (e.cancelable) e.preventDefault();
     if (currentTool === 'partner') { startPartnerConnect(id); return; }
     if (currentTool === 'child') {
@@ -2122,16 +2344,23 @@ function canReorderChildToEdge(childId, edge) {
 function getOverlappingPairs() {
   const margin = 4;
   const pairs = new Set();
-  const arr = [...persons.values()];
+
+  // Cache all person positions once (avoids thousands of repeated parseFloat calls
+  // in the nested loops below)
+  const posMap = new Map();
+  const posArr = [];
+  persons.forEach((p, id) => {
+    const pos = { id, x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) };
+    posMap.set(id, pos);
+    posArr.push(pos);
+  });
 
   // Shape-shape overlaps
-  for (let i = 0; i < arr.length; i++) {
-    for (let j = i + 1; j < arr.length; j++) {
-      const a = arr[i], b = arr[j];
-      const ax = parseFloat(a.el.style.left), ay = parseFloat(a.el.style.top);
-      const bx = parseFloat(b.el.style.left), by = parseFloat(b.el.style.top);
-      if (ax < bx + SHAPE_SIZE - margin && ax + SHAPE_SIZE - margin > bx &&
-          ay < by + SHAPE_SIZE - margin && ay + SHAPE_SIZE - margin > by) {
+  for (let i = 0; i < posArr.length; i++) {
+    for (let j = i + 1; j < posArr.length; j++) {
+      const a = posArr[i], b = posArr[j];
+      if (a.x < b.x + SHAPE_SIZE - margin && a.x + SHAPE_SIZE - margin > b.x &&
+          a.y < b.y + SHAPE_SIZE - margin && a.y + SHAPE_SIZE - margin > b.y) {
         pairs.add([a.id, b.id].sort().join('|'));
       }
     }
@@ -2140,23 +2369,102 @@ function getOverlappingPairs() {
   // Partnership line through shape: check if any partnership line passes through
   // any person that isn't one of the two partners
   partnerships.forEach(ps => {
-    const fp = persons.get(ps.fromId), tp = persons.get(ps.toId);
+    const fp = posMap.get(ps.fromId), tp = posMap.get(ps.toId);
     if (!fp || !tp) return;
-    const x1 = parseFloat(fp.el.style.left) + SHAPE_HALF;
-    const y1 = parseFloat(fp.el.style.top) + SHAPE_HALF;
-    const x2 = parseFloat(tp.el.style.left) + SHAPE_HALF;
-    const y2 = parseFloat(tp.el.style.top) + SHAPE_HALF;
-    arr.forEach(p => {
+    const x1 = fp.x + SHAPE_HALF, y1 = fp.y + SHAPE_HALF;
+    const x2 = tp.x + SHAPE_HALF, y2 = tp.y + SHAPE_HALF;
+    posArr.forEach(p => {
       if (p.id === ps.fromId || p.id === ps.toId) return;
-      const px = parseFloat(p.el.style.left) + margin;
-      const py = parseFloat(p.el.style.top) + margin;
-      const pw = SHAPE_SIZE - margin * 2;
-      const ph = SHAPE_SIZE - margin * 2;
+      const px = p.x + margin, py = p.y + margin;
+      const pw = SHAPE_SIZE - margin * 2, ph = SHAPE_SIZE - margin * 2;
       if (lineIntersectsRect(x1, y1, x2, y2, px, py, pw, ph)) {
         pairs.add(['line:' + ps.id, p.id].sort().join('|'));
       }
     });
   });
+
+  // Child link line through non-family shape: check if any child link path
+  // segment passes through a person that isn't a parent or sibling in the same family
+  childLinks.forEach(cl => {
+    const pship = partnerships.find(p => p.id === cl.partnershipId);
+    if (!pship) return;
+    const childPos = posMap.get(cl.childId);
+    if (!childPos) return;
+    const fp = posMap.get(pship.fromId), tp = posMap.get(pship.toId);
+    if (!fp || !tp) return;
+
+    // Build the family set: parents + all children of this partnership
+    const familyIds = new Set([pship.fromId, pship.toId]);
+    childLinks.forEach(cl2 => {
+      if (cl2.partnershipId === cl.partnershipId) familyIds.add(cl2.childId);
+    });
+
+    // Compute path segments from cached positions
+    const midX = (fp.x + tp.x) / 2 + SHAPE_HALF, midY = (fp.y + tp.y) / 2 + SHAPE_HALF;
+    const childCX = childPos.x + SHAPE_HALF;
+    const childTop = childPos.y;
+    const dropY = Math.max(midY + 4, childTop - SHAPE_HALF) - (cl.branchYOffset || 0);
+
+    const segs = [
+      [midX, midY, midX, dropY],       // stem
+      [midX, dropY, childCX, dropY],   // branch
+      [childCX, dropY, childCX, childTop] // drop
+    ];
+
+    segs.forEach(([x1, y1, x2, y2]) => {
+      if (Math.abs(x1 - x2) < 0.5 && Math.abs(y1 - y2) < 0.5) return; // zero-length
+      posArr.forEach(p => {
+        if (familyIds.has(p.id)) return;
+        const px = p.x + margin, py = p.y + margin;
+        const pw = SHAPE_SIZE - margin * 2, ph = SHAPE_SIZE - margin * 2;
+        if (lineIntersectsRect(x1, y1, x2, y2, px, py, pw, ph)) {
+          pairs.add(['cline:' + cl.id, p.id].sort().join('|'));
+        }
+      });
+    });
+  });
+
+  // Sibship branch region overlap: check if the horizontal child-link branch areas
+  // of two different partnerships occupy the same space (similar Y, overlapping X range).
+  // This catches compacted sibships whose lines intrude into an adjacent sibship's area.
+  const branchRegions = [];
+  const pshipChildGroups = {};
+  childLinks.forEach(cl => {
+    if (!pshipChildGroups[cl.partnershipId]) pshipChildGroups[cl.partnershipId] = [];
+    pshipChildGroups[cl.partnershipId].push(cl);
+  });
+  Object.entries(pshipChildGroups).forEach(([pshipId, cls]) => {
+    const pship = partnerships.find(p => p.id === pshipId);
+    if (!pship) return;
+    const fp = posMap.get(pship.fromId), tp = posMap.get(pship.toId);
+    if (!fp || !tp) return;
+    const midX = (fp.x + tp.x) / 2 + SHAPE_HALF;
+    const midY = (fp.y + tp.y) / 2 + SHAPE_HALF;
+    let minX = midX, maxX = midX, branchY = null;
+    cls.forEach(cl => {
+      const ch = posMap.get(cl.childId);
+      if (!ch) return;
+      minX = Math.min(minX, ch.x + SHAPE_HALF);
+      maxX = Math.max(maxX, ch.x + SHAPE_HALF);
+      if (branchY === null) {
+        const chPerson = persons.get(cl.childId);
+        if (chPerson && !chPerson.noSnap) {
+          branchY = Math.max(midY + 4, ch.y - SHAPE_HALF) - (cl.branchYOffset || 0);
+        }
+      }
+    });
+    if (branchY !== null) branchRegions.push({ pshipId, minX, maxX, branchY });
+  });
+  for (let i = 0; i < branchRegions.length; i++) {
+    for (let j = i + 1; j < branchRegions.length; j++) {
+      const a = branchRegions[i], b = branchRegions[j];
+      // Same vertical band (branches within half a shape height) and overlapping horizontally
+      if (Math.abs(a.branchY - b.branchY) < SHAPE_HALF &&
+          a.minX < b.maxX - margin && a.maxX > b.minX + margin) {
+        pairs.add(['branch:' + a.pshipId, 'branch:' + b.pshipId].sort().join('|'));
+      }
+    }
+  }
 
   return pairs;
 }
@@ -2545,6 +2853,14 @@ function addPartnership(fromId, toId, customId, type) {
       }
       cnSubtree.delete(info.newPartnerId); // C_new already moved above
 
+      // Never move the sibling parents — their positions must stay fixed.
+      // The BFS above can reach them through indirect paths in complex pedigrees.
+      const sibPshipForExclude = partnerships.find(p => p.id === info.siblingParentPshipId);
+      if (sibPshipForExclude) {
+        cnSubtree.delete(sibPshipForExclude.fromId);
+        cnSubtree.delete(sibPshipForExclude.toId);
+      }
+
       // Move C_new's subtree by the initial delta
       if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
         cnSubtree.forEach(sid => {
@@ -2600,15 +2916,21 @@ function addPartnership(fromId, toId, customId, type) {
           const spacing = Math.min(sibParentGap, partnerGap);
 
           // Compute new positions for gap-side siblings (dry run for clash check)
+          // Skip siblingFixed children — they were placed by a prior between-siblings
+          // operation and must not be repositioned by a subsequent one.
           const moves = []; // { id, newX }
           if (xToRight) {
             // Gap is to C_existing's left — compact leftward siblings toward C_existing
             for (let i = ceIdx - 1; i >= 0; i--) {
+              const rp = persons.get(remainingKids[i]);
+              if (rp && rp.siblingFixed) continue;
               moves.push({ id: remainingKids[i], newX: ceCurrentX - (ceIdx - i) * spacing });
             }
           } else {
             // Gap is to C_existing's right — compact rightward siblings toward C_existing
             for (let i = ceIdx + 1; i < remainingKids.length; i++) {
+              const rp = persons.get(remainingKids[i]);
+              if (rp && rp.siblingFixed) continue;
               moves.push({ id: remainingKids[i], newX: ceCurrentX + (i - ceIdx) * spacing });
             }
           }
@@ -2650,6 +2972,12 @@ function addPartnership(fromId, toId, customId, type) {
                 movedSibIds.forEach(sid => sub.delete(sid));
                 sub.delete(info.newPartnerId);
                 sub.delete(info.betweenPersonId);
+                // Never move the sibling parents — getSubtree can reach them
+                // through indirect paths in complex pedigrees
+                if (sibPshipForExclude) {
+                  sub.delete(sibPshipForExclude.fromId);
+                  sub.delete(sibPshipForExclude.toId);
+                }
                 sub.forEach(sid => {
                   const subP = persons.get(sid);
                   if (subP) {
@@ -2759,6 +3087,423 @@ function updatePartnershipPos(pship) {
   } else {
     if (pship.slash) { pship.slash.forEach(s => s.remove()); pship.slash = null; }
   }
+}
+
+// ══════════════════════════════════
+// CHILD OVERLAP RESOLUTION HELPERS
+// ══════════════════════════════════
+
+function saveAllPositions() {
+  const saved = new Map();
+  persons.forEach((p, id) => {
+    saved.set(id, { x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) });
+  });
+  return saved;
+}
+
+function restoreAllPositions(saved) {
+  saved.forEach((pos, id) => {
+    const p = persons.get(id);
+    if (p) {
+      p.el.style.left = pos.x + 'px';
+      p.el.style.top = pos.y + 'px';
+      p.x = pos.x;
+      p.y = pos.y;
+    }
+  });
+}
+
+// BFS upward through child links to find all ancestors of a person.
+// Returns Map<personId, depth> where depth is generations above.
+function getAncestorsOf(personId) {
+  const ancestors = new Map();
+  const queue = [{ id: personId, depth: 0 }];
+  const visited = new Set();
+  while (queue.length) {
+    const { id, depth } = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    childLinks.forEach(cl => {
+      if (cl.childId === id) {
+        const pship = partnerships.find(p => p.id === cl.partnershipId);
+        if (pship) {
+          [pship.fromId, pship.toId].forEach(parentId => {
+            if (!visited.has(parentId)) {
+              ancestors.set(parentId, depth + 1);
+              queue.push({ id: parentId, depth: depth + 1 });
+            }
+          });
+        }
+      }
+    });
+  }
+  return ancestors;
+}
+
+// Find the most recent common ancestor of two persons.
+// Returns { mrcaId, totalDepth } or null.
+function findMRCA(personA, personB) {
+  const ancestorsA = getAncestorsOf(personA);
+  const ancestorsB = getAncestorsOf(personB);
+  // Also check if one is a direct ancestor of the other
+  if (ancestorsB.has(personA)) return { mrcaId: personA, totalDepth: ancestorsB.get(personA) };
+  if (ancestorsA.has(personB)) return { mrcaId: personB, totalDepth: ancestorsA.get(personB) };
+  let best = null;
+  ancestorsA.forEach((depthA, id) => {
+    if (ancestorsB.has(id)) {
+      const total = depthA + ancestorsB.get(id);
+      if (!best || total < best.totalDepth) best = { mrcaId: id, totalDepth: total };
+    }
+  });
+  return best;
+}
+
+// BFS downward from startId through partnerships and child links.
+// Includes partners at each level (needed to trace full family paths).
+function getDescendantsDownward(startId) {
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(ps => {
+      if (ps.fromId === id || ps.toId === id) {
+        const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
+        if (!visited.has(partnerId)) queue.push(partnerId);
+        childLinks.forEach(cl => {
+          if (cl.partnershipId === ps.id && !visited.has(cl.childId)) queue.push(cl.childId);
+        });
+      }
+    });
+  }
+  visited.delete(startId);
+  return visited;
+}
+
+// Find the MRCA's partnership whose children lead to both overlapping persons.
+// This is the fork point where expanding child spacing will push the branches apart.
+function findDivergencePartnership(mrcaId, personA, personB) {
+  const mrcaPships = partnerships.filter(p => p.fromId === mrcaId || p.toId === mrcaId);
+  for (const ps of mrcaPships) {
+    const kids = childLinks.filter(cl => cl.partnershipId === ps.id).map(cl => cl.childId);
+    if (kids.length === 0) continue;
+    let aFound = false, bFound = false;
+    for (const kid of kids) {
+      const desc = getDescendantsDownward(kid);
+      desc.add(kid);
+      if (desc.has(personA)) aFound = true;
+      if (desc.has(personB)) bFound = true;
+      if (aFound && bFound) break;
+    }
+    if (aFound && bFound) return ps;
+  }
+  return null;
+}
+
+// Distribute children of a partnership using a custom spacing value.
+// Same logic as distributeChildren but with an explicit spacing parameter.
+function distributeChildrenCustomSpacing(pshipId, customSpacing) {
+  const pship = partnerships.find(p => p.id === pshipId);
+  if (!pship) return;
+  const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+  if (!fp || !tp) return;
+  const leftX = Math.min(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
+  const rightX = Math.max(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
+  const midX = (leftX + rightX) / 2;
+
+  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
+    .filter(id => { const p = persons.get(id); return !p || !p.siblingFixed; });
+  if (kids.length < 2) {
+    if (kids.length === 1) {
+      const child = persons.get(kids[0]);
+      if (child && !child.noSnap) { child.el.style.left = midX + 'px'; child.x = midX; }
+      constrainChildrenToBoundaries(pshipId, kids);
+    }
+    return;
+  }
+
+  // Find ALL anchored children (same logic as distributeChildren)
+  const anchors = [];
+  for (const kid of kids) {
+    const kidP = persons.get(kid);
+    if (!kidP) continue;
+    const kidPships = partnerships.filter(p => p.fromId === kid || p.toId === kid);
+    for (const kp of kidPships) {
+      const partnerId = kp.fromId === kid ? kp.toId : kp.fromId;
+      if (kids.includes(partnerId)) continue;
+      const partner = persons.get(partnerId);
+      if (!partner) continue;
+      anchors.push(kid);
+      break;
+    }
+  }
+
+  kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+
+  if (anchors.length >= 2) {
+    // Multiple anchors: keep at current positions, distribute free children between them
+    anchors.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+    const leftAnchorX = parseFloat(persons.get(anchors[0]).el.style.left);
+    const rightAnchorX = parseFloat(persons.get(anchors[anchors.length - 1]).el.style.left);
+    const anchorSet = new Set(anchors);
+    const freeKids = kids.filter(id => !anchorSet.has(id) && !persons.get(id)?.noSnap);
+    if (freeKids.length > 0) {
+      const spacing = Math.min(customSpacing, (rightAnchorX - leftAnchorX) / (freeKids.length + 1));
+      const totalWidth = spacing * (freeKids.length - 1);
+      const regionMid = (leftAnchorX + rightAnchorX) / 2;
+      const startX = regionMid - totalWidth / 2;
+      freeKids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        child.el.style.left = (startX + i * spacing) + 'px';
+        child.x = parseFloat(child.el.style.left);
+      });
+    }
+  } else if (anchors.length === 1) {
+    const anchorId = anchors[0];
+    const anchorX = parseFloat(persons.get(anchorId).el.style.left);
+    let expandDir = null;
+    const anchorPships = partnerships.filter(p => p.fromId === anchorId || p.toId === anchorId);
+    for (const kp of anchorPships) {
+      const partnerId = kp.fromId === anchorId ? kp.toId : kp.fromId;
+      if (kids.includes(partnerId)) continue;
+      const partner = persons.get(partnerId);
+      if (!partner) continue;
+      expandDir = parseFloat(partner.el.style.left) > anchorX ? 'left' : 'right';
+      break;
+    }
+    if (expandDir) {
+      kids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        if (child && !child.noSnap) {
+          const newX = expandDir === 'left'
+            ? anchorX - (kids.length - 1 - i) * customSpacing
+            : anchorX + i * customSpacing;
+          child.el.style.left = newX + 'px';
+          child.x = newX;
+        }
+      });
+    } else {
+      const totalWidth = customSpacing * (kids.length - 1);
+      const startX = midX - totalWidth / 2;
+      kids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        if (child && !child.noSnap) {
+          child.el.style.left = (startX + customSpacing * i) + 'px';
+          child.x = parseFloat(child.el.style.left);
+        }
+      });
+    }
+  } else {
+    const totalWidth = customSpacing * (kids.length - 1);
+    const startX = midX - totalWidth / 2;
+    kids.forEach((cid, i) => {
+      const child = persons.get(cid);
+      if (child && !child.noSnap) {
+        const newX = startX + customSpacing * i;
+        child.el.style.left = newX + 'px';
+        child.x = newX;
+      }
+    });
+  }
+
+  // Post-pass: ensure distributed children don't overlap with siblingFixed children
+  constrainChildrenToBoundaries(pshipId, kids);
+}
+
+// Shift all downstream trees after children of a partnership have been repositioned.
+// `kids` is the array of child IDs; `preDistX` maps each child to its X before redistribution.
+function shiftDownstreamTrees(kids, preDistX) {
+  const siblingSet = new Set(kids);
+  kids.forEach(cid => {
+    const cp = persons.get(cid);
+    if (!cp || cp.noSnap) return;
+    const prevX = preDistX.get(cid);
+    if (prevX === undefined) return;
+    const dx = parseFloat(cp.el.style.left) - prevX;
+    if (Math.abs(dx) < 0.5) return;
+    const downstream = new Set();
+    const dQueue = [cid];
+    while (dQueue.length) {
+      const did = dQueue.shift();
+      if (downstream.has(did)) continue;
+      downstream.add(did);
+      partnerships.forEach(ps => {
+        if (ps.fromId === did || ps.toId === did) {
+          const pid = ps.fromId === did ? ps.toId : ps.fromId;
+          if (!downstream.has(pid)) dQueue.push(pid);
+          childLinks.forEach(cl2 => {
+            if (cl2.partnershipId === ps.id && !downstream.has(cl2.childId)) dQueue.push(cl2.childId);
+          });
+        }
+      });
+    }
+    downstream.delete(cid);
+    siblingSet.forEach(sid => downstream.delete(sid));
+    downstream.forEach(sid => {
+      const sp = persons.get(sid);
+      if (sp) {
+        const spx = parseFloat(sp.el.style.left) + dx;
+        sp.el.style.left = spx + 'px';
+        sp.x = spx;
+      }
+    });
+  });
+}
+
+// Redistribute children of a partnership with a custom spacing,
+// then shift all downstream subtrees accordingly.
+// When trialMode is true, skips expensive SVG connection updates (safe because
+// overlap detection uses person positions, not SVG attributes).
+function redistributeAndShift(pshipId, spacing, trialMode) {
+  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
+    .filter(id => { const p = persons.get(id); return !p || !p.siblingFixed; });
+  const preDistX = new Map();
+  kids.forEach(cid => {
+    const cp = persons.get(cid);
+    if (cp) preDistX.set(cid, parseFloat(cp.el.style.left));
+  });
+  distributeChildrenCustomSpacing(pshipId, spacing);
+  shiftDownstreamTrees(kids, preDistX);
+  if (!trialMode) updateAllConnections();
+}
+
+// Get the current actual spacing between a partnership's children.
+function getCurrentChildSpacing(pshipId) {
+  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
+    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed && !p.noSnap; });
+  if (kids.length < 2) return partnerGap;
+  kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+  const x0 = parseFloat(persons.get(kids[0]).el.style.left);
+  const x1 = parseFloat(persons.get(kids[kids.length - 1]).el.style.left);
+  return (x1 - x0) / (kids.length - 1);
+}
+
+// Identify new shape-shape overlaps involving children of this partnership with other shapes.
+// Returns array of { childPerson, otherPerson }.
+function getNewChildOverlaps(pshipId, beforePairs) {
+  const afterPairs = getOverlappingPairs();
+  const kidIds = new Set(childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId));
+  const result = [];
+  for (const key of afterPairs) {
+    if (beforePairs.has(key)) continue;
+    const parts = key.split('|');
+    // Only shape-shape overlaps (skip line-through-shape)
+    if (parts.some(p => p.startsWith('line:'))) continue;
+    const aIsChild = kidIds.has(parts[0]);
+    const bIsChild = kidIds.has(parts[1]);
+    if (aIsChild || bIsChild) {
+      result.push({
+        childPerson: aIsChild ? parts[0] : parts[1],
+        otherPerson: aIsChild ? parts[1] : parts[0]
+      });
+    }
+  }
+  return result;
+}
+
+// Main resolution function. Tries three strategies before falling back to the warning.
+// Returns true if overlaps were resolved, false if the warning should be shown.
+// Performance: all trial iterations use trialMode (skips expensive SVG connection updates)
+// and position reads are cached within each overlap check.
+function tryResolveChildOverlaps(pshipId, childId, beforePairs) {
+  // getNewChildOverlaps finds shape-shape overlaps for Strategy 1's MRCA lookup.
+  // It may be empty even when there ARE new overlaps (branch/line type), so we
+  // never early-return here — all strategies use hasNewOverlaps() which checks
+  // every overlap type including sibship branch regions and child link lines.
+  const newOverlaps = getNewChildOverlaps(pshipId, beforePairs);
+
+  const savedPos = saveAllPositions();
+  const MAX_ANCESTOR_SPACING = 50 * SHAPE_SIZE;
+
+  // ── Strategy 1: Expand ancestor sibling row ──
+  // For each overlap with a common ancestor, try increasing spacing of the
+  // divergence partnership's children until the overlap resolves.
+  // Linear search from smallest increment upward to find the tightest spacing.
+  for (const overlap of newOverlaps) {
+    const mrcaResult = findMRCA(overlap.childPerson, overlap.otherPerson);
+    if (!mrcaResult) continue;
+    const divPship = findDivergencePartnership(mrcaResult.mrcaId, overlap.childPerson, overlap.otherPerson);
+    if (!divPship) continue;
+    const baseSpacing = getCurrentChildSpacing(divPship.id);
+    for (let spacing = baseSpacing + SHAPE_SIZE; spacing <= MAX_ANCESTOR_SPACING; spacing += SHAPE_SIZE) {
+      restoreAllPositions(savedPos);
+      redistributeAndShift(divPship.id, spacing, true);
+      if (!hasNewOverlaps(beforePairs)) {
+        // Found the tightest working spacing — re-apply with full connection updates
+        restoreAllPositions(savedPos);
+        redistributeAndShift(divPship.id, spacing);
+        return true;
+      }
+    }
+  }
+
+  // ── Strategy 2: Compact current sibship to 1× shape width ──
+  restoreAllPositions(savedPos);
+  redistributeAndShift(pshipId, SHAPE_SIZE, true);
+  if (!hasNewOverlaps(beforePairs)) {
+    // Re-apply with full connection updates
+    restoreAllPositions(savedPos);
+    redistributeAndShift(pshipId, SHAPE_SIZE);
+    return true;
+  }
+
+  // ── Strategy 3: Flip new child to the other end of the sibship ──
+  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
+    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed; });
+  if (kids.length >= 2) {
+    const child = persons.get(childId);
+    if (child && !child.noSnap) {
+      // Restore first so all position reads are consistent
+      restoreAllPositions(savedPos);
+      const childX = parseFloat(child.el.style.left);
+      const otherXs = kids.filter(id => id !== childId).map(id => parseFloat(persons.get(id).el.style.left));
+      const minSibX = Math.min(...otherXs);
+      const maxSibX = Math.max(...otherXs);
+      const midSibX = (minSibX + maxSibX) / 2;
+      const flipLeft = childX >= midSibX;
+
+      const pship = partnerships.find(p => p.id === pshipId);
+      const parentGap = pship ? Math.abs(parseFloat(persons.get(pship.fromId).el.style.left) - parseFloat(persons.get(pship.toId).el.style.left)) : partnerGap;
+      const defaultSpacing = Math.min(parentGap, partnerGap);
+
+      // Try default spacing at the other end
+      if (flipLeft) {
+        child.el.style.left = (minSibX - partnerGap) + 'px'; child.x = minSibX - partnerGap;
+      } else {
+        child.el.style.left = (maxSibX + partnerGap) + 'px'; child.x = maxSibX + partnerGap;
+      }
+      redistributeAndShift(pshipId, defaultSpacing, true);
+      if (!hasNewOverlaps(beforePairs)) {
+        restoreAllPositions(savedPos);
+        if (flipLeft) { child.el.style.left = (minSibX - partnerGap) + 'px'; child.x = minSibX - partnerGap; }
+        else { child.el.style.left = (maxSibX + partnerGap) + 'px'; child.x = maxSibX + partnerGap; }
+        redistributeAndShift(pshipId, defaultSpacing);
+        return true;
+      }
+
+      // Try flipped end with compact spacing
+      restoreAllPositions(savedPos);
+      if (flipLeft) {
+        child.el.style.left = (minSibX - SHAPE_SIZE) + 'px'; child.x = minSibX - SHAPE_SIZE;
+      } else {
+        child.el.style.left = (maxSibX + SHAPE_SIZE) + 'px'; child.x = maxSibX + SHAPE_SIZE;
+      }
+      redistributeAndShift(pshipId, SHAPE_SIZE, true);
+      if (!hasNewOverlaps(beforePairs)) {
+        restoreAllPositions(savedPos);
+        if (flipLeft) { child.el.style.left = (minSibX - SHAPE_SIZE) + 'px'; child.x = minSibX - SHAPE_SIZE; }
+        else { child.el.style.left = (maxSibX + SHAPE_SIZE) + 'px'; child.x = maxSibX + SHAPE_SIZE; }
+        redistributeAndShift(pshipId, SHAPE_SIZE);
+        return true;
+      }
+    }
+  }
+
+  // ── No strategy worked — restore original positions and signal failure ──
+  restoreAllPositions(savedPos);
+  updateAllConnections();
+  return false;
 }
 
 // ══════════════════════
@@ -2968,17 +3713,20 @@ function addChildLink(partnershipId, childId, customId) {
     }
   }
 
-  // Check for new overlaps introduced by this action
+  // Check for new overlaps introduced by this action — try to resolve automatically
   if (!customId && !individualMoveMode && childOverlapsBefore && hasNewOverlaps(childOverlapsBefore)) {
-    const proceed = confirm(
-      'Adding this child has created overlapping shapes or connections.\n\n' +
-      'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this child.\n\n' +
-      'Press OK to keep the child link as-is (manual adjustment will be needed).'
-    );
-    if (!proceed) {
-      revertLastAction();
-      document.getElementById('statusBar').textContent = 'Child link cancelled — rearrange in Individual Move mode first';
-      return null;
+    if (!tryResolveChildOverlaps(partnershipId, childId, childOverlapsBefore)) {
+      // No automatic resolution found — fall back to warning
+      const proceed = confirm(
+        'Adding this child has created overlapping shapes or connections.\n\n' +
+        'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this child.\n\n' +
+        'Press OK to keep the child link as-is (manual adjustment will be needed).'
+      );
+      if (!proceed) {
+        revertLastAction();
+        document.getElementById('statusBar').textContent = 'Child link cancelled — rearrange in Individual Move mode first';
+        return null;
+      }
     }
   }
 
@@ -3024,61 +3772,90 @@ function distributeChildren(partnershipId) {
       child.el.style.left = midX + 'px';
       child.x = midX;
     }
+    constrainChildrenToBoundaries(partnershipId, kids);
     return;
   }
 
   const childSpacing = Math.min(parentGap, partnerGap);
 
-  // Check if any child has a partnership (bridge child) — if so, anchor on them
-  // and expand in the opposite direction to their partner
-  let anchorId = null;
-  let expandDir = null; // 'left' or 'right'
+  // Find ALL children with external partnerships (anchors).
+  // These must stay at their current positions because moving them cascades
+  // through their partners (e.g. shared partners in between-siblings setups).
+  const anchors = [];
   for (const kid of kids) {
     const kidP = persons.get(kid);
     if (!kidP) continue;
     const kidPships = partnerships.filter(p => p.fromId === kid || p.toId === kid);
     for (const kp of kidPships) {
       const partnerId = kp.fromId === kid ? kp.toId : kp.fromId;
+      if (kids.includes(partnerId)) continue; // sibling partner, not external
       const partner = persons.get(partnerId);
       if (!partner) continue;
-      // Only anchor if the partner is NOT a sibling in this same row
-      if (kids.includes(partnerId)) continue;
-      const partnerX = parseFloat(partner.el.style.left);
-      const kidX = parseFloat(kidP.el.style.left);
-      anchorId = kid;
-      expandDir = partnerX > kidX ? 'left' : 'right';
+      anchors.push(kid);
       break;
     }
-    if (anchorId) break;
   }
 
   // Sort by current X to preserve relative order
   kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
 
-  if (anchorId && expandDir) {
-    // Anchored distribution: bridge child stays fixed, others expand away from partner
+  if (anchors.length >= 2) {
+    // Multiple anchors: keep them all at their current positions,
+    // distribute free children evenly between the outermost anchors
+    anchors.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+    const leftAnchorX = parseFloat(persons.get(anchors[0]).el.style.left);
+    const rightAnchorX = parseFloat(persons.get(anchors[anchors.length - 1]).el.style.left);
+    const anchorSet = new Set(anchors);
+    const freeKids = kids.filter(id => !anchorSet.has(id) && !persons.get(id)?.noSnap);
+    if (freeKids.length > 0) {
+      const spacing = (rightAnchorX - leftAnchorX) / (freeKids.length + 1);
+      freeKids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        child.el.style.left = (leftAnchorX + (i + 1) * spacing) + 'px';
+        child.x = parseFloat(child.el.style.left);
+      });
+    }
+  } else if (anchors.length === 1) {
+    const anchorId = anchors[0];
     const anchorP = persons.get(anchorId);
     const anchorX = parseFloat(anchorP.el.style.left);
-    const anchorIdx = kids.indexOf(anchorId);
+    // Determine expand direction from the anchor's partner position
+    let expandDir = null;
+    const anchorPships = partnerships.filter(p => p.fromId === anchorId || p.toId === anchorId);
+    for (const kp of anchorPships) {
+      const partnerId = kp.fromId === anchorId ? kp.toId : kp.fromId;
+      if (kids.includes(partnerId)) continue;
+      const partner = persons.get(partnerId);
+      if (!partner) continue;
+      expandDir = parseFloat(partner.el.style.left) > anchorX ? 'left' : 'right';
+      break;
+    }
 
     if (expandDir === 'left') {
-      // Anchor is at the right edge, expand left
       kids.forEach((cid, i) => {
         const child = persons.get(cid);
         if (child && !child.noSnap) {
-          const newX = anchorX - (kids.length - 1 - i) * childSpacing;
-          child.el.style.left = newX + 'px';
-          child.x = newX;
+          child.el.style.left = (anchorX - (kids.length - 1 - i) * childSpacing) + 'px';
+          child.x = parseFloat(child.el.style.left);
+        }
+      });
+    } else if (expandDir === 'right') {
+      kids.forEach((cid, i) => {
+        const child = persons.get(cid);
+        if (child && !child.noSnap) {
+          child.el.style.left = (anchorX + i * childSpacing) + 'px';
+          child.x = parseFloat(child.el.style.left);
         }
       });
     } else {
-      // Anchor is at the left edge, expand right
+      // Fallback: centered distribution
+      const totalWidth = childSpacing * (kids.length - 1);
+      const startX = midX - totalWidth / 2;
       kids.forEach((cid, i) => {
         const child = persons.get(cid);
         if (child && !child.noSnap) {
-          const newX = anchorX + i * childSpacing;
-          child.el.style.left = newX + 'px';
-          child.x = newX;
+          child.el.style.left = (startX + childSpacing * i) + 'px';
+          child.x = parseFloat(child.el.style.left);
         }
       });
     }
@@ -3093,6 +3870,92 @@ function distributeChildren(partnershipId) {
         child.el.style.left = newX + 'px';
         child.x = newX;
       }
+    });
+  }
+
+  // Post-pass: ensure distributed children don't overlap with siblingFixed children
+  constrainChildrenToBoundaries(partnershipId, kids);
+}
+
+// After distributing non-fixed children, check if they overlap with siblingFixed
+// boundary children (placed by the between-siblings handler at the edges of the row).
+// If so, compress the distribution to fit within the available region.
+// Works with one or more fixed boundaries.
+function constrainChildrenToBoundaries(pshipId, distributedKids) {
+  const allChildIds = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId);
+  const fixedIds = allChildIds.filter(id => {
+    const p = persons.get(id);
+    return p && p.siblingFixed && !p.noSnap;
+  });
+  if (fixedIds.length === 0) return;
+
+  const nonSnapKids = distributedKids.filter(id => {
+    const p = persons.get(id);
+    return p && !p.noSnap;
+  });
+  if (nonSnapKids.length === 0) return;
+
+  const fixedXs = fixedIds.map(id => parseFloat(persons.get(id).el.style.left)).sort((a, b) => a - b);
+
+  // Check if any non-fixed child overlaps with any fixed child (within SHAPE_SIZE)
+  let hasOverlap = false;
+  for (const kid of nonSnapKids) {
+    const kx = parseFloat(persons.get(kid).el.style.left);
+    for (const fx of fixedXs) {
+      if (Math.abs(kx - fx) < SHAPE_SIZE) { hasOverlap = true; break; }
+    }
+    if (hasOverlap) break;
+  }
+  if (!hasOverlap) return;
+
+  // Determine the available region.
+  // Non-fixed children should sit between (not on top of) fixed children.
+  const leftmostFixed = fixedXs[0];
+  const rightmostFixed = fixedXs[fixedXs.length - 1];
+
+  let leftBound, rightBound;
+  if (fixedXs.length >= 2) {
+    // Two+ fixed children: constrain between the outermost pair
+    leftBound = leftmostFixed + SHAPE_SIZE;
+    rightBound = rightmostFixed - SHAPE_SIZE;
+  } else {
+    // Single fixed child: determine which side the non-fixed children are on
+    const kidXs = nonSnapKids.map(id => parseFloat(persons.get(id).el.style.left));
+    const kidCenter = (Math.min(...kidXs) + Math.max(...kidXs)) / 2;
+    if (kidCenter >= leftmostFixed) {
+      // Kids are (mostly) to the right — left boundary from fixed child
+      leftBound = leftmostFixed + SHAPE_SIZE;
+      rightBound = Math.max(...kidXs);
+      // Ensure enough room for all kids
+      const minNeeded = (nonSnapKids.length - 1) * SHAPE_SIZE;
+      if (rightBound - leftBound < minNeeded) rightBound = leftBound + minNeeded;
+    } else {
+      // Kids are (mostly) to the left — right boundary from fixed child
+      rightBound = leftmostFixed - SHAPE_SIZE;
+      leftBound = Math.min(...kidXs);
+      const minNeeded = (nonSnapKids.length - 1) * SHAPE_SIZE;
+      if (rightBound - leftBound < minNeeded) leftBound = rightBound - minNeeded;
+    }
+  }
+
+  if (rightBound <= leftBound) return; // no usable space
+
+  // Redistribute within the available region
+  const availableWidth = rightBound - leftBound;
+  if (nonSnapKids.length === 1) {
+    const child = persons.get(nonSnapKids[0]);
+    const newX = leftBound + availableWidth / 2;
+    child.el.style.left = newX + 'px';
+    child.x = newX;
+  } else {
+    const spacing = availableWidth / (nonSnapKids.length - 1);
+    // spacing may be < SHAPE_SIZE if too many children — overlap warning will catch that
+    nonSnapKids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
+    nonSnapKids.forEach((cid, i) => {
+      const child = persons.get(cid);
+      const newX = leftBound + i * spacing;
+      child.el.style.left = newX + 'px';
+      child.x = newX;
     });
   }
 }
@@ -3640,7 +4503,9 @@ function startDrag(personId, e) {
     if (parentFloor !== null) dragState.parentFloor = parentFloor;
 
     // Descendants: everything reachable going only downward (children, their partners, their children, etc.)
-    const descendants = getDescendantsWithPartners(personId);
+    // Skip descendant push for noSnap (free-positioned) persons — they move independently
+    const draggedPerson = persons.get(personId);
+    const descendants = (draggedPerson && draggedPerson.noSnap) ? new Set() : getDescendantsWithPartners(personId);
     if (descendants.size > 0) {
       const descOrigins = new Map();
       descendants.forEach(id => {
@@ -3723,6 +4588,29 @@ function getDescendantsWithPartners(startId) {
 }
 
 function onPointerMove(e) {
+  // Draw stroke
+  if (drawState) {
+    if (e.touches && e.touches.length > 1) {
+      // Multi-touch started — finalize current stroke and let pinch-zoom take over
+      if (drawState.points.length >= 2) {
+        drawStrokes.push({ points: drawState.points, color: drawState.color, width: drawState.width, el: drawState.el });
+      } else if (drawState.el && drawState.el.parentNode) {
+        drawState.el.parentNode.removeChild(drawState.el);
+      }
+      drawState = null;
+      scheduleSave();
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    const canvas = document.getElementById('canvas');
+    const r = canvas.getBoundingClientRect();
+    const x = (pos.clientX - r.left) / zoomLevel;
+    const y = (pos.clientY - r.top) / zoomLevel;
+    drawState.points.push({ x, y });
+    drawState.el.setAttribute('d', buildStrokePathD(drawState.points));
+    return;
+  }
   // Label drag
   if (labelDragState) {
     if (e.cancelable) e.preventDefault();
@@ -3789,6 +4677,17 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
+  if (drawState) {
+    if (drawState.points.length >= 2) {
+      drawStrokes.push({ points: drawState.points, color: drawState.color, width: drawState.width, el: drawState.el });
+    } else {
+      // Single point click — remove the SVG element
+      if (drawState.el && drawState.el.parentNode) drawState.el.parentNode.removeChild(drawState.el);
+    }
+    drawState = null;
+    scheduleSave();
+    return;
+  }
   if (labelDragState) { labelDragState.el.classList.remove('dragging'); labelDragState = null; scheduleSave(); return; }
   if (legendDragState) {
     legendDragState.el.classList.remove('dragging');
@@ -3831,10 +4730,37 @@ document.addEventListener('touchcancel', onPointerUp);
 function onCanvasDown(e) {
   const t = e.target;
   if (t.closest('.partnership-line') || t.closest('.conn-hit')) return;
-  if (t.id !== 'canvasArea' && t.id !== 'canvas' && t.id !== 'lines-layer' && !t.closest('#lines-layer')) return;
+  if (t.id !== 'canvasArea' && t.id !== 'canvas' && t.id !== 'lines-layer' && !t.closest('#lines-layer') && t.id !== 'draw-layer' && !t.closest('#draw-layer')) return;
   if (e.cancelable) e.preventDefault();
 
   exitAllEditModes();
+
+  if (currentTool === 'draw') {
+    if (e.touches && e.touches.length > 1) return; // let pinch-zoom handle multi-touch
+    const pos = getPointerPos(e);
+    if (drawEraser) {
+      eraseStrokeAt(pos.clientX, pos.clientY);
+      return;
+    }
+    const canvas = document.getElementById('canvas');
+    const r = canvas.getBoundingClientRect();
+    const x = (pos.clientX - r.left) / zoomLevel;
+    const y = (pos.clientY - r.top) / zoomLevel;
+    pushUndo();
+    const stroke = { points: [{ x, y }], color: drawColor, width: drawLineWidth, el: null };
+    const svg = document.getElementById('draw-layer');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x} ${y}`);
+    path.setAttribute('stroke', stroke.color);
+    path.setAttribute('stroke-width', stroke.width);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
+    stroke.el = path;
+    drawState = stroke;
+    return;
+  }
 
   if (currentTool === 'label') {
     const pos = getPointerPos(e);
@@ -3897,7 +4823,7 @@ document.getElementById('canvasArea').addEventListener('touchmove', (e) => {
 document.getElementById('canvasArea').addEventListener('touchend', () => { lastPinchDist = null; });
 
 function fitToView() {
-  if (persons.size === 0) return;
+  if (persons.size === 0 && drawStrokes.length === 0) return;
   const area = document.getElementById('canvasArea');
   const areaRect = area.getBoundingClientRect();
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -3905,6 +4831,12 @@ function fitToView() {
     const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
     minX = Math.min(minX, x - 20); minY = Math.min(minY, y - 20);
     maxX = Math.max(maxX, x + SHAPE_SIZE + 130); maxY = Math.max(maxY, y + SHAPE_SIZE + 80);
+  });
+  drawStrokes.forEach(s => {
+    s.points.forEach(pt => {
+      minX = Math.min(minX, pt.x - s.width); minY = Math.min(minY, pt.y - s.width);
+      maxX = Math.max(maxX, pt.x + s.width); maxY = Math.max(maxY, pt.y + s.width);
+    });
   });
   const pad = 80;
   const contentW = maxX - minX + pad * 2, contentH = maxY - minY + pad * 2;
@@ -4316,12 +5248,14 @@ function clearAll() {
   pushUndo();
   document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
   document.getElementById('lines-layer').innerHTML = '';
+  document.getElementById('draw-layer').innerHTML = '';
   persons.clear(); labels.clear();
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
   multiSelected.clear();
   selectedPerson = null; selectedLabel = null; connectSource = null; childPartnershipSource = null; twinSource = null;
   personIdCounter = labelIdCounter = lineIdCounter = 0;
   legendLabels = {}; legendVisible = false;
+  drawStrokes.length = 0;
   canvasWidth = 6000; canvasHeight = 6000; applyCanvasSize();
   hideProps();
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
@@ -4378,16 +5312,19 @@ function buildSessionData() {
     zoom: zoomLevel, panX, panY,
     numberingMode,
     partnerGapMultiplier: partnerGap / SHAPE_SIZE,
-    childHeightMultiplier: childHeight / SHAPE_SIZE
+    childHeightMultiplier: childHeight / SHAPE_SIZE,
+    drawStrokes: drawStrokes.map(s => ({ points: s.points, color: s.color, width: s.width }))
   };
 }
 
 function restoreSession(data) {
   document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
   document.getElementById('lines-layer').innerHTML = '';
+  document.getElementById('draw-layer').innerHTML = '';
   persons.clear(); labels.clear();
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
   multiSelected.clear(); selectedPerson = null; selectedLabel = null;
+  drawStrokes.length = 0;
 
   personIdCounter = data.personIdCounter || 0;
   labelIdCounter = data.labelIdCounter || 0;
@@ -4459,6 +5396,13 @@ function restoreSession(data) {
 
   // Restore legend if it was visible
   if (legendVisible) buildLegendBox();
+
+  // Restore draw strokes
+  (data.drawStrokes || []).forEach(sd => {
+    const stroke = { points: sd.points, color: sd.color, width: sd.width, el: null };
+    stroke.el = createStrokeSVG(stroke);
+    drawStrokes.push(stroke);
+  });
 }
 
 function exportJSON() {
@@ -4516,6 +5460,12 @@ function computeExportBounds() {
     minX = Math.min(minX, x); minY = Math.min(minY, y);
     maxX = Math.max(maxX, x + l.el.offsetWidth + 10); maxY = Math.max(maxY, y + l.el.offsetHeight + 10);
   });
+  drawStrokes.forEach(s => {
+    s.points.forEach(pt => {
+      minX = Math.min(minX, pt.x - s.width); minY = Math.min(minY, pt.y - s.width);
+      maxX = Math.max(maxX, pt.x + s.width); maxY = Math.max(maxY, pt.y + s.width);
+    });
+  });
   const legendColors = [];
   const legendShadings = [];
   if (legendVisible) {
@@ -4545,7 +5495,7 @@ function saveAsImage() {
   document.getElementById('statusBar').textContent = 'Generating image…';
   deselectAll();
 
-  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
+  if (persons.size === 0 && labels.size === 0 && drawStrokes.length === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
 
   const { minX, minY, maxX, maxY, legendColors, legendShadings } = computeExportBounds();
 
@@ -4941,6 +5891,21 @@ function saveAsImage() {
     });
   }
 
+  // ── Draw freehand strokes (on top of everything) ──
+  drawStrokes.forEach(s => {
+    if (s.points.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke();
+    ctx.restore();
+  });
+
   try {
     const link = document.createElement('a');
     link.download = 'pedigree.png';
@@ -4958,7 +5923,7 @@ function saveAsSVG() {
   document.getElementById('statusBar').textContent = 'Generating SVG…';
   deselectAll();
 
-  if (persons.size === 0 && labels.size === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
+  if (persons.size === 0 && labels.size === 0 && drawStrokes.length === 0) { document.getElementById('statusBar').textContent = 'Nothing to export'; return; }
 
   const { minX, minY, maxX, maxY, legendColors, legendShadings } = computeExportBounds();
   const w = maxX - minX, h = maxY - minY;
@@ -5281,6 +6246,12 @@ function saveAsSVG() {
     });
   }
 
+  // ── Freehand draw strokes (on top of everything) ──
+  drawStrokes.forEach(s => {
+    if (s.points.length < 2) return;
+    els.push(`<path d="${buildStrokePathD(s.points)}" stroke="${esc(s.color)}" stroke-width="${s.width}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
+  });
+
   // ── Assemble SVG document ──
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${w} ${h}" width="${w}" height="${h}">
@@ -5316,6 +6287,7 @@ function tryAutoRestore() {
 // ── Init ──
 applyCanvasSize();
 initColorPickers();
+initDrawColorPicker();
 tryAutoRestore();
 updateStatus();
 updateUndoRedoUI();

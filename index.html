@@ -159,6 +159,14 @@
     content: ''; position: absolute; top: 2px; left: 50%; width: 1.5px; height: calc(100% - 4px);
     background: var(--danger); transform: rotate(45deg); transform-origin: center;
   }
+  .color-hex-input {
+    width: 68px; height: 26px; border: 1.5px solid var(--border); border-radius: 4px;
+    padding: 0 4px 0 8px; font-family: monospace; font-size: 11px; color: var(--text);
+    background: var(--bg); outline: none; transition: border-color 0.2s;
+    flex-shrink: 0; touch-action: auto; border-left-width: 5px;
+  }
+  .color-hex-input:focus { border-color: var(--accent); }
+  .color-hex-input::placeholder { color: var(--text-muted); font-size: 10px; }
 
   /* ── Quarter selector ── */
   .quarter-grid {
@@ -317,6 +325,21 @@
   /* ── Connection hit areas ── */
   .conn-hit { pointer-events: stroke; cursor: pointer; }
   .partnership-line.highlighted { stroke: var(--accent) !important; stroke-width: 4 !important; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
+  .child-link-highlighted { stroke: var(--accent) !important; stroke-width: 4 !important; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
+  .link-delete-btn {
+    position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: 2px solid #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 20; pointer-events: auto;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transform: translate(-50%, -50%);
+  }
+  .link-delete-btn:hover { background: #a93226; }
+  #partnershipPropsPanel { display: none; }
+  #partnershipPropsPanel.visible { display: block; }
+  #childLinkPropsPanel { display: none; }
+  #childLinkPropsPanel.visible { display: block; }
   .person-text.text-left.proband-left { top: 74px; }
 
   /* ── Status bar ── */
@@ -693,6 +716,37 @@
     </div>
   </div>
 
+  <!-- Partnership Properties Panel (shown when partnership selected) -->
+  <div class="panel-section" id="partnershipPropsPanel">
+    <h3>Selected Partnership</h3>
+    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
+      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
+      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change the type of the selected partnership.</p>
+    <button class="btn btn-danger" onclick="deleteSelectedPartnership()" style="margin-top:8px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Delete Partnership
+    </button>
+  </div>
+
+  <!-- Child Link Properties Panel (shown when child link selected) -->
+  <div class="panel-section" id="childLinkPropsPanel">
+    <h3>Selected Child Link</h3>
+    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
+      <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change the style of the selected child connection.</p>
+    <button class="btn btn-danger" onclick="deleteSelectedChildLink()" style="margin-top:8px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Delete Child Link
+    </button>
+  </div>
+
   <!-- Draw Settings (shown when draw tool active) -->
   <div class="panel-section" id="drawPanel" style="display:none;">
     <h3>Draw Settings</h3>
@@ -727,15 +781,6 @@
     <button class="btn btn-secondary" id="configToggle" style="width:100%;margin:0;padding:6px;font-size:11px;" onclick="toggleConfigSection()">▼ Configuration</button>
     <div id="configSection" style="display:none;margin-top:10px;">
       <div class="config-group">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
-          <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
-          <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
-        </div>
-        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Sets type for new partnerships. Click existing line in Move to select, then use these buttons to change type.</p>
-      </div>
-      <div class="config-group">
         <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Twin</label>
         <button class="btn btn-primary" id="tool-twin" onclick="setTool('twin')" style="margin:0 0 8px 0;padding:7px 10px;font-size:12px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
@@ -746,14 +791,6 @@
           <button class="btn btn-secondary active" data-tt="identical" onclick="setTwinType('identical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Identical</button>
           <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
         </div>
-      </div>
-      <div class="config-group">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
-        <div style="display:flex;gap:4px;">
-          <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
-          <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
-        </div>
-        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Click a child line in Move mode to select it, then use these buttons to change its style.</p>
       </div>
       <div class="config-group">
         <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Pedigree Labelling</label>
@@ -889,6 +926,7 @@ let selectedPerson = null;
 let selectedLabel = null;
 let selectedPartnershipId = null;
 let selectedChildLinkId = null;
+let linkDeleteBtn = null;
 let connectSource = null;
 let childPartnershipSource = null;
 let dragState = null;
@@ -993,6 +1031,7 @@ function pushUndo() {
 
 function undo() {
   if (undoStack.length === 0) return;
+  deselectAll();
   redoStack.push(JSON.stringify(buildSessionData()));
   const state = JSON.parse(undoStack.pop());
   // Preserve current slider settings — they are user preferences, not per-operation state
@@ -1012,6 +1051,7 @@ function undo() {
 
 function redo() {
   if (redoStack.length === 0) return;
+  deselectAll();
   undoStack.push(JSON.stringify(buildSessionData()));
   const state = JSON.parse(redoStack.pop());
   const savedGap = partnerGap, savedHeight = childHeight;
@@ -1084,9 +1124,35 @@ function initDrawColorPicker() {
     const btn = document.createElement('div');
     btn.className = 'draw-color-btn' + (c === drawColor ? ' active' : '');
     btn.style.background = c;
-    btn.onclick = () => setDrawColor(c);
+    btn.onclick = () => {
+      setDrawColor(c);
+      const hexInput = container.querySelector('.color-hex-input');
+      if (hexInput) { hexInput.value = ''; hexInput.style.borderLeftColor = 'var(--border)'; }
+    };
     container.appendChild(btn);
   });
+  // Custom hex input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'color-hex-input';
+  input.placeholder = '#hex / rgb';
+  input.spellcheck = false;
+  input.autocomplete = 'off';
+  const applyCustom = () => {
+    const color = parseColorInput(input.value);
+    if (color) {
+      input.style.borderLeftColor = color;
+      setDrawColor(color);
+    }
+  };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyCustom(); } });
+  input.addEventListener('blur', applyCustom);
+  input.addEventListener('input', () => {
+    const color = parseColorInput(input.value);
+    input.style.borderLeftColor = color || 'var(--border)';
+  });
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  container.appendChild(input);
 }
 
 function setDrawColor(c) {
@@ -1260,15 +1326,47 @@ function initColorPickers() {
     const cs = document.createElement('div');
     cs.className = 'fill-swatch clear-swatch';
     cs.style.border = '2px solid var(--border)';
-    cs.onclick = () => applyFillColor(null);
+    cs.onclick = () => {
+      applyFillColor(null);
+      const hi = c.querySelector('.color-hex-input');
+      if (hi) { hi.value = ''; hi.style.borderLeftColor = 'var(--border)'; }
+    };
     c.appendChild(cs);
     FILL_COLORS.forEach(color => {
       const s = document.createElement('div');
       s.className = 'fill-swatch';
       s.style.background = color;
-      s.onclick = () => applyFillColor(color);
+      s.onclick = () => {
+        applyFillColor(color);
+        const hi = c.querySelector('.color-hex-input');
+        if (hi) { hi.value = ''; hi.style.borderLeftColor = 'var(--border)'; }
+      };
       c.appendChild(s);
     });
+    // Custom hex input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'color-hex-input';
+    input.placeholder = '#hex / rgb';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    const applyCustom = () => {
+      const color = parseColorInput(input.value);
+      if (color) {
+        input.style.borderLeftColor = color;
+        applyFillColor(color);
+        // Deactivate palette swatches — custom colour won't match any
+        c.querySelectorAll('.fill-swatch').forEach(s => s.classList.remove('active'));
+      }
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyCustom(); } });
+    input.addEventListener('blur', applyCustom);
+    input.addEventListener('input', () => {
+      const color = parseColorInput(input.value);
+      input.style.borderLeftColor = color || 'var(--border)';
+    });
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    c.appendChild(input);
   };
   makePicker('solidColorPicker');
   makePicker('halfColorPicker');
@@ -1283,6 +1381,14 @@ function setTool(tool) {
   twinSource = null;
   // Clear partnership highlights
   document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+  selectedPartnershipId = null;
+  document.getElementById('partnershipPropsPanel').classList.remove('visible');
+  // Clear child link highlights
+  document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
+  selectedChildLinkId = null;
+  document.getElementById('childLinkPropsPanel').classList.remove('visible');
+  // Remove floating link delete button
+  removeLinkDeleteBtn();
   // Widen partnership hit areas in child mode for easier selection
   const hitWidth = tool === 'child' ? '72' : '28';
   partnerships.forEach(ps => { if (ps.hitEl) ps.hitEl.setAttribute('stroke-width', hitWidth); });
@@ -1823,6 +1929,13 @@ function removePerson(id) {
   }
   multiSelected.delete(id);
   if (selectedPerson === id) { selectedPerson = null; hideProps(); }
+  // Clear any link selection that may have been removed with this person
+  if (selectedPartnershipId && !partnerships.find(p => p.id === selectedPartnershipId)) {
+    selectedPartnershipId = null; document.getElementById('partnershipPropsPanel').classList.remove('visible'); removeLinkDeleteBtn();
+  }
+  if (selectedChildLinkId && !childLinks.find(c => c.id === selectedChildLinkId)) {
+    selectedChildLinkId = null; document.getElementById('childLinkPropsPanel').classList.remove('visible'); removeLinkDeleteBtn();
+  }
   p.el.remove();
   persons.delete(id);
   updateNumbering();
@@ -1847,11 +1960,21 @@ function deselectAll() {
   });
   selectedPerson = null;
   selectedLabel = null;
-  selectedPartnershipId = null;
-  selectedChildLinkId = null;
   multiSelected.clear();
   hideProps();
-  
+
+  // Partnership deselection
+  document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+  selectedPartnershipId = null;
+  document.getElementById('partnershipPropsPanel').classList.remove('visible');
+
+  // Child link deselection
+  document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
+  selectedChildLinkId = null;
+  document.getElementById('childLinkPropsPanel').classList.remove('visible');
+
+  // Remove floating link delete button
+  removeLinkDeleteBtn();
 }
 
 function toggleMultiSelect(id) {
@@ -1913,6 +2036,112 @@ function showProps(p) {
 
 function hideProps() {
   document.getElementById('propsPanel').classList.remove('visible');
+}
+
+// ══════════════════════
+// LINK PROPERTIES PANELS
+// ══════════════════════
+
+function showPartnershipProps(id) {
+  const ps = partnerships.find(p => p.id === id);
+  if (!ps) return;
+  document.querySelectorAll('#partnershipPropsPanel [data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === ps.type));
+  document.getElementById('partnershipPropsPanel').classList.add('visible');
+  document.getElementById('statusBar').textContent = 'Partnership selected (' + ps.type + ')';
+}
+
+function showChildLinkProps(id) {
+  const cl = childLinks.find(c => c.id === id);
+  if (!cl) return;
+  const style = cl.dashed ? 'dashed' : 'solid';
+  document.querySelectorAll('#childLinkPropsPanel [data-cls]').forEach(b => b.classList.toggle('active', b.dataset.cls === style));
+  document.getElementById('childLinkPropsPanel').classList.add('visible');
+  document.getElementById('statusBar').textContent = 'Child link selected (' + style + ')';
+}
+
+function showLinkDeleteBtn(id, linkType) {
+  removeLinkDeleteBtn();
+  const btn = document.createElement('button');
+  btn.className = 'link-delete-btn';
+  btn.innerHTML = '×';
+  btn.dataset.linkId = id;
+  btn.dataset.linkType = linkType;
+  const pos = getLinkMidpoint(id, linkType);
+  btn.style.left = pos.x + 'px';
+  btn.style.top = pos.y + 'px';
+  const doDelete = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (linkType === 'partnership') deleteSelectedPartnership();
+    else if (linkType === 'child') deleteSelectedChildLink();
+  };
+  btn.addEventListener('click', doDelete);
+  btn.addEventListener('touchend', doDelete);
+  document.getElementById('canvas').appendChild(btn);
+  linkDeleteBtn = btn;
+}
+
+function removeLinkDeleteBtn() {
+  if (linkDeleteBtn) { linkDeleteBtn.remove(); linkDeleteBtn = null; }
+}
+
+function updateLinkDeleteBtnPos() {
+  if (!linkDeleteBtn) return;
+  const lt = linkDeleteBtn.dataset.linkType;
+  const lid = linkDeleteBtn.dataset.linkId;
+  const pos = getLinkMidpoint(lid, lt);
+  linkDeleteBtn.style.left = pos.x + 'px';
+  linkDeleteBtn.style.top = pos.y + 'px';
+}
+
+function getLinkMidpoint(id, linkType) {
+  if (linkType === 'partnership') {
+    const ps = partnerships.find(p => p.id === id);
+    if (!ps) return { x: 0, y: 0 };
+    const f = persons.get(ps.fromId), t = persons.get(ps.toId);
+    if (!f || !t) return { x: 0, y: 0 };
+    const fc = getPersonCenter(f), tc = getPersonCenter(t);
+    return { x: (fc.x + tc.x) / 2, y: (fc.y + tc.y) / 2 - 16 };
+  }
+  if (linkType === 'child') {
+    const cl = childLinks.find(c => c.id === id);
+    if (!cl) return { x: 0, y: 0 };
+    const ps = partnerships.find(p => p.id === cl.partnershipId);
+    const child = persons.get(cl.childId);
+    if (!ps || !child) return { x: 0, y: 0 };
+    const fp = persons.get(ps.fromId), tp = persons.get(ps.toId);
+    if (!fp || !tp) return { x: 0, y: 0 };
+    const fc = getPersonCenter(fp), tc = getPersonCenter(tp);
+    const midY = (fc.y + tc.y) / 2;
+    const cc = getPersonCenter(child);
+    return { x: cc.x, y: (midY + parseFloat(child.el.style.top)) / 2 };
+  }
+  return { x: 0, y: 0 };
+}
+
+function deleteSelectedPartnership() {
+  if (!selectedPartnershipId) return;
+  if (confirm('Remove this partnership line and all its child connections?')) {
+    removePartnership(selectedPartnershipId);
+    deselectAll();
+  }
+}
+
+function deleteSelectedChildLink() {
+  if (!selectedChildLinkId) return;
+  const cl = childLinks.find(c => c.id === selectedChildLinkId);
+  if (!cl) return;
+  const twinLink = twinLinks.find(t => t.child1Id === cl.childId || t.child2Id === cl.childId);
+  if (twinLink) {
+    if (confirm('This child is part of a twin link. Remove twin relationship?')) {
+      removeTwinLink(twinLink.id);
+    }
+  } else {
+    if (confirm('Remove this child connection?')) {
+      removeChildLink(selectedChildLinkId);
+    }
+  }
+  deselectAll();
 }
 
 function updatePersonText() {
@@ -2123,6 +2352,31 @@ function isLight(hex) {
   const c = hex.replace('#','');
   const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
   return (r * 0.299 + g * 0.587 + b * 0.114) > 150;
+}
+
+function parseColorInput(val) {
+  if (!val) return null;
+  val = val.trim();
+  // Handle rgb(r, g, b) format
+  const rgbMatch = val.match(/^rgb\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (rgbMatch) {
+    const [, r, g, b] = rgbMatch;
+    if (+r <= 255 && +g <= 255 && +b <= 255) {
+      return '#' + [r, g, b].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+    }
+    return null;
+  }
+  // Strip leading # if present
+  let hex = val.replace(/^#/, '');
+  // Expand shorthand (e.g. f00 → ff0000)
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+  // Validate 6-digit hex
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return '#' + hex.toLowerCase();
+  }
+  return null;
 }
 
 // ══════════════════════
@@ -2707,24 +2961,18 @@ function addPartnership(fromId, toId, customId, type) {
   const onLineClick = (ev) => {
     if (currentTool === 'child') {
       // Clear previous highlight
-      document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+      deselectAll();
       childPartnershipSource = id;
       line.classList.add('highlighted');
       document.getElementById('statusBar').textContent = 'Partnership selected — now click a person to add as child';
       return;
     }
     if (currentTool === 'move') {
-      // Select this partnership so panel buttons can change its type
+      deselectAll();
       selectedPartnershipId = id;
-      const ps = partnerships.find(p => p.id === id);
-      if (ps) {
-        document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === ps.type));
-        document.getElementById('statusBar').textContent = 'Partnership selected (' + ps.type + '). Use panel buttons to change type.';
-      }
-      if (confirm('Remove this partnership line?\n(Cancel to keep — use Partnership Type buttons to change type)')) {
-        removePartnership(id);
-        selectedPartnershipId = null;
-      }
+      line.classList.add('highlighted');
+      showPartnershipProps(id);
+      showLinkDeleteBtn(id, 'partnership');
     }
   };
   line.addEventListener('click', onLineClick);
@@ -3202,7 +3450,12 @@ function findDivergencePartnership(mrcaId, personA, personB) {
 }
 
 // Distribute children of a partnership using a custom spacing value.
-// Same logic as distributeChildren but with an explicit spacing parameter.
+// Unlike distributeChildren(), this function does NOT preserve anchored children's
+// positions — it always forces the requested spacing on ALL children. This is correct
+// because this function is only called from the overlap resolution strategies
+// (redistributeAndShift), where the explicit intent is to widen or compact the
+// child row. The downstream tree shift in redistributeAndShift() moves partners
+// and descendants along with each child, keeping family sub-trees intact.
 function distributeChildrenCustomSpacing(pshipId, customSpacing) {
   const pship = partnerships.find(p => p.id === pshipId);
   if (!pship) return;
@@ -3213,101 +3466,29 @@ function distributeChildrenCustomSpacing(pshipId, customSpacing) {
   const midX = (leftX + rightX) / 2;
 
   const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
-    .filter(id => { const p = persons.get(id); return !p || !p.siblingFixed; });
+    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed && !p.noSnap; });
   if (kids.length < 2) {
     if (kids.length === 1) {
       const child = persons.get(kids[0]);
-      if (child && !child.noSnap) { child.el.style.left = midX + 'px'; child.x = midX; }
+      if (child) { child.el.style.left = midX + 'px'; child.x = midX; }
       constrainChildrenToBoundaries(pshipId, kids);
     }
     return;
   }
 
-  // Find ALL anchored children (same logic as distributeChildren)
-  const anchors = [];
-  for (const kid of kids) {
-    const kidP = persons.get(kid);
-    if (!kidP) continue;
-    const kidPships = partnerships.filter(p => p.fromId === kid || p.toId === kid);
-    for (const kp of kidPships) {
-      const partnerId = kp.fromId === kid ? kp.toId : kp.fromId;
-      if (kids.includes(partnerId)) continue;
-      const partner = persons.get(partnerId);
-      if (!partner) continue;
-      anchors.push(kid);
-      break;
-    }
-  }
-
   kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
 
-  if (anchors.length >= 2) {
-    // Multiple anchors: keep at current positions, distribute free children between them
-    anchors.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
-    const leftAnchorX = parseFloat(persons.get(anchors[0]).el.style.left);
-    const rightAnchorX = parseFloat(persons.get(anchors[anchors.length - 1]).el.style.left);
-    const anchorSet = new Set(anchors);
-    const freeKids = kids.filter(id => !anchorSet.has(id) && !persons.get(id)?.noSnap);
-    if (freeKids.length > 0) {
-      const spacing = Math.min(customSpacing, (rightAnchorX - leftAnchorX) / (freeKids.length + 1));
-      const totalWidth = spacing * (freeKids.length - 1);
-      const regionMid = (leftAnchorX + rightAnchorX) / 2;
-      const startX = regionMid - totalWidth / 2;
-      freeKids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        child.el.style.left = (startX + i * spacing) + 'px';
-        child.x = parseFloat(child.el.style.left);
-      });
+  const totalWidth = customSpacing * (kids.length - 1);
+  const startX = midX - totalWidth / 2;
+  kids.forEach((cid, i) => {
+    const child = persons.get(cid);
+    if (child) {
+      const newX = startX + customSpacing * i;
+      child.el.style.left = newX + 'px';
+      child.x = newX;
     }
-  } else if (anchors.length === 1) {
-    const anchorId = anchors[0];
-    const anchorX = parseFloat(persons.get(anchorId).el.style.left);
-    let expandDir = null;
-    const anchorPships = partnerships.filter(p => p.fromId === anchorId || p.toId === anchorId);
-    for (const kp of anchorPships) {
-      const partnerId = kp.fromId === anchorId ? kp.toId : kp.fromId;
-      if (kids.includes(partnerId)) continue;
-      const partner = persons.get(partnerId);
-      if (!partner) continue;
-      expandDir = parseFloat(partner.el.style.left) > anchorX ? 'left' : 'right';
-      break;
-    }
-    if (expandDir) {
-      kids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        if (child && !child.noSnap) {
-          const newX = expandDir === 'left'
-            ? anchorX - (kids.length - 1 - i) * customSpacing
-            : anchorX + i * customSpacing;
-          child.el.style.left = newX + 'px';
-          child.x = newX;
-        }
-      });
-    } else {
-      const totalWidth = customSpacing * (kids.length - 1);
-      const startX = midX - totalWidth / 2;
-      kids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        if (child && !child.noSnap) {
-          child.el.style.left = (startX + customSpacing * i) + 'px';
-          child.x = parseFloat(child.el.style.left);
-        }
-      });
-    }
-  } else {
-    const totalWidth = customSpacing * (kids.length - 1);
-    const startX = midX - totalWidth / 2;
-    kids.forEach((cid, i) => {
-      const child = persons.get(cid);
-      if (child && !child.noSnap) {
-        const newX = startX + customSpacing * i;
-        child.el.style.left = newX + 'px';
-        child.x = newX;
-      }
-    });
-  }
+  });
 
-  // Post-pass: ensure distributed children don't overlap with siblingFixed children
   constrainChildrenToBoundaries(pshipId, kids);
 }
 
@@ -3379,24 +3560,71 @@ function getCurrentChildSpacing(pshipId) {
   return (x1 - x0) / (kids.length - 1);
 }
 
-// Identify new shape-shape overlaps involving children of this partnership with other shapes.
-// Returns array of { childPerson, otherPerson }.
+// Identify new overlaps involving children of this partnership or their branches.
+// Returns array of { personA, personB } pairs suitable for MRCA lookup.
+// Extracts person representatives from ALL overlap types:
+//   - shape-shape: directly uses the two person IDs
+//   - branch region: uses a child from each partnership as representative
+//   - cline through shape: uses the child from the child link + the overlapped person
 function getNewChildOverlaps(pshipId, beforePairs) {
   const afterPairs = getOverlappingPairs();
   const kidIds = new Set(childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId));
   const result = [];
+  const seen = new Set(); // dedup by sorted person pair
+
   for (const key of afterPairs) {
     if (beforePairs.has(key)) continue;
     const parts = key.split('|');
-    // Only shape-shape overlaps (skip line-through-shape)
-    if (parts.some(p => p.startsWith('line:'))) continue;
-    const aIsChild = kidIds.has(parts[0]);
-    const bIsChild = kidIds.has(parts[1]);
-    if (aIsChild || bIsChild) {
-      result.push({
-        childPerson: aIsChild ? parts[0] : parts[1],
-        otherPerson: aIsChild ? parts[1] : parts[0]
-      });
+
+    let pA = null, pB = null;
+
+    // ── Branch region overlap: "branch:pshipIdA|branch:pshipIdB" ──
+    // Use a child from each partnership as the person representative.
+    if (parts[0].startsWith('branch:') && parts[1].startsWith('branch:')) {
+      const psIdA = parts[0].slice(7); // remove "branch:" prefix
+      const psIdB = parts[1].slice(7);
+      // At least one branch must belong to our partnership
+      if (psIdA !== pshipId && psIdB !== pshipId) continue;
+      const childOfA = childLinks.find(cl => cl.partnershipId === psIdA);
+      const childOfB = childLinks.find(cl => cl.partnershipId === psIdB);
+      if (childOfA && childOfB) {
+        pA = childOfA.childId;
+        pB = childOfB.childId;
+      }
+    }
+    // ── Child link line through shape: "cline:childLinkId|personId" or "personId|cline:..." ──
+    else if (parts[0].startsWith('cline:') || parts[1].startsWith('cline:')) {
+      const clinePart = parts[0].startsWith('cline:') ? parts[0] : parts[1];
+      const personPart = parts[0].startsWith('cline:') ? parts[1] : parts[0];
+      // Skip if the person part is also a prefixed key
+      if (personPart.includes(':')) continue;
+      const clId = clinePart.slice(6); // remove "cline:" prefix
+      const cl = childLinks.find(c => c.id === clId);
+      if (cl && (kidIds.has(cl.childId) || kidIds.has(personPart))) {
+        pA = cl.childId;
+        pB = personPart;
+      }
+    }
+    // ── Partnership line through shape: "line:pshipId|personId" — skip ──
+    else if (parts.some(p => p.startsWith('line:'))) {
+      continue;
+    }
+    // ── Shape-shape overlap: "personA|personB" ──
+    else {
+      const aIsChild = kidIds.has(parts[0]);
+      const bIsChild = kidIds.has(parts[1]);
+      if (aIsChild || bIsChild) {
+        pA = parts[0];
+        pB = parts[1];
+      }
+    }
+
+    if (pA && pB && pA !== pB) {
+      const dedupKey = [pA, pB].sort().join('|');
+      if (!seen.has(dedupKey)) {
+        seen.add(dedupKey);
+        result.push({ childPerson: kidIds.has(pA) ? pA : pB, otherPerson: kidIds.has(pA) ? pB : pA });
+      }
     }
   }
   return result;
@@ -3407,10 +3635,8 @@ function getNewChildOverlaps(pshipId, beforePairs) {
 // Performance: all trial iterations use trialMode (skips expensive SVG connection updates)
 // and position reads are cached within each overlap check.
 function tryResolveChildOverlaps(pshipId, childId, beforePairs) {
-  // getNewChildOverlaps finds shape-shape overlaps for Strategy 1's MRCA lookup.
-  // It may be empty even when there ARE new overlaps (branch/line type), so we
-  // never early-return here — all strategies use hasNewOverlaps() which checks
-  // every overlap type including sibship branch regions and child link lines.
+  // getNewChildOverlaps extracts person pairs from ALL overlap types (shape-shape,
+  // branch region, cline-through-shape) for Strategy 1's MRCA lookup.
   const newOverlaps = getNewChildOverlaps(pshipId, beforePairs);
 
   const savedPos = saveAllPositions();
@@ -3535,23 +3761,11 @@ function addChildLink(partnershipId, childId, customId) {
 
   const onChildClick = () => {
     if (currentTool === 'move') {
-      // Select this child link so panel buttons can change its style
+      deselectAll();
       selectedChildLinkId = id;
-      const thisCl = childLinks.find(c => c.id === id);
-      if (thisCl) {
-        const style = thisCl.dashed ? 'dashed' : 'solid';
-        document.querySelectorAll('[data-cls]').forEach(b => b.classList.toggle('active', b.dataset.cls === style));
-        document.getElementById('statusBar').textContent = 'Child line selected (' + style + '). Use Child Line Style buttons to change, or click again to remove.';
-      }
-      // Check if this child is part of a twin link — offer to remove twin first
-      const twinLink = twinLinks.find(t => t.child1Id === childId || t.child2Id === childId);
-      if (twinLink) {
-        if (confirm('This child is part of a twin link. Remove twin relationship?\n(Cancel to keep twin link)')) {
-          removeTwinLink(twinLink.id);
-        }
-      } else {
-        if (confirm('Remove this child connection?\n(Cancel to keep — use Child Line Style buttons to change style)')) { removeChildLink(id); selectedChildLinkId = null; }
-      }
+      vertLine.classList.add('child-link-highlighted');
+      showChildLinkProps(id);
+      showLinkDeleteBtn(id, 'child');
     }
   };
   vertLine.addEventListener('click', onChildClick);
@@ -4263,6 +4477,7 @@ function updateAllConnections() {
   childLinks.forEach(c => updateChildLinkPos(c));
   twinLinks.forEach(t => updateTwinLinkPos(t));
   applyLineCrossings();
+  updateLinkDeleteBtnPos();
 }
 
 // Throttled version for use during drags — collapses multiple per-frame
@@ -4729,7 +4944,7 @@ document.addEventListener('touchcancel', onPointerUp);
 // ── Canvas tap / pan ──
 function onCanvasDown(e) {
   const t = e.target;
-  if (t.closest('.partnership-line') || t.closest('.conn-hit')) return;
+  if (t.closest('.partnership-line') || t.closest('.conn-hit') || t.closest('.link-delete-btn')) return;
   if (t.id !== 'canvasArea' && t.id !== 'canvas' && t.id !== 'lines-layer' && !t.closest('#lines-layer') && t.id !== 'draw-layer' && !t.closest('#draw-layer')) return;
   if (e.cancelable) e.preventDefault();
 
@@ -5230,6 +5445,8 @@ document.addEventListener('keydown', (e) => {
     }
     if (selectedPerson) removePerson(selectedPerson);
     if (selectedLabel) removeLabel(selectedLabel);
+    if (selectedPartnershipId) deleteSelectedPartnership();
+    if (selectedChildLinkId) deleteSelectedChildLink();
   }
   if (e.key === 'Escape') { deselectAll(); connectSource = null; childPartnershipSource = null; twinSource = null; exitAllEditModes(); updateBanner(); updateStatus(); }
   if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -5253,11 +5470,15 @@ function clearAll() {
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
   multiSelected.clear();
   selectedPerson = null; selectedLabel = null; connectSource = null; childPartnershipSource = null; twinSource = null;
+  selectedPartnershipId = null; selectedChildLinkId = null;
+  removeLinkDeleteBtn();
   personIdCounter = labelIdCounter = lineIdCounter = 0;
   legendLabels = {}; legendVisible = false;
   drawStrokes.length = 0;
   canvasWidth = 6000; canvasHeight = 6000; applyCanvasSize();
   hideProps();
+  document.getElementById('partnershipPropsPanel').classList.remove('visible');
+  document.getElementById('childLinkPropsPanel').classList.remove('visible');
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
   document.getElementById('statusBar').textContent = 'Canvas cleared';
 }
@@ -5324,6 +5545,8 @@ function restoreSession(data) {
   persons.clear(); labels.clear();
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
   multiSelected.clear(); selectedPerson = null; selectedLabel = null;
+  selectedPartnershipId = null; selectedChildLinkId = null;
+  removeLinkDeleteBtn();
   drawStrokes.length = 0;
 
   personIdCounter = data.personIdCounter || 0;

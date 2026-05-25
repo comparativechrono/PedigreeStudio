@@ -125,6 +125,18 @@
   /* ── Props panel ── */
   .props-panel { display: none; }
   .props-panel.visible { display: block; }
+
+  /* ── Multi-selection panels ── */
+  #multiSelectPanel { display: none; }
+  #multiSelectPanel.visible { display: block; }
+  #multiPartnershipPanel { display: none; }
+  #multiPartnershipPanel.visible { display: block; }
+  #multiChildLinkPanel { display: none; }
+  #multiChildLinkPanel.visible { display: block; }
+  .multi-select-count {
+    font-size: 12px; color: var(--accent); font-weight: 600;
+    margin-left: 4px;
+  }
   .props-panel textarea {
     width: 100%; height: 54px;
     border: 1px solid var(--border); border-radius: 6px;
@@ -747,6 +759,102 @@
     </button>
   </div>
 
+  <!-- Multi-Selection Panel (shown when multiple persons selected) -->
+  <div class="panel-section" id="multiSelectPanel">
+    <h3>Multiple Selected <span class="multi-select-count" id="multiSelectCount"></span></h3>
+    <p style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">Fill changes apply to all selected individuals.</p>
+
+    <!-- Fill mode -->
+    <div>
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Fill</label>
+      <div class="fill-mode-row">
+        <button class="fill-mode-btn" data-mmode="none" onclick="multiSetFillMode('none')">None</button>
+        <button class="fill-mode-btn" data-mmode="solid" onclick="multiSetFillMode('solid')">Solid</button>
+        <button class="fill-mode-btn" data-mmode="half" onclick="multiSetFillMode('half')">Half</button>
+        <button class="fill-mode-btn" data-mmode="quartered" onclick="multiSetFillMode('quartered')">Quartered</button>
+        <button class="fill-mode-btn" data-mmode="shading" onclick="multiSetFillMode('shading')">Shading</button>
+      </div>
+
+      <div id="multiSolidFillUI" style="display:none;">
+        <div class="fill-colors" id="multiSolidColorPicker"></div>
+      </div>
+
+      <div id="multiHalfFillUI" style="display:none;">
+        <div style="display:flex;align-items:flex-start;">
+          <div class="half-grid" id="multiHalfGrid">
+            <div class="half-cell" data-mh="0" onclick="multiSelectHalf(0)" style="background:#fff;">L</div>
+            <div class="half-cell" data-mh="1" onclick="multiSelectHalf(1)" style="background:#fff;">R</div>
+          </div>
+          <span class="quarter-label" id="multiHalfLabel">Click a half, then pick a colour</span>
+        </div>
+        <div class="fill-colors" id="multiHalfColorPicker" style="margin-top:6px;"></div>
+      </div>
+
+      <div id="multiQuarteredFillUI" style="display:none;">
+        <div style="display:flex;align-items:flex-start;">
+          <div class="quarter-grid" id="multiQuarterGrid">
+            <div class="quarter-cell" data-mq="3" onclick="multiSelectQuarter(3)" style="background:#fff;">TL</div>
+            <div class="quarter-cell" data-mq="0" onclick="multiSelectQuarter(0)" style="background:#fff;">TR</div>
+            <div class="quarter-cell" data-mq="2" onclick="multiSelectQuarter(2)" style="background:#fff;">BL</div>
+            <div class="quarter-cell" data-mq="1" onclick="multiSelectQuarter(1)" style="background:#fff;">BR</div>
+          </div>
+          <span class="quarter-label" id="multiQuarterLabel">Click a quadrant, then pick a colour</span>
+        </div>
+        <div class="fill-colors" id="multiQuarterColorPicker" style="margin-top:6px;"></div>
+      </div>
+
+      <div id="multiShadingFillUI" style="display:none;">
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Pattern</label>
+        <div class="shading-option-row">
+          <button class="shading-option-btn" data-mspattern="stripes" onclick="multiSetShadingPattern('stripes')">Stripes</button>
+          <button class="shading-option-btn" data-mspattern="dots" onclick="multiSetShadingPattern('dots')">Dots</button>
+        </div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Coverage</label>
+        <div class="shading-option-row">
+          <button class="shading-option-btn" data-mscoverage="full" onclick="multiSetShadingCoverage('full')">Full</button>
+          <button class="shading-option-btn" data-mscoverage="half-left" onclick="multiSetShadingCoverage('half-left')">Left Half</button>
+          <button class="shading-option-btn" data-mscoverage="half-right" onclick="multiSetShadingCoverage('half-right')">Right Half</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-danger" onclick="deleteMultiSelected()" style="margin-top:10px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Delete Selected
+    </button>
+  </div>
+
+  <!-- Multi-Partnership Panel (shown when multiple partnerships selected) -->
+  <div class="panel-section" id="multiPartnershipPanel">
+    <h3>Partnerships Selected <span class="multi-select-count" id="multiPartnershipCount"></span></h3>
+    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" data-mpt="normal" onclick="multiSetPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
+      <button class="btn btn-secondary" data-mpt="consanguineous" onclick="multiSetPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
+      <button class="btn btn-secondary" data-mpt="separated" onclick="multiSetPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change type for all selected partnerships.</p>
+    <button class="btn btn-danger" onclick="deleteMultiSelectedPartnerships()" style="margin-top:8px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Delete Selected Partnerships
+    </button>
+  </div>
+
+  <!-- Multi-Child-Link Panel (shown when multiple child links selected) -->
+  <div class="panel-section" id="multiChildLinkPanel">
+    <h3>Child Links Selected <span class="multi-select-count" id="multiChildLinkCount"></span></h3>
+    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
+    <div style="display:flex;gap:4px;">
+      <button class="btn btn-secondary" data-mcls="solid" onclick="multiSetChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
+      <button class="btn btn-secondary" data-mcls="dashed" onclick="multiSetChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
+    </div>
+    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change style for all selected child connections.</p>
+    <button class="btn btn-danger" onclick="deleteMultiSelectedChildLinks()" style="margin-top:8px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      Delete Selected Child Links
+    </button>
+  </div>
+
   <!-- Draw Settings (shown when draw tool active) -->
   <div class="panel-section" id="drawPanel" style="display:none;">
     <h3>Draw Settings</h3>
@@ -813,6 +921,14 @@
           <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)" style="width:100%;accent-color:var(--accent);">
         </div>
         <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Multiples of shape size. Applied when individual move is off.</p>
+      </div>
+      <div class="config-group" style="margin-top:12px;margin-bottom:0;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Layout</label>
+        <button class="btn btn-secondary" style="width:100%;margin:0;padding:7px 10px;font-size:12px;" onclick="redistributePedigreeWithWarning()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/><path d="M10 7h4M7 10v4M17 10v4M10 17h4"/></svg>
+          Redistribute Pedigree
+        </button>
+        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Automatically rearrange to reduce overlaps and line crossings. Use Undo if you don't like the result.</p>
       </div>
     </div>
   </div>
@@ -930,6 +1046,7 @@ let linkDeleteBtn = null;
 let connectSource = null;
 let childPartnershipSource = null;
 let dragState = null;
+let nudgeState = null;
 let currentShape = 'male';
 let individualMoveMode = false;
 let panState = null;
@@ -955,6 +1072,10 @@ const partnerships = [];
 const childLinks = [];
 const twinLinks = [];
 const multiSelected = new Set();
+const multiSelectedPartnerships = new Set();
+const multiSelectedChildLinks = new Set();
+let multiActiveQuarter = -1;
+let multiActiveHalf = -1;
 let legendLabels = {};
 let numberingMode = 'numbers';
 let currentPartnershipType = 'normal';
@@ -1260,23 +1381,20 @@ function rebuildDrawLayer() {
 function setPartnershipType(t) {
   currentPartnershipType = t;
   document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
-  // If a partnership is selected, change its type
+  // If a partnership is selected, change its type. Related/internal partner
+  // links are canonicalised to consanguineous even if the user clicks Normal,
+  // because treating them as ordinary spouse blocks breaks default spacing.
   if (selectedPartnershipId) {
     const ps = partnerships.find(p => p.id === selectedPartnershipId);
     if (ps) {
+      const finalType = canonicalPartnershipType(ps.fromId, ps.toId, t, ps.id);
       pushUndo();
-      const svg = document.getElementById('lines-layer');
-      ps.type = t;
-      if (ps.el2) { ps.el2.remove(); ps.el2 = null; }
-      if (ps.slash) { ps.slash.forEach(s => s.remove()); ps.slash = null; }
-      if (t === 'consanguineous') {
-        const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        l2.setAttribute('stroke', '#1a2332'); l2.setAttribute('stroke-width', '2'); l2.style.pointerEvents = 'none';
-        svg.appendChild(l2); ps.el2 = l2;
-      }
-      updatePartnershipPos(ps);
+      setPartnershipVisualType(ps, finalType);
+      document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === finalType));
       scheduleSave();
-      document.getElementById('statusBar').textContent = 'Partnership changed to ' + t;
+      document.getElementById('statusBar').textContent = finalType === 'consanguineous' && t !== 'consanguineous'
+        ? 'Related partners are shown as consanguineous'
+        : 'Partnership changed to ' + finalType;
     }
   }
 }
@@ -1382,11 +1500,15 @@ function setTool(tool) {
   // Clear partnership highlights
   document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
   selectedPartnershipId = null;
+  multiSelectedPartnerships.clear();
   document.getElementById('partnershipPropsPanel').classList.remove('visible');
+  document.getElementById('multiPartnershipPanel').classList.remove('visible');
   // Clear child link highlights
   document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
   selectedChildLinkId = null;
+  multiSelectedChildLinks.clear();
   document.getElementById('childLinkPropsPanel').classList.remove('visible');
+  document.getElementById('multiChildLinkPanel').classList.remove('visible');
   // Remove floating link delete button
   removeLinkDeleteBtn();
   // Widen partnership hit areas in child mode for easier selection
@@ -1786,8 +1908,12 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
   const shape = customShape || currentShape;
   const area = document.getElementById('canvasArea');
   const areaRect = area.getBoundingClientRect();
-  const x = customX !== undefined ? customX : (areaRect.width / 2 - panX) / zoomLevel - SHAPE_HALF + Math.random() * 60 - 30;
-  const y = customY !== undefined ? customY : (areaRect.height / 2 - panY) / zoomLevel - SHAPE_HALF + Math.random() * 40 - 20;
+  let x = customX !== undefined ? customX : (areaRect.width / 2 - panX) / zoomLevel - SHAPE_HALF + Math.random() * 60 - 30;
+  let y = customY !== undefined ? customY : (areaRect.height / 2 - panY) / zoomLevel - SHAPE_HALF + Math.random() * 40 - 20;
+  if (customX === undefined && customY === undefined) {
+    const open = findOpenPosition(x, y, new Set());
+    x = open.x; y = open.y;
+  }
 
   const fillMode = customFillMode || 'none';
   const fillColor = customFillColor || FILL_COLORS[0];
@@ -1929,6 +2055,11 @@ function removePerson(id) {
   }
   multiSelected.delete(id);
   if (selectedPerson === id) { selectedPerson = null; hideProps(); }
+  // Update multi-select panel count if needed
+  if (multiSelected.size === 1) {
+    const onlyId = [...multiSelected][0]; selectedPerson = onlyId; showProps(persons.get(onlyId)); hideMultiSelectPanel();
+  } else if (multiSelected.size === 0) { hideMultiSelectPanel(); }
+  else { document.getElementById('multiSelectCount').textContent = '(' + multiSelected.size + ')'; }
   // Clear any link selection that may have been removed with this person
   if (selectedPartnershipId && !partnerships.find(p => p.id === selectedPartnershipId)) {
     selectedPartnershipId = null; document.getElementById('partnershipPropsPanel').classList.remove('visible'); removeLinkDeleteBtn();
@@ -1936,6 +2067,11 @@ function removePerson(id) {
   if (selectedChildLinkId && !childLinks.find(c => c.id === selectedChildLinkId)) {
     selectedChildLinkId = null; document.getElementById('childLinkPropsPanel').classList.remove('visible'); removeLinkDeleteBtn();
   }
+  // Clean up multi-selected links that may have been removed
+  [...multiSelectedPartnerships].forEach(pid => { if (!partnerships.find(p => p.id === pid)) multiSelectedPartnerships.delete(pid); });
+  [...multiSelectedChildLinks].forEach(cid => { if (!childLinks.find(c => c.id === cid)) multiSelectedChildLinks.delete(cid); });
+  if (multiSelectedPartnerships.size === 0) document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  if (multiSelectedChildLinks.size === 0) document.getElementById('multiChildLinkPanel').classList.remove('visible');
   p.el.remove();
   persons.delete(id);
   updateNumbering();
@@ -1962,31 +2098,51 @@ function deselectAll() {
   selectedLabel = null;
   multiSelected.clear();
   hideProps();
+  hideMultiSelectPanel();
 
   // Partnership deselection
   document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
   selectedPartnershipId = null;
+  multiSelectedPartnerships.clear();
   document.getElementById('partnershipPropsPanel').classList.remove('visible');
+  document.getElementById('multiPartnershipPanel').classList.remove('visible');
 
   // Child link deselection
   document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
   selectedChildLinkId = null;
+  multiSelectedChildLinks.clear();
   document.getElementById('childLinkPropsPanel').classList.remove('visible');
+  document.getElementById('multiChildLinkPanel').classList.remove('visible');
 
   // Remove floating link delete button
   removeLinkDeleteBtn();
 }
 
 function toggleMultiSelect(id) {
+  // Clear any link multi-selections when multi-selecting persons
+  if (multiSelectedPartnerships.size > 0 || multiSelectedChildLinks.size > 0) {
+    document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+    document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
+    multiSelectedPartnerships.clear(); multiSelectedChildLinks.clear();
+    selectedPartnershipId = null; selectedChildLinkId = null;
+    document.getElementById('partnershipPropsPanel').classList.remove('visible');
+    document.getElementById('childLinkPropsPanel').classList.remove('visible');
+    document.getElementById('multiPartnershipPanel').classList.remove('visible');
+    document.getElementById('multiChildLinkPanel').classList.remove('visible');
+    removeLinkDeleteBtn();
+  }
   if (multiSelected.has(id)) { multiSelected.delete(id); persons.get(id)?.el.classList.remove('multi-selected'); }
   else { multiSelected.add(id); persons.get(id)?.el.classList.add('multi-selected'); }
-  if (multiSelected.size === 1) { const onlyId = [...multiSelected][0]; selectedPerson = onlyId; showProps(persons.get(onlyId)); }
-  else { hideProps(); }
+  if (multiSelected.size === 1) { const onlyId = [...multiSelected][0]; selectedPerson = onlyId; showProps(persons.get(onlyId)); hideMultiSelectPanel(); }
+  else if (multiSelected.size > 1) { selectedPerson = null; hideProps(); showMultiSelectPanel(); }
+  else { hideProps(); hideMultiSelectPanel(); }
 }
 
 function selectAllPersons() {
   deselectAll();
   persons.forEach((p, id) => { multiSelected.add(id); p.el.classList.add('multi-selected'); });
+  if (multiSelected.size > 1) showMultiSelectPanel();
+  else if (multiSelected.size === 1) { const onlyId = [...multiSelected][0]; selectedPerson = onlyId; showProps(persons.get(onlyId)); }
   document.getElementById('statusBar').textContent = `Selected all ${persons.size} individuals`;
 }
 
@@ -2340,6 +2496,315 @@ function updateShadingUI(p) {
   document.querySelectorAll('[data-scoverage]').forEach(b => b.classList.toggle('active', b.dataset.scoverage === cov));
 }
 
+// ══════════════════════
+// MULTI-SELECTION PANELS
+// ══════════════════════
+
+function showMultiSelectPanel() {
+  document.getElementById('multiSelectPanel').classList.add('visible');
+  document.getElementById('multiSelectCount').textContent = '(' + multiSelected.size + ')';
+  // Reset fill mode buttons — no active state initially
+  document.querySelectorAll('[data-mmode]').forEach(b => b.classList.remove('active'));
+  document.getElementById('multiSolidFillUI').style.display = 'none';
+  document.getElementById('multiHalfFillUI').style.display = 'none';
+  document.getElementById('multiQuarteredFillUI').style.display = 'none';
+  document.getElementById('multiShadingFillUI').style.display = 'none';
+  multiActiveQuarter = -1;
+  multiActiveHalf = -1;
+}
+
+function hideMultiSelectPanel() {
+  document.getElementById('multiSelectPanel').classList.remove('visible');
+}
+
+function multiSetFillMode(mode) {
+  if (multiSelected.size === 0) return;
+  pushUndo();
+  multiSelected.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    p.fillMode = mode;
+    refreshPersonShape(p);
+  });
+  document.querySelectorAll('[data-mmode]').forEach(b => b.classList.toggle('active', b.dataset.mmode === mode));
+  document.getElementById('multiSolidFillUI').style.display = mode === 'solid' ? 'block' : 'none';
+  document.getElementById('multiHalfFillUI').style.display = mode === 'half' ? 'block' : 'none';
+  document.getElementById('multiQuarteredFillUI').style.display = mode === 'quartered' ? 'block' : 'none';
+  document.getElementById('multiShadingFillUI').style.display = mode === 'shading' ? 'block' : 'none';
+  // Reset multi half/quarter grids
+  document.querySelectorAll('#multiHalfGrid .half-cell').forEach(c => { c.style.background = '#fff'; c.classList.remove('active-half'); });
+  document.querySelectorAll('#multiQuarterGrid .quarter-cell').forEach(c => { c.style.background = '#fff'; c.classList.remove('active-quarter'); });
+  if (mode === 'shading') {
+    document.querySelectorAll('[data-mspattern]').forEach(b => b.classList.toggle('active', b.dataset.mspattern === 'stripes'));
+    document.querySelectorAll('[data-mscoverage]').forEach(b => b.classList.toggle('active', b.dataset.mscoverage === 'full'));
+  }
+  multiActiveQuarter = -1;
+  multiActiveHalf = -1;
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function multiApplyFillColor(color) {
+  if (multiSelected.size === 0) return;
+  pushUndo();
+  multiSelected.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    if (p.fillMode === 'solid') {
+      p.fillColor = color;
+      if (!color) p.fillMode = 'none';
+    } else if (p.fillMode === 'half' && multiActiveHalf >= 0) {
+      p.halves[multiActiveHalf] = color;
+    } else if (p.fillMode === 'quartered' && multiActiveQuarter >= 0) {
+      p.quarters[multiActiveQuarter] = color;
+    }
+    refreshPersonShape(p);
+  });
+  // Update solid swatch highlights in multi panel
+  document.querySelectorAll('#multiSolidColorPicker .fill-swatch').forEach(s => s.classList.remove('active'));
+  if (color) {
+    document.querySelectorAll('#multiSolidColorPicker .fill-swatch').forEach(s => {
+      if (rgbToHex(s.style.background) === color || s.style.background === color) s.classList.add('active');
+    });
+  }
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function multiSelectQuarter(qi) {
+  multiActiveQuarter = qi;
+  document.querySelectorAll('#multiQuarterGrid .quarter-cell').forEach(c => c.classList.remove('active-quarter'));
+  document.querySelector(`#multiQuarterGrid .quarter-cell[data-mq="${qi}"]`)?.classList.add('active-quarter');
+  const qNames = ['top-right', 'bottom-right', 'bottom-left', 'top-left'];
+  document.getElementById('multiQuarterLabel').textContent = `Selected: ${qNames[qi]}`;
+}
+
+function multiSelectHalf(hi) {
+  multiActiveHalf = hi;
+  document.querySelectorAll('#multiHalfGrid .half-cell').forEach(c => c.classList.remove('active-half'));
+  document.querySelector(`#multiHalfGrid .half-cell[data-mh="${hi}"]`)?.classList.add('active-half');
+  const hNames = ['left', 'right'];
+  document.getElementById('multiHalfLabel').textContent = `Selected: ${hNames[hi]}`;
+}
+
+function multiSetShadingPattern(pattern) {
+  if (multiSelected.size === 0) return;
+  pushUndo();
+  multiSelected.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    p.shadingPattern = pattern;
+    refreshPersonShape(p);
+  });
+  document.querySelectorAll('[data-mspattern]').forEach(b => b.classList.toggle('active', b.dataset.mspattern === pattern));
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function multiSetShadingCoverage(coverage) {
+  if (multiSelected.size === 0) return;
+  pushUndo();
+  multiSelected.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    p.shadingCoverage = coverage;
+    refreshPersonShape(p);
+  });
+  document.querySelectorAll('[data-mscoverage]').forEach(b => b.classList.toggle('active', b.dataset.mscoverage === coverage));
+  if (legendVisible) buildLegendBox();
+  scheduleSave();
+}
+
+function deleteMultiSelected() {
+  if (multiSelected.size === 0) return;
+  if (!confirm(`Remove ${multiSelected.size} selected individuals and their connections?`)) return;
+  pushUndo(); undoGroupActive = true;
+  [...multiSelected].forEach(id => removePerson(id));
+  undoGroupActive = false;
+  multiSelected.clear();
+  hideMultiSelectPanel();
+  document.getElementById('statusBar').textContent = 'Selected individuals removed';
+}
+
+function initMultiColorPickers() {
+  const makeMultiPicker = (containerId) => {
+    const c = document.getElementById(containerId);
+    c.innerHTML = '';
+    const cs = document.createElement('div');
+    cs.className = 'fill-swatch clear-swatch';
+    cs.style.border = '2px solid var(--border)';
+    cs.onclick = () => {
+      multiApplyFillColor(null);
+      const hi = c.querySelector('.color-hex-input');
+      if (hi) { hi.value = ''; hi.style.borderLeftColor = 'var(--border)'; }
+    };
+    c.appendChild(cs);
+    FILL_COLORS.forEach(color => {
+      const s = document.createElement('div');
+      s.className = 'fill-swatch';
+      s.style.background = color;
+      s.onclick = () => {
+        multiApplyFillColor(color);
+        const hi = c.querySelector('.color-hex-input');
+        if (hi) { hi.value = ''; hi.style.borderLeftColor = 'var(--border)'; }
+      };
+      c.appendChild(s);
+    });
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'color-hex-input';
+    input.placeholder = '#hex / rgb';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    const applyCustom = () => {
+      const color = parseColorInput(input.value);
+      if (color) {
+        input.style.borderLeftColor = color;
+        multiApplyFillColor(color);
+        c.querySelectorAll('.fill-swatch').forEach(s => s.classList.remove('active'));
+      }
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyCustom(); } });
+    input.addEventListener('blur', applyCustom);
+    input.addEventListener('input', () => {
+      const color = parseColorInput(input.value);
+      input.style.borderLeftColor = color || 'var(--border)';
+    });
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    c.appendChild(input);
+  };
+  makeMultiPicker('multiSolidColorPicker');
+  makeMultiPicker('multiHalfColorPicker');
+  makeMultiPicker('multiQuarterColorPicker');
+}
+
+// ── Multi-Partnership Selection ──
+
+function toggleMultiSelectPartnership(id, lineEl) {
+  if (multiSelectedPartnerships.has(id)) {
+    multiSelectedPartnerships.delete(id);
+    const ps = partnerships.find(p => p.id === id);
+    if (ps && ps.el) ps.el.classList.remove('highlighted');
+  } else {
+    multiSelectedPartnerships.add(id);
+    const ps = partnerships.find(p => p.id === id);
+    if (ps && ps.el) ps.el.classList.add('highlighted');
+  }
+  if (multiSelectedPartnerships.size === 1) {
+    const onlyId = [...multiSelectedPartnerships][0];
+    multiSelectedPartnerships.clear();
+    selectedPartnershipId = onlyId;
+    showPartnershipProps(onlyId);
+    showLinkDeleteBtn(onlyId, 'partnership');
+    document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  } else if (multiSelectedPartnerships.size > 1) {
+    selectedPartnershipId = null;
+    document.getElementById('partnershipPropsPanel').classList.remove('visible');
+    removeLinkDeleteBtn();
+    showMultiPartnershipPanel();
+  } else {
+    document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  }
+}
+
+function showMultiPartnershipPanel() {
+  document.getElementById('multiPartnershipPanel').classList.add('visible');
+  document.getElementById('multiPartnershipCount').textContent = '(' + multiSelectedPartnerships.size + ')';
+  document.querySelectorAll('[data-mpt]').forEach(b => b.classList.remove('active'));
+}
+
+function multiSetPartnershipType(type) {
+  if (multiSelectedPartnerships.size === 0) return;
+  pushUndo();
+  let coerced = false;
+  multiSelectedPartnerships.forEach(id => {
+    const ps = partnerships.find(p => p.id === id);
+    if (!ps) return;
+    const finalType = canonicalPartnershipType(ps.fromId, ps.toId, type, ps.id);
+    if (finalType !== type) coerced = true;
+    setPartnershipVisualType(ps, finalType);
+  });
+  currentPartnershipType = type;
+  document.querySelectorAll('[data-mpt]').forEach(b => b.classList.toggle('active', b.dataset.mpt === type));
+  scheduleSave();
+  if (coerced) document.getElementById('statusBar').textContent = 'Related partners are shown as consanguineous';
+}
+
+function deleteMultiSelectedPartnerships() {
+  if (multiSelectedPartnerships.size === 0) return;
+  if (!confirm(`Remove ${multiSelectedPartnerships.size} selected partnerships and their child connections?`)) return;
+  pushUndo(); undoGroupActive = true;
+  [...multiSelectedPartnerships].forEach(id => removePartnership(id));
+  undoGroupActive = false;
+  multiSelectedPartnerships.clear();
+  document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  document.getElementById('statusBar').textContent = 'Selected partnerships removed';
+}
+
+// ── Multi-Child-Link Selection ──
+
+function toggleMultiSelectChildLink(id) {
+  if (multiSelectedChildLinks.has(id)) {
+    multiSelectedChildLinks.delete(id);
+    const cl = childLinks.find(c => c.id === id);
+    if (cl && cl.els && cl.els[0]) cl.els[0].classList.remove('child-link-highlighted');
+  } else {
+    multiSelectedChildLinks.add(id);
+    const cl = childLinks.find(c => c.id === id);
+    if (cl && cl.els && cl.els[0]) cl.els[0].classList.add('child-link-highlighted');
+  }
+  if (multiSelectedChildLinks.size === 1) {
+    const onlyId = [...multiSelectedChildLinks][0];
+    multiSelectedChildLinks.clear();
+    selectedChildLinkId = onlyId;
+    const cl = childLinks.find(c => c.id === onlyId);
+    if (cl && cl.els && cl.els[0]) cl.els[0].classList.add('child-link-highlighted');
+    showChildLinkProps(onlyId);
+    showLinkDeleteBtn(onlyId, 'child');
+    document.getElementById('multiChildLinkPanel').classList.remove('visible');
+  } else if (multiSelectedChildLinks.size > 1) {
+    selectedChildLinkId = null;
+    document.getElementById('childLinkPropsPanel').classList.remove('visible');
+    removeLinkDeleteBtn();
+    showMultiChildLinkPanel();
+  } else {
+    document.getElementById('multiChildLinkPanel').classList.remove('visible');
+  }
+}
+
+function showMultiChildLinkPanel() {
+  document.getElementById('multiChildLinkPanel').classList.add('visible');
+  document.getElementById('multiChildLinkCount').textContent = '(' + multiSelectedChildLinks.size + ')';
+  document.querySelectorAll('[data-mcls]').forEach(b => b.classList.remove('active'));
+}
+
+function multiSetChildLineStyle(style) {
+  if (multiSelectedChildLinks.size === 0) return;
+  pushUndo();
+  const isDashed = style === 'dashed';
+  multiSelectedChildLinks.forEach(id => {
+    const cl = childLinks.find(c => c.id === id);
+    if (!cl) return;
+    cl.dashed = isDashed;
+    if (cl.els && cl.els[0]) {
+      cl.els[0].setAttribute('stroke-dasharray', isDashed ? '6 4' : 'none');
+    }
+  });
+  document.querySelectorAll('[data-mcls]').forEach(b => b.classList.toggle('active', b.dataset.mcls === style));
+  scheduleSave();
+}
+
+function deleteMultiSelectedChildLinks() {
+  if (multiSelectedChildLinks.size === 0) return;
+  if (!confirm(`Remove ${multiSelectedChildLinks.size} selected child connections?`)) return;
+  pushUndo(); undoGroupActive = true;
+  [...multiSelectedChildLinks].forEach(id => removeChildLink(id));
+  undoGroupActive = false;
+  multiSelectedChildLinks.clear();
+  document.getElementById('multiChildLinkPanel').classList.remove('visible');
+  document.getElementById('statusBar').textContent = 'Selected child links removed';
+}
+
 function rgbToHex(rgb) {
   if (!rgb || rgb.startsWith('#')) return rgb;
   const m = rgb.match(/\d+/g);
@@ -2583,357 +3048,829 @@ function startPartnerConnect(id) {
 }
 
 
-function canReorderChildToEdge(childId, edge) {
-  // Dry-run check: can this child be moved to the edge of their sibling row?
-  const parentCL = childLinks.find(cl => cl.childId === childId);
-  if (!parentCL) return true; // not a child, no reordering needed
-  const siblings = childLinks.filter(cl => cl.partnershipId === parentCL.partnershipId).map(cl => cl.childId);
-  if (siblings.length <= 1) return true;
-  const sorted = siblings.map(id => ({ id, x: parseFloat(persons.get(id).el.style.left) })).sort((a, b) => a.x - b.x);
-  const edgeIdx = edge === 'right' ? sorted.length - 1 : 0;
-  if (sorted[edgeIdx].id === childId) return true; // already at edge
-  return !partnerships.some(p => p.fromId === sorted[edgeIdx].id || p.toId === sorted[edgeIdx].id);
+// ═══════════════════════════════════════
+// DEFAULT SNAP MODE — QUICK-BUILD LAYOUT
+// ═══════════════════════════════════════
+// Default mode is construction-focused. It should help users build quickly
+// without symbol overlap, but it must not behave like a hidden redistribute.
+// Therefore: creation may make room by pushing neighbouring family blocks
+// horizontally; dragging never pushes unrelated pedigrees; and partner+child
+// subtrees are treated as locked blocks when inserting additional siblings; partner-bearing child blocks reserve their full width in the sibling row.
+const DEFAULT_SNAP_GAP = 12;
+const DEFAULT_ROW_TOL = SHAPE_HALF;
+
+function getPersonX(id) {
+  const p = persons.get(id);
+  return p ? parseFloat(p.el.style.left) : 0;
 }
 
-function getOverlappingPairs() {
-  const margin = 4;
-  const pairs = new Set();
+function getPersonY(id) {
+  const p = persons.get(id);
+  return p ? parseFloat(p.el.style.top) : 0;
+}
 
-  // Cache all person positions once (avoids thousands of repeated parseFloat calls
-  // in the nested loops below)
-  const posMap = new Map();
-  const posArr = [];
-  persons.forEach((p, id) => {
-    const pos = { id, x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) };
-    posMap.set(id, pos);
-    posArr.push(pos);
+function setPersonPos(id, x, y) {
+  const p = persons.get(id);
+  if (!p) return;
+  p.el.style.left = x + 'px';
+  p.el.style.top = y + 'px';
+  p.x = x;
+  p.y = y;
+}
+
+function moveDefaultIds(ids, dx, dy) {
+  if (!ids || (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5)) return;
+  ids.forEach(id => {
+    const p = persons.get(id);
+    if (!p || p.noSnap) return;
+    setPersonPos(id, getPersonX(id) + dx, getPersonY(id) + dy);
   });
+}
 
-  // Shape-shape overlaps
-  for (let i = 0; i < posArr.length; i++) {
-    for (let j = i + 1; j < posArr.length; j++) {
-      const a = posArr[i], b = posArr[j];
-      if (a.x < b.x + SHAPE_SIZE - margin && a.x + SHAPE_SIZE - margin > b.x &&
-          a.y < b.y + SHAPE_SIZE - margin && a.y + SHAPE_SIZE - margin > b.y) {
-        pairs.add([a.id, b.id].sort().join('|'));
-      }
+function personRectAt(x, y) {
+  return { left: x, top: y, right: x + SHAPE_SIZE, bottom: y + SHAPE_SIZE };
+}
+
+function rectsOverlap(a, b, gap) {
+  gap = gap === undefined ? DEFAULT_SNAP_GAP : gap;
+  return a.left < b.right + gap && a.right + gap > b.left &&
+         a.top < b.bottom + gap && a.bottom + gap > b.top;
+}
+
+function findPersonOverlapAt(x, y, ignoreIds) {
+  const probe = personRectAt(x, y);
+  let best = null;
+  persons.forEach((p, id) => {
+    if (ignoreIds && ignoreIds.has(id)) return;
+    const r = personRectAt(getPersonX(id), getPersonY(id));
+    if (!rectsOverlap(probe, r, DEFAULT_SNAP_GAP)) return;
+    const overlapX = Math.min(probe.right, r.right) - Math.max(probe.left, r.left);
+    const overlapY = Math.min(probe.bottom, r.bottom) - Math.max(probe.top, r.top);
+    const area = Math.max(0, overlapX) * Math.max(0, overlapY);
+    if (!best || area > best.area) best = { id, person: p, rect: r, area };
+  });
+  return best;
+}
+
+function findAnyPersonOverlap() {
+  const arr = [];
+  persons.forEach((p, id) => arr.push({ id, person: p, rect: personRectAt(getPersonX(id), getPersonY(id)) }));
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (rectsOverlap(arr[i].rect, arr[j].rect, DEFAULT_SNAP_GAP)) return [arr[i], arr[j]];
     }
   }
+  return null;
+}
 
-  // Partnership line through shape: check if any partnership line passes through
-  // any person that isn't one of the two partners
-  partnerships.forEach(ps => {
-    const fp = posMap.get(ps.fromId), tp = posMap.get(ps.toId);
-    if (!fp || !tp) return;
-    const x1 = fp.x + SHAPE_HALF, y1 = fp.y + SHAPE_HALF;
-    const x2 = tp.x + SHAPE_HALF, y2 = tp.y + SHAPE_HALF;
-    posArr.forEach(p => {
-      if (p.id === ps.fromId || p.id === ps.toId) return;
-      const px = p.x + margin, py = p.y + margin;
-      const pw = SHAPE_SIZE - margin * 2, ph = SHAPE_SIZE - margin * 2;
-      if (lineIntersectsRect(x1, y1, x2, y2, px, py, pw, ph)) {
-        pairs.add(['line:' + ps.id, p.id].sort().join('|'));
-      }
-    });
+function findOpenPosition(x, y, ignoreIds) {
+  const step = SHAPE_SIZE + DEFAULT_SNAP_GAP;
+  const probes = [{ dx: 0, dy: 0 }];
+  for (let ring = 1; ring <= 24; ring++) {
+    probes.push(
+      { dx: ring * step, dy: 0 },
+      { dx: -ring * step, dy: 0 },
+      { dx: 0, dy: ring * step },
+      { dx: 0, dy: -ring * step }
+    );
+    for (let k = 1; k <= ring; k++) {
+      probes.push(
+        { dx: ring * step, dy: k * step },
+        { dx: ring * step, dy: -k * step },
+        { dx: -ring * step, dy: k * step },
+        { dx: -ring * step, dy: -k * step }
+      );
+    }
+  }
+  for (const p of probes) {
+    const nx = x + p.dx;
+    const ny = y + p.dy;
+    if (!findPersonOverlapAt(nx, ny, ignoreIds || new Set())) return { x: nx, y: ny };
+  }
+  return { x, y };
+}
+
+function shiftDefaultRowFromPoint(splitX, splitY, side, amount, excludeIds) {
+  if (amount <= 0) return;
+  excludeIds = excludeIds || new Set();
+  const dx = side === 'right' ? amount : -amount;
+  const seedIds = [];
+
+  persons.forEach((rp, rid) => {
+    if (excludeIds.has(rid) || rp.noSnap) return;
+    const ry = getPersonY(rid);
+    if (Math.abs(ry - splitY) > DEFAULT_ROW_TOL) return;
+    const rx = getPersonX(rid);
+    if (side === 'right' && rx >= splitX) seedIds.push(rid);
+    else if (side === 'left' && rx <= splitX) seedIds.push(rid);
   });
+  if (seedIds.length === 0) return;
 
-  // Child link line through non-family shape: check if any child link path
-  // segment passes through a person that isn't a parent or sibling in the same family
-  childLinks.forEach(cl => {
-    const pship = partnerships.find(p => p.id === cl.partnershipId);
-    if (!pship) return;
-    const childPos = posMap.get(cl.childId);
-    if (!childPos) return;
-    const fp = posMap.get(pship.fromId), tp = posMap.get(pship.toId);
-    if (!fp || !tp) return;
-
-    // Build the family set: parents + all children of this partnership
-    const familyIds = new Set([pship.fromId, pship.toId]);
-    childLinks.forEach(cl2 => {
-      if (cl2.partnershipId === cl.partnershipId) familyIds.add(cl2.childId);
-    });
-
-    // Compute path segments from cached positions
-    const midX = (fp.x + tp.x) / 2 + SHAPE_HALF, midY = (fp.y + tp.y) / 2 + SHAPE_HALF;
-    const childCX = childPos.x + SHAPE_HALF;
-    const childTop = childPos.y;
-    const dropY = Math.max(midY + 4, childTop - SHAPE_HALF) - (cl.branchYOffset || 0);
-
-    const segs = [
-      [midX, midY, midX, dropY],       // stem
-      [midX, dropY, childCX, dropY],   // branch
-      [childCX, dropY, childCX, childTop] // drop
-    ];
-
-    segs.forEach(([x1, y1, x2, y2]) => {
-      if (Math.abs(x1 - x2) < 0.5 && Math.abs(y1 - y2) < 0.5) return; // zero-length
-      posArr.forEach(p => {
-        if (familyIds.has(p.id)) return;
-        const px = p.x + margin, py = p.y + margin;
-        const pw = SHAPE_SIZE - margin * 2, ph = SHAPE_SIZE - margin * 2;
-        if (lineIntersectsRect(x1, y1, x2, y2, px, py, pw, ph)) {
-          pairs.add(['cline:' + cl.id, p.id].sort().join('|'));
+  const toShift = new Set(seedIds);
+  const queue = [...seedIds];
+  while (queue.length) {
+    const id = queue.shift();
+    partnerships.forEach(ps => {
+      if (ps.fromId !== id && ps.toId !== id) return;
+      const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
+      if (!toShift.has(partnerId) && !excludeIds.has(partnerId)) {
+        const partner = persons.get(partnerId);
+        if (partner && !partner.noSnap) {
+          const py = getPersonY(partnerId);
+          const px = getPersonX(partnerId);
+          const belowRow = py > splitY + DEFAULT_ROW_TOL;
+          const sameSide = side === 'right' ? px >= splitX : px <= splitX;
+          if (belowRow || sameSide) { toShift.add(partnerId); queue.push(partnerId); }
         }
+      }
+      childLinks.forEach(cl => {
+        if (cl.partnershipId !== ps.id || toShift.has(cl.childId) || excludeIds.has(cl.childId)) return;
+        const child = persons.get(cl.childId);
+        if (child && !child.noSnap) { toShift.add(cl.childId); queue.push(cl.childId); }
       });
     });
-  });
+  }
 
-  // Sibship branch region overlap: check if the horizontal child-link branch areas
-  // of two different partnerships occupy the same space (similar Y, overlapping X range).
-  // This catches compacted sibships whose lines intrude into an adjacent sibship's area.
-  const branchRegions = [];
-  const pshipChildGroups = {};
-  childLinks.forEach(cl => {
-    if (!pshipChildGroups[cl.partnershipId]) pshipChildGroups[cl.partnershipId] = [];
-    pshipChildGroups[cl.partnershipId].push(cl);
+  moveDefaultIds(toShift, dx, 0);
+}
+
+function clearSlotForDefaultPlacement(x, y, movingIds, preferredSide) {
+  // Slot probing is now non-mutating. Construction-time overlaps are resolved
+  // after the active family is placed, by resolveDefaultConstructionOverlaps(),
+  // which can push neighbouring family blocks as intact units.
+  movingIds = movingIds || new Set();
+  return !findPersonOverlapAt(x, y, movingIds);
+}
+
+
+function resolveDefaultShapeOverlaps() {
+  // Last-resort local collision resolver.  It only separates symbols; it avoids
+  // any pedigree-aware reordering and leaves noSnap/free-positioned people fixed.
+  for (let i = 0; i < 120; i++) {
+    const pair = findAnyPersonOverlap();
+    if (!pair) return true;
+    const [a, b] = pair;
+
+    if (a.person.noSnap && b.person.noSnap) return false;
+
+    let mover = b, fixed = a, side = 'right';
+    if (b.person.noSnap || (!a.person.noSnap && a.rect.left > b.rect.left)) {
+      mover = a;
+      fixed = b;
+    }
+    if (fixed.person.noSnap && mover.rect.left < fixed.rect.left) side = 'left';
+
+    if (side === 'right') {
+      const amount = Math.max(DEFAULT_SNAP_GAP + 1, fixed.rect.right + DEFAULT_SNAP_GAP - mover.rect.left);
+      shiftDefaultRowFromPoint(mover.rect.left - 1, mover.rect.top, 'right', amount, new Set([fixed.id]));
+    } else {
+      const amount = Math.max(DEFAULT_SNAP_GAP + 1, mover.rect.right + DEFAULT_SNAP_GAP - fixed.rect.left);
+      shiftDefaultRowFromPoint(mover.rect.right + 1, mover.rect.top, 'left', amount, new Set([fixed.id]));
+    }
+  }
+  return !findAnyPersonOverlap();
+}
+
+function chooseDefaultPartnerSide(fromId, toId) {
+  const fromP = persons.get(fromId), toP = persons.get(toId);
+  if (!fromP || !toP) return 'right';
+  const fromX = getPersonX(fromId);
+  const toX = getPersonX(toId);
+  // Honour an obviously intentional rough placement by the user.
+  if (toX < fromX - SHAPE_HALF) return 'left';
+  if (toX > fromX + SHAPE_HALF) return 'right';
+  return chooseSideForPartner(fromId);
+}
+
+function getExistingChildIds(partnershipId, excludeChildId) {
+  return childLinks
+    .filter(cl => cl.partnershipId === partnershipId && cl.childId !== excludeChildId)
+    .map(cl => cl.childId)
+    .filter(id => persons.get(id));
+}
+
+function childHasExternalPartner(childId, siblingIds) {
+  const sibSet = new Set(siblingIds);
+  return partnerships.some(ps => {
+    if (ps.fromId !== childId && ps.toId !== childId) return false;
+    const partnerId = ps.fromId === childId ? ps.toId : ps.fromId;
+    return persons.has(partnerId) && !sibSet.has(partnerId);
   });
-  Object.entries(pshipChildGroups).forEach(([pshipId, cls]) => {
-    const pship = partnerships.find(p => p.id === pshipId);
-    if (!pship) return;
-    const fp = posMap.get(pship.fromId), tp = posMap.get(pship.toId);
-    if (!fp || !tp) return;
-    const midX = (fp.x + tp.x) / 2 + SHAPE_HALF;
-    const midY = (fp.y + tp.y) / 2 + SHAPE_HALF;
-    let minX = midX, maxX = midX, branchY = null;
-    cls.forEach(cl => {
-      const ch = posMap.get(cl.childId);
-      if (!ch) return;
-      minX = Math.min(minX, ch.x + SHAPE_HALF);
-      maxX = Math.max(maxX, ch.x + SHAPE_HALF);
-      if (branchY === null) {
-        const chPerson = persons.get(cl.childId);
-        if (chPerson && !chPerson.noSnap) {
-          branchY = Math.max(midY + 4, ch.y - SHAPE_HALF) - (cl.branchYOffset || 0);
-        }
-      }
+}
+
+function getParentPartnershipForChild(childId) {
+  const parentLink = childLinks.find(cl => cl.childId === childId);
+  return parentLink ? parentLink.partnershipId : null;
+}
+
+function getFamilyChildIds(partnershipId, excludeChildId) {
+  return childLinks
+    .filter(cl => cl.partnershipId === partnershipId && cl.childId !== excludeChildId)
+    .map(cl => cl.childId)
+    .filter(id => persons.has(id));
+}
+
+function getIdsBounds(ids) {
+  let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+  ids.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    const x = getPersonX(id);
+    const y = getPersonY(id);
+    left = Math.min(left, x);
+    right = Math.max(right, x + SHAPE_SIZE);
+    top = Math.min(top, y);
+    bottom = Math.max(bottom, y + SHAPE_SIZE);
+  });
+  if (left === Infinity) return null;
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+
+function rectsOverlapY(a, b, gap) {
+  gap = gap === undefined ? DEFAULT_SNAP_GAP : gap;
+  return a.top < b.bottom + gap && a.bottom + gap > b.top;
+}
+
+function getDefaultDownstreamBlock(startId) {
+  // Descendant/partner traversal used by default construction.  This is
+  // deliberately one-way with respect to parent links: it follows partnerships
+  // and children born to those partnerships, but it never walks upward from a
+  // child to their parents.  The older getSubtree() helper can walk through a
+  // spouse's family-of-origin, which is too broad for construction-time
+  // spacing and can pull unrelated ancestors into a sibling block.
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id) || !persons.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(ps => {
+      if (ps.fromId !== id && ps.toId !== id) return;
+      // Consanguineous partnerships connect two existing branches of the same
+      // pedigree.  For default construction spacing they must not merge those
+      // branches into one huge sibling block, otherwise cousin sibships can be
+      // pushed thousands of pixels apart.  Children of the consanguineous
+      // partnership are still handled when that partnership itself is the
+      // active family being laid out.
+      if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
+      const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
+      if (persons.has(partnerId) && !visited.has(partnerId)) queue.push(partnerId);
+      childLinks.forEach(cl => {
+        if (cl.partnershipId === ps.id && persons.has(cl.childId) && !visited.has(cl.childId)) queue.push(cl.childId);
+      });
     });
-    if (branchY !== null) branchRegions.push({ pshipId, minX, maxX, branchY });
+  }
+  return visited;
+}
+
+function getDefaultChildBlock(childId, parentPartnershipId) {
+  // A sibling block is the child plus any partner/descendant branch below that
+  // child.  It does not include the child's parents or in-laws' ancestors.
+  // Parents are added separately when a neighbouring sibship must move as a
+  // family block.
+  const ids = getDefaultDownstreamBlock(childId);
+  if (!ids.has(childId)) ids.add(childId);
+  return ids;
+}
+
+function getSiblingBlocks(partnershipId, excludeChildId) {
+  return getFamilyChildIds(partnershipId, excludeChildId).map(childId => {
+    const ids = getDefaultChildBlock(childId, partnershipId);
+    const bounds = getIdsBounds(ids);
+    return { childId, ids, bounds, childX: getPersonX(childId), childY: getPersonY(childId) };
+  }).filter(b => b.bounds).sort((a, b) => a.childX - b.childX);
+}
+
+function shiftSiblingBlocks(partnershipId, splitX, side, amount, excludeIds) {
+  if (amount <= 0) return;
+  excludeIds = excludeIds || new Set();
+  const moved = new Set();
+  getSiblingBlocks(partnershipId).forEach(block => {
+    if ([...block.ids].some(id => excludeIds.has(id))) return;
+    const onSide = side === 'right' ? block.bounds.left >= splitX : block.bounds.right <= splitX;
+    if (!onSide) return;
+    block.ids.forEach(id => { if (!excludeIds.has(id)) moved.add(id); });
   });
-  for (let i = 0; i < branchRegions.length; i++) {
-    for (let j = i + 1; j < branchRegions.length; j++) {
-      const a = branchRegions[i], b = branchRegions[j];
-      // Same vertical band (branches within half a shape height) and overlapping horizontally
-      if (Math.abs(a.branchY - b.branchY) < SHAPE_HALF &&
-          a.minX < b.maxX - margin && a.maxX > b.minX + margin) {
-        pairs.add(['branch:' + a.pshipId, 'branch:' + b.pshipId].sort().join('|'));
-      }
+  moveDefaultIds(moved, side === 'right' ? amount : -amount, 0);
+}
+
+function openSiblingSlot(partnershipId, targetRect, side, excludeIds) {
+  // Make room inside the active sibship first. Wider cousin-sibship collisions
+  // are handled afterwards by pushing whole neighbouring family blocks.
+  const blocks = getSiblingBlocks(partnershipId).filter(b => ![...b.ids].some(id => excludeIds && excludeIds.has(id)));
+  const conflicts = blocks.filter(b => rectsOverlap(targetRect, b.bounds, DEFAULT_SNAP_GAP));
+  if (conflicts.length === 0) return;
+  if (side === 'left') {
+    const rightEdge = Math.max(...conflicts.map(b => b.bounds.right));
+    const amount = Math.max(0, rightEdge + DEFAULT_SNAP_GAP - targetRect.left);
+    shiftSiblingBlocks(partnershipId, rightEdge + 1, 'left', amount, excludeIds);
+  } else {
+    const leftEdge = Math.min(...conflicts.map(b => b.bounds.left));
+    const amount = Math.max(0, targetRect.right + DEFAULT_SNAP_GAP - leftEdge);
+    shiftSiblingBlocks(partnershipId, leftEdge - 1, 'right', amount, excludeIds);
+  }
+}
+
+
+function openSiblingBlockSlot(partnershipId, targetBounds, anchorX, excludeIds) {
+  // Reserve horizontal space for an entire sibling unit, not just the child's
+  // own symbol. This is essential when the active child already has a partner
+  // or subtree: the partner must not be allowed to overlap neighbouring
+  // siblings, and new siblings must not be inserted through a partner-pair.
+  if (!targetBounds) return;
+  excludeIds = excludeIds || new Set();
+  const blocks = getSiblingBlocks(partnershipId).filter(b => ![...b.ids].some(id => excludeIds.has(id)));
+  const conflicts = blocks.filter(b => rectsOverlap(targetBounds, b.bounds, DEFAULT_SNAP_GAP));
+  if (conflicts.length === 0) return;
+
+  const centre = anchorX !== undefined && Number.isFinite(anchorX)
+    ? anchorX
+    : (targetBounds.left + targetBounds.right) / 2;
+  const leftConflicts = conflicts.filter(b => ((b.bounds.left + b.bounds.right) / 2) < centre);
+  const rightConflicts = conflicts.filter(b => !leftConflicts.includes(b));
+
+  if (leftConflicts.length) {
+    const rightEdge = Math.max(...leftConflicts.map(b => b.bounds.right));
+    const amount = Math.max(0, rightEdge + DEFAULT_SNAP_GAP - targetBounds.left);
+    if (amount > 0) shiftSiblingBlocks(partnershipId, rightEdge + 1, 'left', amount, excludeIds);
+  }
+  if (rightConflicts.length) {
+    const leftEdge = Math.min(...rightConflicts.map(b => b.bounds.left));
+    const amount = Math.max(0, targetBounds.right + DEFAULT_SNAP_GAP - leftEdge);
+    if (amount > 0) shiftSiblingBlocks(partnershipId, leftEdge - 1, 'right', amount, excludeIds);
+  }
+}
+
+function reserveSiblingSpaceForIds(partnershipId, ids, anchorId) {
+  // Recompute bounds after any local snap/move and then make the sibling row
+  // respect that whole block.  Used for partner insertion and for linking a
+  // pre-partnered person as a child.
+  if (!partnershipId || !ids || !ids.size) return;
+  const bounds = getIdsBounds(ids);
+  if (!bounds) return;
+  const anchorX = persons.has(anchorId) ? getPersonX(anchorId) + SHAPE_HALF : (bounds.left + bounds.right) / 2;
+  openSiblingBlockSlot(partnershipId, bounds, anchorX, ids);
+}
+
+function setsIntersect(a, b) {
+  if (!a || !b) return false;
+  for (const id of a) if (b.has(id)) return true;
+  return false;
+}
+
+function cloneIdSet(ids) {
+  return new Set(ids || []);
+}
+
+function getPartnershipChildIds(partnershipId) {
+  return childLinks
+    .filter(cl => cl.partnershipId === partnershipId)
+    .map(cl => cl.childId)
+    .filter(id => persons.has(id));
+}
+
+function getChildBearingPartnershipIds(personId) {
+  return partnerships
+    .filter(ps => (ps.fromId === personId || ps.toId === personId) && childLinks.some(cl => cl.partnershipId === ps.id))
+    .map(ps => ps.id);
+}
+
+function getDefaultNuclearFamilyBlock(partnershipId) {
+  // Parent couple plus every child block belonging to that couple. This is the
+  // unit users expect to move when a neighbouring cousin sibship makes room:
+  // children should not slide away from their own parents.
+  const ids = new Set();
+  const ps = partnerships.find(p => p.id === partnershipId);
+  if (!ps) return ids;
+  if (persons.has(ps.fromId)) ids.add(ps.fromId);
+  if (persons.has(ps.toId)) ids.add(ps.toId);
+  getPartnershipChildIds(partnershipId).forEach(childId => {
+    getDefaultChildBlock(childId, partnershipId).forEach(id => ids.add(id));
+  });
+  return ids;
+}
+
+function addIdsToSet(target, ids) {
+  if (!target || !ids) return;
+  ids.forEach(id => target.add(id));
+}
+
+function getDefaultUpwardFamilyBranch(personId) {
+  // When a construction operation collides with a neighbouring cousin sibship,
+  // the smallest safe displacement unit is not the child alone.  It is the
+  // nearest family branch that keeps that child under their own parents.  If
+  // either parent is themselves a child in an older sibship, move that parent's
+  // whole branch so the gap widens at the generation above; otherwise move the
+  // nuclear family directly.
+  const directParentPshipId = getParentPartnershipForChild(personId);
+  if (directParentPshipId) {
+    const parentPship = partnerships.find(ps => ps.id === directParentPshipId);
+    if (!parentPship) return null;
+
+    const propagated = new Set();
+    let hasUpstreamParent = false;
+    [parentPship.fromId, parentPship.toId].forEach(parentId => {
+      const grandParentPshipId = getParentPartnershipForChild(parentId);
+      if (!grandParentPshipId) return;
+      hasUpstreamParent = true;
+      addIdsToSet(propagated, getDefaultChildBlock(parentId, grandParentPshipId));
+    });
+
+    if (hasUpstreamParent && propagated.has(personId)) return propagated;
+    return getDefaultNuclearFamilyBlock(directParentPshipId);
+  }
+
+  // A spouse/partner may not have a parent link in this pedigree, but if they
+  // are partnered to somebody who is embedded in a sibship, move that embedded
+  // partner's whole sibling branch rather than the spouse alone.
+  for (const ps of partnerships) {
+    if (ps.fromId !== personId && ps.toId !== personId) continue;
+    const otherId = ps.fromId === personId ? ps.toId : ps.fromId;
+    const otherParentPshipId = getParentPartnershipForChild(otherId);
+    if (otherParentPshipId) {
+      const branch = getDefaultChildBlock(otherId, otherParentPshipId);
+      if (branch.has(personId)) return branch;
     }
   }
 
-  return pairs;
+  // If this person is a parent in one or more child-bearing partnerships, keep
+  // their family together.  If they are also a sibling in the generation above,
+  // move their branch from that higher generation so the gap propagates upward.
+  const ownParentPshipId = getParentPartnershipForChild(personId);
+  if (ownParentPshipId) {
+    const branch = getDefaultChildBlock(personId, ownParentPshipId);
+    if (branch.has(personId)) return branch;
+  }
+  const ownFamilies = getChildBearingPartnershipIds(personId);
+  if (ownFamilies.length) return getDefaultNuclearFamilyBlock(ownFamilies[0]);
+
+  return null;
 }
 
-function lineIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
-  // Check if line segment (x1,y1)-(x2,y2) intersects rectangle (rx,ry,rw,rh)
-  // First check if either endpoint is inside the rect
-  if (x1 >= rx && x1 <= rx + rw && y1 >= ry && y1 <= ry + rh) return true;
-  if (x2 >= rx && x2 <= rx + rw && y2 >= ry && y2 <= ry + rh) return true;
-
-  // Check intersection with each edge of the rectangle
-  return lineSegmentsIntersect(x1, y1, x2, y2, rx, ry, rx + rw, ry) ||
-         lineSegmentsIntersect(x1, y1, x2, y2, rx + rw, ry, rx + rw, ry + rh) ||
-         lineSegmentsIntersect(x1, y1, x2, y2, rx, ry + rh, rx + rw, ry + rh) ||
-         lineSegmentsIntersect(x1, y1, x2, y2, rx, ry, rx, ry + rh);
+function getDefaultTouchedFamilyIds(ids) {
+  const set = cloneIdSet(ids);
+  const familyIds = new Set();
+  childLinks.forEach(cl => {
+    if (set.has(cl.childId)) familyIds.add(cl.partnershipId);
+  });
+  partnerships.forEach(ps => {
+    if (!set.has(ps.fromId) && !set.has(ps.toId)) return;
+    if (childLinks.some(cl => cl.partnershipId === ps.id)) familyIds.add(ps.id);
+  });
+  return familyIds;
 }
 
-function lineSegmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
-  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
-  if (Math.abs(d) < 0.001) return false;
-  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
-  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
-  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+function repairDefaultSibshipInternalOverlaps(partnershipId, protectedIds) {
+  // Keep sibling blocks within one sibship from compressing into each other.
+  // Blocks include partners/descendants, so partner-pairs remain intact.  When
+  // a protected active block is involved, move the unprotected neighbour.
+  protectedIds = protectedIds || new Set();
+  let changed = false;
+  for (let pass = 0; pass < 24; pass++) {
+    let blocks = getSiblingBlocks(partnershipId).filter(b => b.bounds);
+    if (blocks.length < 2) return changed;
+    blocks.sort((a, b) => a.bounds.left - b.bounds.left || a.childX - b.childX);
+    let passChanged = false;
+    for (let i = 1; i < blocks.length; i++) {
+      const prev = blocks[i - 1];
+      const curr = blocks[i];
+      const overlap = prev.bounds.right + DEFAULT_SNAP_GAP - curr.bounds.left;
+      if (overlap <= 0) continue;
+      const currProtected = setsIntersect(curr.ids, protectedIds);
+      const prevProtected = setsIntersect(prev.ids, protectedIds);
+      if (currProtected && !prevProtected) {
+        moveDefaultIds(prev.ids, -overlap, 0);
+      } else {
+        moveDefaultIds(curr.ids, overlap, 0);
+      }
+      changed = true;
+      passChanged = true;
+      break;
+    }
+    if (!passChanged) return changed;
+  }
+  return changed;
 }
 
-function hasNewOverlaps(beforePairs) {
-  const afterPairs = getOverlappingPairs();
-  for (const key of afterPairs) {
-    if (!beforePairs.has(key)) return true;
+function repairDefaultSibshipsForIds(ids, protectedIds) {
+  let changed = false;
+  getDefaultTouchedFamilyIds(ids).forEach(partnershipId => {
+    if (repairDefaultSibshipInternalOverlaps(partnershipId, protectedIds)) changed = true;
+  });
+  return changed;
+}
+
+function repairAllDefaultSibshipInternalOverlaps(protectedIds) {
+  let changed = false;
+  const familyIds = new Set(childLinks.map(cl => cl.partnershipId));
+  familyIds.forEach(partnershipId => {
+    if (repairDefaultSibshipInternalOverlaps(partnershipId, protectedIds)) changed = true;
+  });
+  return changed;
+}
+
+function blockMovableCount(ids) {
+  let count = 0;
+  ids.forEach(id => {
+    const p = persons.get(id);
+    if (p && !p.noSnap) count++;
+  });
+  return count;
+}
+
+function blockScore(ids) {
+  const b = getIdsBounds(ids);
+  const area = b ? b.width * b.height : 0;
+  return ids.size * 1000000 + area;
+}
+
+function addCandidateBlock(candidates, ids, label) {
+  if (!ids || ids.size === 0 || !blockMovableCount(ids)) return;
+  const key = [...ids].sort().join('|');
+  if (candidates.some(c => c.key === key)) return;
+  candidates.push({ ids, label, key, score: blockScore(ids) });
+}
+
+function getDefaultDisplacementBlockForPerson(personId, protectedIds) {
+  // Return a movement unit that preserves family context.  The previous v5
+  // resolver could choose a tiny sibling branch because it scored smallest;
+  // that separated cousin children from their parents.  v6 prefers the nearest
+  // upward family branch first, so spacing propagates to the parent generation
+  // before any single-symbol fallback is considered.
+  protectedIds = protectedIds || new Set();
+  const candidates = [];
+
+  const familyBranch = getDefaultUpwardFamilyBranch(personId);
+  addCandidateBlock(candidates, familyBranch, 'upward-family-branch');
+
+  // If the direct branch is blocked by the active/protected material, try any
+  // child-bearing family in which this person is a parent.  This is still a
+  // family-preserving movement unit.
+  getChildBearingPartnershipIds(personId).forEach(pshipId => {
+    addCandidateBlock(candidates, getDefaultNuclearFamilyBlock(pshipId), 'own-family');
+  });
+
+  // For partner-pairs without children or parent links, keep the pair together.
+  partnerships.forEach(ps => {
+    if (ps.fromId !== personId && ps.toId !== personId) return;
+    // Do not treat consanguineous endpoints as a locked adjacent partner-pair.
+    // They are usually already placed in separate cousin/descendant branches;
+    // default mode should draw the relationship line without dragging either
+    // branch into the other's sibling block.
+    if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
+    const otherId = ps.fromId === personId ? ps.toId : ps.fromId;
+    const ids = new Set([personId, otherId]);
+    childLinks.filter(cl => cl.partnershipId === ps.id).forEach(cl => {
+      getDefaultChildBlock(cl.childId, ps.id).forEach(id => ids.add(id));
+    });
+    addCandidateBlock(candidates, ids, 'partner-pair');
+  });
+
+  // True last resort: use a single symbol only when there is no family context
+  // to preserve.  This should mainly apply to unconnected newly added people.
+  addCandidateBlock(candidates, new Set([personId]), 'single-person');
+
+  const usable = candidates.filter(c => !setsIntersect(c.ids, protectedIds));
+  const pool = usable.length ? usable : candidates;
+  pool.sort((a, b) => {
+    // Prefer family-aware labels before partner-pair/single-person fallbacks;
+    // then prefer smaller blocks for predictability.
+    const rank = label => label === 'upward-family-branch' ? 0 : label === 'own-family' ? 1 : label === 'partner-pair' ? 2 : 3;
+    const dr = rank(a.label) - rank(b.label);
+    if (dr !== 0) return dr;
+    return a.score - b.score;
+  });
+
+  const candidate = pool[0];
+  return candidate ? cloneIdSet(candidate.ids) : new Set([personId]);
+}
+
+function findExternalOverlapForIds(ids) {
+  const moving = new Set(ids);
+  for (const id of moving) {
+    const p = persons.get(id);
+    if (!p) continue;
+    const r = personRectAt(getPersonX(id), getPersonY(id));
+    for (const [otherId, other] of persons.entries()) {
+      if (moving.has(otherId)) continue;
+      if (rectsOverlap(r, personRectAt(getPersonX(otherId), getPersonY(otherId)), DEFAULT_SNAP_GAP)) {
+        return { id, otherId, rect: r, otherRect: personRectAt(getPersonX(otherId), getPersonY(otherId)), other };
+      }
+    }
+  }
+  return null;
+}
+
+function findAnyPersonOverlapDetailed() {
+  const arr = [];
+  persons.forEach((p, id) => arr.push({ id, person: p, rect: personRectAt(getPersonX(id), getPersonY(id)) }));
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (rectsOverlap(arr[i].rect, arr[j].rect, DEFAULT_SNAP_GAP)) return { a: arr[i], b: arr[j] };
+    }
+  }
+  return null;
+}
+
+function moveGroupToNearestOpen(ids, preferredSide) {
+  const moving = new Set(ids);
+  const bounds = getIdsBounds(moving);
+  if (!bounds) return false;
+  if (!findExternalOverlapForIds(moving)) return true;
+
+  const step = SHAPE_SIZE + DEFAULT_SNAP_GAP;
+  const directions = preferredSide === 'left'
+    ? [{ dx: -1, dy: 0 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }]
+    : [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
+
+  for (let ring = 1; ring <= 24; ring++) {
+    for (const dir of directions) {
+      const dx = dir.dx * ring * step;
+      const dy = dir.dy * ring * step;
+      moveDefaultIds(moving, dx, dy);
+      if (!findExternalOverlapForIds(moving)) return true;
+      moveDefaultIds(moving, -dx, -dy);
+    }
   }
   return false;
 }
 
-function revertLastAction() {
-  if (undoStack.length === 0) return;
-  const state = JSON.parse(undoStack.pop());
-  const savedGap = partnerGap, savedHeight = childHeight;
-  isRestoring = true;
-  restoreSession(state);
-  isRestoring = false;
-  partnerGap = savedGap; childHeight = savedHeight;
-  document.getElementById('partnerGapSlider').value = partnerGap / SHAPE_SIZE;
-  document.getElementById('partnerGapLabel').textContent = (partnerGap / SHAPE_SIZE) + '×';
-  document.getElementById('childHeightSlider').value = childHeight / SHAPE_SIZE;
-  document.getElementById('childHeightLabel').textContent = (childHeight / SHAPE_SIZE) + '×';
-  updateUndoRedoUI();
-  scheduleSave();
-}
+function separateDefaultBlocks(fixedIds, movingIds, preferredSide) {
+  fixedIds = cloneIdSet(fixedIds);
+  movingIds = cloneIdSet(movingIds);
+  if (!fixedIds.size || !movingIds.size || !blockMovableCount(movingIds)) return false;
+  const fixedBounds = getIdsBounds(fixedIds);
+  const movingBounds = getIdsBounds(movingIds);
+  if (!fixedBounds || !movingBounds) return false;
 
-function reorderChildToEdge(childId, edge) {
-  // Find parent partnership where this person is a child
-  const parentCL = childLinks.find(cl => cl.childId === childId);
-  if (!parentCL) return true; // not a child in any row, no reordering needed
+  const fixedCenter = (fixedBounds.left + fixedBounds.right) / 2;
+  const movingCenter = (movingBounds.left + movingBounds.right) / 2;
+  let moveRight;
+  if (Math.abs(movingCenter - fixedCenter) < 1) moveRight = preferredSide !== 'left';
+  else moveRight = movingCenter >= fixedCenter;
 
-  const partnershipId = parentCL.partnershipId;
-  const siblings = childLinks
-    .filter(cl => cl.partnershipId === partnershipId)
-    .map(cl => cl.childId);
-
-  if (siblings.length <= 1) return true; // only child, already at edge
-
-  // Sort siblings by X position
-  const sorted = siblings
-    .map(id => ({ id, x: parseFloat(persons.get(id).el.style.left) }))
-    .sort((a, b) => a.x - b.x);
-
-  const edgeIdx = edge === 'right' ? sorted.length - 1 : 0;
-  const edgeEntry = sorted[edgeIdx];
-
-  if (edgeEntry.id === childId) return true; // already at edge
-
-  // Check if edge sibling has partnerships — if so, can't displace them
-  const edgeHasPartnership = partnerships.some(p =>
-    p.fromId === edgeEntry.id || p.toId === edgeEntry.id);
-
-  if (edgeHasPartnership) return false;
-
-  // Swap X positions of the connecting child and the edge child
-  const childEntry = sorted.find(s => s.id === childId);
-  const childP = persons.get(childId);
-  const edgeP = persons.get(edgeEntry.id);
-  const dx = edgeEntry.x - childEntry.x;
-
-  childP.el.style.left = edgeEntry.x + 'px';
-  childP.x = edgeEntry.x;
-  edgeP.el.style.left = childEntry.x + 'px';
-  edgeP.x = childEntry.x;
-
-  // Shift subtrees of each swapped child (everything connected except through parent partnership)
-  const childSub = getSubtree(childId, partnershipId);
-  childSub.delete(childId);
-  childSub.forEach(sid => {
-    const sp = persons.get(sid);
-    if (sp) {
-      const nx = parseFloat(sp.el.style.left) + dx;
-      sp.el.style.left = nx + 'px';
-      sp.x = nx;
-    }
-  });
-
-  const edgeSub = getSubtree(edgeEntry.id, partnershipId);
-  edgeSub.delete(edgeEntry.id);
-  edgeSub.forEach(sid => {
-    const sp = persons.get(sid);
-    if (sp) {
-      const nx = parseFloat(sp.el.style.left) - dx;
-      sp.el.style.left = nx + 'px';
-      sp.x = nx;
-    }
-  });
-
+  let dx = moveRight
+    ? fixedBounds.right + DEFAULT_SNAP_GAP - movingBounds.left
+    : fixedBounds.left - DEFAULT_SNAP_GAP - movingBounds.right;
+  if (Math.abs(dx) < 1) dx = moveRight ? (SHAPE_SIZE + DEFAULT_SNAP_GAP) : -(SHAPE_SIZE + DEFAULT_SNAP_GAP);
+  moveDefaultIds(movingIds, dx, 0);
+  repairDefaultSibshipsForIds(movingIds, fixedIds);
   return true;
 }
 
-// ── Detect if creating this partnership gives either person two partners who are
-// siblings (children of the same parent partnership). When that happens, the
-// person with two sibling-partners ends up positioned between them, and their
-// own child link branch line overlaps the siblings' branch line.
-// Works as a PRE-CHECK: the new partnership has NOT been added yet.
-// Returns array of { betweenPersonId, childLinkId, newPartnerId,
-//   existingPartnerId, siblingParentPshipId }. ──
-function detectPartnerBetweenSiblings(newFromId, newToId) {
-  const results = [];
+function resolveDefaultConstructionOverlaps(activeIds, preferredSide) {
+  // Construction-time collision solver. Unlike dragging, creation may push
+  // neighbouring material aside; but it moves whole family blocks, so cousin
+  // sibships keep their parents, partners, and descendants together.
+  const protectedIds = cloneIdSet(activeIds);
+  let movedAny = false;
 
-  [newFromId, newToId].forEach(personId => {
-    const newPartnerId = personId === newFromId ? newToId : newFromId;
-
-    // Get EXISTING partners of personId (new partnership not yet in array)
-    const existingPartners = [];
-    partnerships.forEach(p => {
-      if (p.fromId === personId) existingPartners.push(p.toId);
-      else if (p.toId === personId) existingPartners.push(p.fromId);
-    });
-
-    if (existingPartners.length === 0) return; // first partnership — skip
-
-    // Check if newPartnerId is a sibling of any existing partner
-    const newPartnerParentPships = new Set(
-      childLinks.filter(cl => cl.childId === newPartnerId).map(cl => cl.partnershipId)
-    );
-    if (newPartnerParentPships.size === 0) return; // new partner has no parents
-
-    for (const existingPartnerId of existingPartners) {
-      const sharedParentCL = childLinks.find(cl =>
-        cl.childId === existingPartnerId && newPartnerParentPships.has(cl.partnershipId)
-      );
-      if (sharedParentCL) {
-        // personId will be between siblings newPartnerId and existingPartnerId
-        const ownChildLink = childLinks.find(cl => cl.childId === personId);
-        results.push({
-          betweenPersonId: personId,
-          childLinkId: ownChildLink ? ownChildLink.id : null,
-          newPartnerId: newPartnerId,
-          existingPartnerId: existingPartnerId,
-          siblingParentPshipId: sharedParentCL.partnershipId
-        });
-        return; // found for this personId
-      }
+  for (let iter = 0; iter < 220; iter++) {
+    if (repairAllDefaultSibshipInternalOverlaps(protectedIds)) movedAny = true;
+    const pair = findAnyPersonOverlapDetailed();
+    if (!pair) {
+      if (movedAny) document.getElementById('statusBar').textContent = 'Made room by moving neighbouring family blocks';
+      return true;
     }
+
+    const aProtected = protectedIds.has(pair.a.id);
+    const bProtected = protectedIds.has(pair.b.id);
+    let fixedIds = null;
+    let movingIds = null;
+
+    if (aProtected && !bProtected) {
+      fixedIds = protectedIds;
+      movingIds = getDefaultDisplacementBlockForPerson(pair.b.id, protectedIds);
+    } else if (bProtected && !aProtected) {
+      fixedIds = protectedIds;
+      movingIds = getDefaultDisplacementBlockForPerson(pair.a.id, protectedIds);
+    } else if (!aProtected && !bProtected) {
+      const aBlock = getDefaultDisplacementBlockForPerson(pair.a.id, protectedIds);
+      const bBlock = getDefaultDisplacementBlockForPerson(pair.b.id, protectedIds);
+      if (setsIntersect(aBlock, bBlock)) {
+        // Same family block: fall back to moving one direct symbol if possible.
+        fixedIds = new Set([pair.a.id]);
+        movingIds = persons.get(pair.b.id)?.noSnap ? new Set([pair.a.id]) : new Set([pair.b.id]);
+      } else {
+        const aBounds = getIdsBounds(aBlock);
+        const bBounds = getIdsBounds(bBlock);
+        const aCenter = aBounds ? (aBounds.left + aBounds.right) / 2 : pair.a.rect.left;
+        const bCenter = bBounds ? (bBounds.left + bBounds.right) / 2 : pair.b.rect.left;
+        if (bCenter >= aCenter) { fixedIds = aBlock; movingIds = bBlock; }
+        else { fixedIds = bBlock; movingIds = aBlock; }
+      }
+    } else {
+      // Both symbols are in the protected active family; local sibling logic
+      // should already have handled this. As a last resort move the active block
+      // to the nearest open position so the user can still place the new person.
+      if (moveGroupToNearestOpen(protectedIds, preferredSide || 'right')) return !findAnyPersonOverlapDetailed();
+      return false;
+    }
+
+    if (!movingIds || !movingIds.size || setsIntersect(movingIds, protectedIds) || !blockMovableCount(movingIds)) {
+      if (moveGroupToNearestOpen(protectedIds, preferredSide || 'right')) return !findAnyPersonOverlapDetailed();
+      return false;
+    }
+
+    if (!separateDefaultBlocks(fixedIds, movingIds, preferredSide || 'right')) {
+      if (moveGroupToNearestOpen(protectedIds, preferredSide || 'right')) return !findAnyPersonOverlapDetailed();
+      return false;
+    }
+    movedAny = true;
+  }
+
+  if (moveGroupToNearestOpen(protectedIds, preferredSide || 'right')) return !findAnyPersonOverlapDetailed();
+  return !findAnyPersonOverlapDetailed();
+}
+
+function protectDraggedGroupFromOverlap(dragIds, origins) {
+  // Dragging should never push unrelated pedigrees around. If the user drops a
+  // dragged pedigree onto another one, move only the dragged group to the
+  // nearest open slot; if no slot is found, revert that drag.
+  const moving = new Set(dragIds);
+  if (!findExternalOverlapForIds(moving)) return true;
+  if (moveGroupToNearestOpen(moving, 'right')) return true;
+  origins.forEach((orig, id) => setPersonPos(id, orig.x, orig.y));
+  document.getElementById('statusBar').textContent = 'Move blocked to avoid overlapping another pedigree';
+  return false;
+}
+
+function syncAfterDefaultPlacement() {
+  updateAllConnections();
+  updateNumbering();
+  updateTextWrapping();
+  expandCanvasIfNeeded();
+}
+
+
+function getDefaultPartnershipAnchorScore(personId) {
+  // Higher score means this person is already embedded in the pedigree and
+  // should act as the placement anchor when a partnership is created. This
+  // makes partner-mode click order harmless: clicking the new/free partner
+  // first and the sibling second still anchors the placement on the sibling.
+  if (!persons.has(personId)) return -1;
+  let score = 0;
+  const group = getConnectedGroup(personId);
+  score += group.size * 10;
+  if (getParentPartnershipForChild(personId)) score += 1000; // existing sibling/child row member
+  partnerships.forEach(ps => {
+    if (ps.fromId === personId || ps.toId === personId) score += 40;
+  });
+  childLinks.forEach(cl => {
+    if (cl.childId === personId) score += 30;
+    const ps = partnerships.find(p => p.id === cl.partnershipId);
+    if (ps && (ps.fromId === personId || ps.toId === personId)) score += 60;
+  });
+  return score;
+}
+
+function chooseDefaultPartnershipPlacementIds(fromId, toId) {
+  // Determine which endpoint should be kept as the fixed construction anchor
+  // and which endpoint should be placed as the partner.  The drawn partnership
+  // still uses the original from/to ids; this only controls snap placement.
+  const fromParentPship = getParentPartnershipForChild(fromId);
+  const toParentPship = getParentPartnershipForChild(toId);
+
+  if (fromParentPship && !toParentPship) return { anchorId: fromId, partnerId: toId };
+  if (toParentPship && !fromParentPship) return { anchorId: toId, partnerId: fromId };
+
+  const fromScore = getDefaultPartnershipAnchorScore(fromId);
+  const toScore = getDefaultPartnershipAnchorScore(toId);
+  if (toScore > fromScore) return { anchorId: toId, partnerId: fromId };
+  return { anchorId: fromId, partnerId: toId };
+}
+
+function chooseSideForPartner(personId) {
+  // Default-mode partner insertion should preserve sibling order.  Choose the
+  // side with fewer same-row siblings to push; ties use the right side so the
+  // initial build flow remains predictable.
+  const parentCL = childLinks.find(cl => cl.childId === personId);
+  if (!parentCL) return 'right';
+
+  const siblings = childLinks
+    .filter(cl => cl.partnershipId === parentCL.partnershipId)
+    .map(cl => cl.childId)
+    .filter(id => persons.has(id));
+  if (siblings.length <= 1) return 'right';
+
+  const personX = getPersonX(personId);
+  let rightCount = 0, leftCount = 0;
+  siblings.forEach(sibId => {
+    if (sibId === personId) return;
+    const sibX = getPersonX(sibId);
+    if (sibX > personX) rightCount++;
+    else if (sibX < personX) leftCount++;
   });
 
-  // Deduplicate by betweenPersonId
-  const seen = new Set();
-  return results.filter(r => {
-    if (seen.has(r.betweenPersonId)) return false;
-    seen.add(r.betweenPersonId);
-    return true;
-  });
+  if (rightCount < leftCount) return 'right';
+  if (leftCount < rightCount) return 'left';
+  return 'right';
 }
 
 function addPartnership(fromId, toId, customId, type) {
-  // Between-siblings pre-check: detect if this partnership gives either person
-  // two partners who are siblings, requiring special repositioning.
-  // Runs before pushUndo so cancel is free.
-  let betweenSiblingsInfo = null;
-  if (!customId && !individualMoveMode) {
-    const detected = detectPartnerBetweenSiblings(fromId, toId);
-    if (detected.length > 0) {
-      const proceed = confirm(
-        'This partnership places a person between two siblings from a different family, causing overlapping parent branch lines that cannot be distinguished.\n\n' +
-        'Press OK to add the partnership — the siblings will be rearranged and branch lines offset for clarity.\n\n' +
-        'Cancel to abandon this partnership.'
-      );
-      if (!proceed) return null;
-      betweenSiblingsInfo = detected;
-    }
-  }
-
-  // Pre-check: in default mode, verify we can position this partnership without overlap
-  // (skip when between-siblings handler will do its own positioning)
-  let skipPositioning = false;
-  let placeLeft = false; // whether to place toId to the LEFT of fromId
-  if (!customId && !individualMoveMode && !betweenSiblingsInfo) {
-    // Try right placement first (default): fromId→right edge, toId→left edge
-    // Then try left placement: fromId→left edge, toId→right edge
-    const canRight = canReorderChildToEdge(fromId, 'right') && canReorderChildToEdge(toId, 'left');
-    const canLeft = canReorderChildToEdge(fromId, 'left') && canReorderChildToEdge(toId, 'right');
-    if (!canRight && !canLeft) {
-      const proceed = confirm(
-        'This partnership cannot be automatically positioned without overlapping existing connections.\n\n' +
-        'Cancel to rearrange the pedigree first using Individual Move mode or Free Position (No Snap), then add the partnership.\n\n' +
-        'Press OK to add the partnership line anyway (manual adjustment will be needed).'
-      );
-      if (!proceed) return null;
-      skipPositioning = true;
-    } else if (!canRight && canLeft) {
-      placeLeft = true;
-    }
-  }
-
-  const overlapsBefore = !customId ? getOverlappingPairs() : null;
-
   if (!customId) pushUndo();
   const id = customId || 'pship-' + (++lineIdCounter);
-  const pType = type || currentPartnershipType;
+  let pType = canonicalPartnershipType(fromId, toId, type || currentPartnershipType, customId || null);
   const svg = document.getElementById('lines-layer');
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   line.classList.add('partnership-line');
@@ -2948,7 +3885,6 @@ function addPartnership(fromId, toId, customId, type) {
   hitArea.setAttribute('stroke-width', '28');
   hitArea.classList.add('conn-hit');
 
-  // Second line for consanguineous
   let line2 = null;
   if (pType === 'consanguineous') {
     line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -2960,7 +3896,6 @@ function addPartnership(fromId, toId, customId, type) {
 
   const onLineClick = (ev) => {
     if (currentTool === 'child') {
-      // Clear previous highlight
       deselectAll();
       childPartnershipSource = id;
       line.classList.add('highlighted');
@@ -2968,6 +3903,22 @@ function addPartnership(fromId, toId, customId, type) {
       return;
     }
     if (currentTool === 'move') {
+      if (ev && ev.shiftKey) {
+        document.querySelectorAll('.person.selected, .person.multi-selected, .label.selected').forEach(el => el.classList.remove('selected', 'multi-selected'));
+        selectedPerson = null; selectedLabel = null; multiSelected.clear(); hideProps(); hideMultiSelectPanel();
+        document.querySelectorAll('.child-link-highlighted').forEach(el => el.classList.remove('child-link-highlighted'));
+        selectedChildLinkId = null; multiSelectedChildLinks.clear();
+        document.getElementById('childLinkPropsPanel').classList.remove('visible');
+        document.getElementById('multiChildLinkPanel').classList.remove('visible');
+        removeLinkDeleteBtn();
+        if (selectedPartnershipId && !multiSelectedPartnerships.has(selectedPartnershipId)) {
+          multiSelectedPartnerships.add(selectedPartnershipId);
+          selectedPartnershipId = null;
+          document.getElementById('partnershipPropsPanel').classList.remove('visible');
+        }
+        toggleMultiSelectPartnership(id, line);
+        return;
+      }
       deselectAll();
       selectedPartnershipId = id;
       line.classList.add('highlighted');
@@ -2983,304 +3934,73 @@ function addPartnership(fromId, toId, customId, type) {
   svg.appendChild(line);
   const pship = { id, fromId, toId, type: pType, el: line, hitEl: hitArea, el2: line2, slash: null };
 
-  // In default mode, capture toId's connected group and reorder siblings if needed
-  let toGroup = null;
+  let partnerGroup = null;
   let crossPedigree = false;
-  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo) {
-    toGroup = getConnectedGroup(toId);
-    crossPedigree = !toGroup.has(fromId); // true if they're in different pedigrees
-    toGroup.delete(toId); // toId handled separately
-
-    // Reorder children to edges so partnerships don't overlap
-    if (placeLeft) {
-      reorderChildToEdge(fromId, 'left');
-      reorderChildToEdge(toId, 'right');
-    } else {
-      reorderChildToEdge(fromId, 'right');
-      reorderChildToEdge(toId, 'left');
-    }
-
-    if (crossPedigree) {
-      // Re-capture toGroup after reorder since positions changed
-      toGroup = getConnectedGroup(toId);
-      toGroup.delete(toId);
-    }
+  let skipDefaultPartnershipPlacement = false;
+  let side = 'right';
+  let anchorId = fromId;
+  let partnerId = toId;
+  if (!customId && !individualMoveMode) {
+    const placement = chooseDefaultPartnershipPlacementIds(fromId, toId);
+    anchorId = placement.anchorId;
+    partnerId = placement.partnerId;
+    partnerGroup = getConnectedGroup(partnerId);
+    crossPedigree = !partnerGroup.has(anchorId);
+    // If the endpoints already belong to the same connected pedigree, this is
+    // an internal relationship line (commonly consanguinity, e.g. cousins or
+    // descendants marrying). Do not run ordinary spouse insertion for ANY
+    // partnership type in this situation: snapping the two existing branches
+    // together makes the sibling-block resolver reserve one enormous block and
+    // introduces huge gaps in the sibships. Placement should be line-only;
+    // children of this partnership can still be added and placed later.
+    skipDefaultPartnershipPlacement = !crossPedigree;
+    partnerGroup.delete(partnerId);
+    side = chooseDefaultPartnerSide(anchorId, partnerId);
   }
 
   partnerships.push(pship);
 
-  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo) {
-    const fromP = persons.get(fromId), toP = persons.get(toId);
-    if (fromP && toP) {
-      const oldX = parseFloat(toP.el.style.left);
-      const oldY = parseFloat(toP.el.style.top);
+  if (!customId && !individualMoveMode && !skipDefaultPartnershipPlacement) {
+    const anchorP = persons.get(anchorId), partnerP = persons.get(partnerId);
+    if (anchorP && partnerP && !partnerP.noSnap) {
+      const sameExistingPedigree = !crossPedigree;
+      const oldX = getPersonX(partnerId);
+      const oldY = getPersonY(partnerId);
+      const anchorX = getPersonX(anchorId);
+      const anchorY = getPersonY(anchorId);
+      const newX = sameExistingPedigree ? oldX : (side === 'left' ? anchorX - partnerGap : anchorX + partnerGap);
+      const newY = anchorY;
+      const movingIds = new Set([partnerId]);
+      if (crossPedigree && partnerGroup) partnerGroup.forEach(id => movingIds.add(id));
 
-      // Position toId relative to fromId at default partner gap
-      const fromX = parseFloat(fromP.el.style.left);
-      const fromY = parseFloat(fromP.el.style.top);
-      const newX = placeLeft ? fromX - partnerGap : fromX + partnerGap;
-      toP.el.style.left = newX + 'px';
-      toP.x = newX;
-      toP.el.style.top = fromY + 'px';
-      toP.y = fromY;
+      const parentPshipId = getParentPartnershipForChild(anchorId);
 
-      // Move toId's entire pre-existing group by the same delta (only when merging separate pedigrees)
-      if (crossPedigree && toGroup && toGroup.size > 0) {
+      setPersonPos(partnerId, newX, newY);
+
+      if (crossPedigree && partnerGroup && partnerGroup.size > 0) {
         const dx = newX - oldX;
-        const dy = fromY - oldY;
-        if (dx !== 0 || dy !== 0) {
-          toGroup.forEach(gid => {
-            const gp = persons.get(gid);
-            if (gp) {
-              const gpx = parseFloat(gp.el.style.left) + dx;
-              const gpy = parseFloat(gp.el.style.top) + dy;
-              gp.el.style.left = gpx + 'px';
-              gp.el.style.top = gpy + 'px';
-              gp.x = gpx;
-              gp.y = gpy;
-            }
-          });
-        }
+        const dy = newY - oldY;
+        moveDefaultIds(partnerGroup, dx, dy);
       }
+
+      const lockedPartnerGroup = new Set(movingIds);
+      lockedPartnerGroup.add(anchorId);
+      if (parentPshipId) {
+        getDefaultChildBlock(anchorId, parentPshipId).forEach(id => lockedPartnerGroup.add(id));
+        reserveSiblingSpaceForIds(parentPshipId, lockedPartnerGroup, anchorId);
+      }
+      resolveDefaultConstructionOverlaps(lockedPartnerGroup, side);
     }
+    alignConnectedPersons();
+  } else {
+    updatePartnershipPos(pship);
   }
 
-  // Between-siblings repositioning: move new sibling to the other side of
-  // the shared partner so no partnership line runs through shapes
-  if (betweenSiblingsInfo) {
-    betweenSiblingsInfo.forEach(info => {
-      const xPerson = persons.get(info.betweenPersonId); // the shared partner (X)
-      const cExisting = persons.get(info.existingPartnerId);
-      const cNew = persons.get(info.newPartnerId);
-      if (!xPerson || !cExisting || !cNew) return;
-
-      const xX = parseFloat(xPerson.el.style.left);
-      const ceX = parseFloat(cExisting.el.style.left);
-      const xIsRight = xX > ceX; // X is to the right of existing partner
-
-      // Place new sibling on the opposite side of X from existing partner
-      const targetX = xIsRight ? xX + partnerGap : xX - partnerGap;
-      const targetY = parseFloat(cExisting.el.style.top); // align Y with sibling row
-      const oldX = parseFloat(cNew.el.style.left);
-      const oldY = parseFloat(cNew.el.style.top);
-      const dx = targetX - oldX;
-      const dy = targetY - oldY;
-
-      cNew.el.style.left = targetX + 'px';
-      cNew.x = targetX;
-      cNew.el.style.top = targetY + 'px';
-      cNew.y = targetY;
-
-      // Build C_new's own subtree — exclude BOTH the sibling parent partnership
-      // AND the newly created partnership to avoid cascading through X
-      const cnSubtree = new Set();
-      const queue = [info.newPartnerId];
-      while (queue.length) {
-        const nid = queue.shift();
-        if (cnSubtree.has(nid)) continue;
-        cnSubtree.add(nid);
-        partnerships.forEach(p => {
-          if (p.id === pship.id) return; // exclude new partnership
-          if (p.fromId === nid || p.toId === nid) {
-            const other = p.fromId === nid ? p.toId : p.fromId;
-            if (!cnSubtree.has(other)) queue.push(other);
-            childLinks.forEach(cl => {
-              if (cl.partnershipId === p.id && !cnSubtree.has(cl.childId)) queue.push(cl.childId);
-            });
-          }
-        });
-        childLinks.forEach(cl => {
-          if (cl.childId === nid && cl.partnershipId !== info.siblingParentPshipId) {
-            const ps = partnerships.find(p => p.id === cl.partnershipId);
-            if (ps) {
-              if (!cnSubtree.has(ps.fromId)) queue.push(ps.fromId);
-              if (!cnSubtree.has(ps.toId)) queue.push(ps.toId);
-            }
-          }
-        });
-      }
-      cnSubtree.delete(info.newPartnerId); // C_new already moved above
-
-      // Never move the sibling parents — their positions must stay fixed.
-      // The BFS above can reach them through indirect paths in complex pedigrees.
-      const sibPshipForExclude = partnerships.find(p => p.id === info.siblingParentPshipId);
-      if (sibPshipForExclude) {
-        cnSubtree.delete(sibPshipForExclude.fromId);
-        cnSubtree.delete(sibPshipForExclude.toId);
-      }
-
-      // Move C_new's subtree by the initial delta
-      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-        cnSubtree.forEach(sid => {
-          const sp = persons.get(sid);
-          if (sp) {
-            sp.el.style.left = (parseFloat(sp.el.style.left) + dx) + 'px';
-            sp.el.style.top = (parseFloat(sp.el.style.top) + dy) + 'px';
-            sp.x = parseFloat(sp.el.style.left);
-            sp.y = parseFloat(sp.el.style.top);
-          }
-        });
-      }
-
-      // Close the gap left by C_new's departure from the sibling row.
-      // Only compact siblings on the gap side of C_existing; leave X, C_new,
-      // and X's parents untouched. Skip if X's parents are complex (connected
-      // elsewhere) or if compaction would push siblings into the parents' space.
-      let xParentsSimple = true;
-      const xParentCL = childLinks.find(cl => cl.childId === info.betweenPersonId);
-      let xParentPship = null;
-      if (xParentCL) {
-        xParentPship = partnerships.find(p => p.id === xParentCL.partnershipId);
-        if (xParentPship) {
-          [xParentPship.fromId, xParentPship.toId].forEach(pid => {
-            if (partnerships.some(p => p.id !== xParentPship.id && (p.fromId === pid || p.toId === pid)))
-              xParentsSimple = false;
-            if (childLinks.some(cl => cl.childId === pid))
-              xParentsSimple = false;
-          });
-        }
-      }
-
-      if (xParentsSimple) {
-        // Get remaining siblings (not C_new), sorted by X position
-        const remainingKids = childLinks
-          .filter(cl => cl.partnershipId === info.siblingParentPshipId && cl.childId !== info.newPartnerId)
-          .map(cl => cl.childId)
-          .filter(id => { const p = persons.get(id); return p && !p.noSnap; })
-          .sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
-
-        const ceIdx = remainingKids.indexOf(info.existingPartnerId);
-        if (ceIdx !== -1 && remainingKids.length > 1) {
-          const ceCurrentX = parseFloat(cExisting.el.style.left);
-          const xToRight = parseFloat(xPerson.el.style.left) > ceCurrentX;
-
-          // Compute spacing from siblings' parent partnership
-          const sibPship = partnerships.find(p => p.id === info.siblingParentPshipId);
-          const sibFp = sibPship ? persons.get(sibPship.fromId) : null;
-          const sibTp = sibPship ? persons.get(sibPship.toId) : null;
-          const sibParentGap = (sibFp && sibTp)
-            ? Math.abs(parseFloat(sibFp.el.style.left) - parseFloat(sibTp.el.style.left))
-            : partnerGap;
-          const spacing = Math.min(sibParentGap, partnerGap);
-
-          // Compute new positions for gap-side siblings (dry run for clash check)
-          // Skip siblingFixed children — they were placed by a prior between-siblings
-          // operation and must not be repositioned by a subsequent one.
-          const moves = []; // { id, newX }
-          if (xToRight) {
-            // Gap is to C_existing's left — compact leftward siblings toward C_existing
-            for (let i = ceIdx - 1; i >= 0; i--) {
-              const rp = persons.get(remainingKids[i]);
-              if (rp && rp.siblingFixed) continue;
-              moves.push({ id: remainingKids[i], newX: ceCurrentX - (ceIdx - i) * spacing });
-            }
-          } else {
-            // Gap is to C_existing's right — compact rightward siblings toward C_existing
-            for (let i = ceIdx + 1; i < remainingKids.length; i++) {
-              const rp = persons.get(remainingKids[i]);
-              if (rp && rp.siblingFixed) continue;
-              moves.push({ id: remainingKids[i], newX: ceCurrentX + (i - ceIdx) * spacing });
-            }
-          }
-
-          // Clash check: would any compacted sibling overlap with X's parents?
-          let clashes = false;
-          if (xParentPship) {
-            const xp1 = persons.get(xParentPship.fromId);
-            const xp2 = persons.get(xParentPship.toId);
-            const xpMinX = Math.min(
-              xp1 ? parseFloat(xp1.el.style.left) : Infinity,
-              xp2 ? parseFloat(xp2.el.style.left) : Infinity
-            );
-            const xpMaxX = Math.max(
-              xp1 ? parseFloat(xp1.el.style.left) + SHAPE_SIZE : -Infinity,
-              xp2 ? parseFloat(xp2.el.style.left) + SHAPE_SIZE : -Infinity
-            );
-            for (const m of moves) {
-              if (m.newX + SHAPE_SIZE > xpMinX && m.newX < xpMaxX) { clashes = true; break; }
-            }
-          }
-
-          // Apply moves if no clash — also shift each sibling's downstream
-          // connections (partners, descendants) to keep partnership lines intact
-          if (!clashes && moves.length > 0) {
-            const movedSibIds = new Set(moves.map(m => m.id));
-            moves.forEach(m => {
-              const sp = persons.get(m.id);
-              if (!sp) return;
-              const moveDx = m.newX - parseFloat(sp.el.style.left);
-              sp.el.style.left = m.newX + 'px';
-              sp.x = m.newX;
-
-              // Move this sibling's downstream subtree by the same delta
-              if (Math.abs(moveDx) > 0.5) {
-                const sub = getSubtree(m.id, info.siblingParentPshipId);
-                sub.delete(m.id); // already moved above
-                // Don't move other siblings being compacted or C_new/X
-                movedSibIds.forEach(sid => sub.delete(sid));
-                sub.delete(info.newPartnerId);
-                sub.delete(info.betweenPersonId);
-                // Never move the sibling parents — getSubtree can reach them
-                // through indirect paths in complex pedigrees
-                if (sibPshipForExclude) {
-                  sub.delete(sibPshipForExclude.fromId);
-                  sub.delete(sibPshipForExclude.toId);
-                }
-                sub.forEach(sid => {
-                  const subP = persons.get(sid);
-                  if (subP) {
-                    subP.el.style.left = (parseFloat(subP.el.style.left) + moveDx) + 'px';
-                    subP.x = parseFloat(subP.el.style.left);
-                  }
-                });
-              }
-            });
-          }
-        }
-      }
-
-      // Mark C_new so distributeChildren excludes it — it's been placed outside
-      // the normal row and must not inflate spacing or become an anchor
-      cNew.siblingFixed = true;
-    });
-  }
-
-  updatePartnershipPos(pship);
-  alignConnectedPersons();
-  updateTextWrapping();
-  updateAllConnections();
-  expandCanvasIfNeeded();
-
-  // Check for new overlaps introduced by this action (skip when between-siblings handled positioning)
-  if (!customId && !individualMoveMode && !skipPositioning && !betweenSiblingsInfo && overlapsBefore && hasNewOverlaps(overlapsBefore)) {
-    const proceed = confirm(
-      'This partnership has created overlapping shapes or connections.\n\n' +
-      'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this partnership.\n\n' +
-      'Press OK to keep the partnership as-is (manual adjustment will be needed).'
-    );
-    if (!proceed) {
-      revertLastAction();
-      document.getElementById('statusBar').textContent = 'Partnership cancelled — rearrange in Individual Move mode first';
-      return null;
-    }
-  }
-
-  // Apply branchYOffset for between-siblings situations
-  if (betweenSiblingsInfo) {
-    betweenSiblingsInfo.forEach(info => {
-      if (info.childLinkId) {
-        const cl = childLinks.find(c => c.id === info.childLinkId);
-        if (cl) {
-          cl.branchYOffset = BRANCH_Y_OFFSET;
-          updateChildLinkPos(cl);
-        }
-      }
-    });
-  }
-
+  syncAfterDefaultPlacement();
   scheduleSave();
   return pship;
 }
+
 
 function removePartnership(id) {
   pushUndo();
@@ -3300,6 +4020,9 @@ function removePartnership(id) {
   if (ps.bridgeMask) { ps.bridgeMask.remove(); ps.bridgeArc.remove(); }
   if (ps.bridgeMask2) { ps.bridgeMask2.remove(); ps.bridgeArc2.remove(); }
   partnerships.splice(idx, 1);
+  multiSelectedPartnerships.delete(id);
+  // Clean up child links that were removed from multi-selected set
+  [...multiSelectedChildLinks].forEach(cid => { if (!childLinks.find(c => c.id === cid)) multiSelectedChildLinks.delete(cid); });
   updateTextWrapping();
   scheduleSave();
 }
@@ -3337,407 +4060,12 @@ function updatePartnershipPos(pship) {
   }
 }
 
-// ══════════════════════════════════
-// CHILD OVERLAP RESOLUTION HELPERS
-// ══════════════════════════════════
-
-function saveAllPositions() {
-  const saved = new Map();
-  persons.forEach((p, id) => {
-    saved.set(id, { x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top) });
-  });
-  return saved;
-}
-
-function restoreAllPositions(saved) {
-  saved.forEach((pos, id) => {
-    const p = persons.get(id);
-    if (p) {
-      p.el.style.left = pos.x + 'px';
-      p.el.style.top = pos.y + 'px';
-      p.x = pos.x;
-      p.y = pos.y;
-    }
-  });
-}
-
-// BFS upward through child links to find all ancestors of a person.
-// Returns Map<personId, depth> where depth is generations above.
-function getAncestorsOf(personId) {
-  const ancestors = new Map();
-  const queue = [{ id: personId, depth: 0 }];
-  const visited = new Set();
-  while (queue.length) {
-    const { id, depth } = queue.shift();
-    if (visited.has(id)) continue;
-    visited.add(id);
-    childLinks.forEach(cl => {
-      if (cl.childId === id) {
-        const pship = partnerships.find(p => p.id === cl.partnershipId);
-        if (pship) {
-          [pship.fromId, pship.toId].forEach(parentId => {
-            if (!visited.has(parentId)) {
-              ancestors.set(parentId, depth + 1);
-              queue.push({ id: parentId, depth: depth + 1 });
-            }
-          });
-        }
-      }
-    });
-  }
-  return ancestors;
-}
-
-// Find the most recent common ancestor of two persons.
-// Returns { mrcaId, totalDepth } or null.
-function findMRCA(personA, personB) {
-  const ancestorsA = getAncestorsOf(personA);
-  const ancestorsB = getAncestorsOf(personB);
-  // Also check if one is a direct ancestor of the other
-  if (ancestorsB.has(personA)) return { mrcaId: personA, totalDepth: ancestorsB.get(personA) };
-  if (ancestorsA.has(personB)) return { mrcaId: personB, totalDepth: ancestorsA.get(personB) };
-  let best = null;
-  ancestorsA.forEach((depthA, id) => {
-    if (ancestorsB.has(id)) {
-      const total = depthA + ancestorsB.get(id);
-      if (!best || total < best.totalDepth) best = { mrcaId: id, totalDepth: total };
-    }
-  });
-  return best;
-}
-
-// BFS downward from startId through partnerships and child links.
-// Includes partners at each level (needed to trace full family paths).
-function getDescendantsDownward(startId) {
-  const visited = new Set();
-  const queue = [startId];
-  while (queue.length) {
-    const id = queue.shift();
-    if (visited.has(id)) continue;
-    visited.add(id);
-    partnerships.forEach(ps => {
-      if (ps.fromId === id || ps.toId === id) {
-        const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
-        if (!visited.has(partnerId)) queue.push(partnerId);
-        childLinks.forEach(cl => {
-          if (cl.partnershipId === ps.id && !visited.has(cl.childId)) queue.push(cl.childId);
-        });
-      }
-    });
-  }
-  visited.delete(startId);
-  return visited;
-}
-
-// Find the MRCA's partnership whose children lead to both overlapping persons.
-// This is the fork point where expanding child spacing will push the branches apart.
-function findDivergencePartnership(mrcaId, personA, personB) {
-  const mrcaPships = partnerships.filter(p => p.fromId === mrcaId || p.toId === mrcaId);
-  for (const ps of mrcaPships) {
-    const kids = childLinks.filter(cl => cl.partnershipId === ps.id).map(cl => cl.childId);
-    if (kids.length === 0) continue;
-    let aFound = false, bFound = false;
-    for (const kid of kids) {
-      const desc = getDescendantsDownward(kid);
-      desc.add(kid);
-      if (desc.has(personA)) aFound = true;
-      if (desc.has(personB)) bFound = true;
-      if (aFound && bFound) break;
-    }
-    if (aFound && bFound) return ps;
-  }
-  return null;
-}
-
-// Distribute children of a partnership using a custom spacing value.
-// Unlike distributeChildren(), this function does NOT preserve anchored children's
-// positions — it always forces the requested spacing on ALL children. This is correct
-// because this function is only called from the overlap resolution strategies
-// (redistributeAndShift), where the explicit intent is to widen or compact the
-// child row. The downstream tree shift in redistributeAndShift() moves partners
-// and descendants along with each child, keeping family sub-trees intact.
-function distributeChildrenCustomSpacing(pshipId, customSpacing) {
-  const pship = partnerships.find(p => p.id === pshipId);
-  if (!pship) return;
-  const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
-  if (!fp || !tp) return;
-  const leftX = Math.min(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
-  const rightX = Math.max(parseFloat(fp.el.style.left), parseFloat(tp.el.style.left));
-  const midX = (leftX + rightX) / 2;
-
-  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
-    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed && !p.noSnap; });
-  if (kids.length < 2) {
-    if (kids.length === 1) {
-      const child = persons.get(kids[0]);
-      if (child) { child.el.style.left = midX + 'px'; child.x = midX; }
-      constrainChildrenToBoundaries(pshipId, kids);
-    }
-    return;
-  }
-
-  kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
-
-  const totalWidth = customSpacing * (kids.length - 1);
-  const startX = midX - totalWidth / 2;
-  kids.forEach((cid, i) => {
-    const child = persons.get(cid);
-    if (child) {
-      const newX = startX + customSpacing * i;
-      child.el.style.left = newX + 'px';
-      child.x = newX;
-    }
-  });
-
-  constrainChildrenToBoundaries(pshipId, kids);
-}
-
-// Shift all downstream trees after children of a partnership have been repositioned.
-// `kids` is the array of child IDs; `preDistX` maps each child to its X before redistribution.
-function shiftDownstreamTrees(kids, preDistX) {
-  const siblingSet = new Set(kids);
-  kids.forEach(cid => {
-    const cp = persons.get(cid);
-    if (!cp || cp.noSnap) return;
-    const prevX = preDistX.get(cid);
-    if (prevX === undefined) return;
-    const dx = parseFloat(cp.el.style.left) - prevX;
-    if (Math.abs(dx) < 0.5) return;
-    const downstream = new Set();
-    const dQueue = [cid];
-    while (dQueue.length) {
-      const did = dQueue.shift();
-      if (downstream.has(did)) continue;
-      downstream.add(did);
-      partnerships.forEach(ps => {
-        if (ps.fromId === did || ps.toId === did) {
-          const pid = ps.fromId === did ? ps.toId : ps.fromId;
-          if (!downstream.has(pid)) dQueue.push(pid);
-          childLinks.forEach(cl2 => {
-            if (cl2.partnershipId === ps.id && !downstream.has(cl2.childId)) dQueue.push(cl2.childId);
-          });
-        }
-      });
-    }
-    downstream.delete(cid);
-    siblingSet.forEach(sid => downstream.delete(sid));
-    downstream.forEach(sid => {
-      const sp = persons.get(sid);
-      if (sp) {
-        const spx = parseFloat(sp.el.style.left) + dx;
-        sp.el.style.left = spx + 'px';
-        sp.x = spx;
-      }
-    });
-  });
-}
-
-// Redistribute children of a partnership with a custom spacing,
-// then shift all downstream subtrees accordingly.
-// When trialMode is true, skips expensive SVG connection updates (safe because
-// overlap detection uses person positions, not SVG attributes).
-function redistributeAndShift(pshipId, spacing, trialMode) {
-  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
-    .filter(id => { const p = persons.get(id); return !p || !p.siblingFixed; });
-  const preDistX = new Map();
-  kids.forEach(cid => {
-    const cp = persons.get(cid);
-    if (cp) preDistX.set(cid, parseFloat(cp.el.style.left));
-  });
-  distributeChildrenCustomSpacing(pshipId, spacing);
-  shiftDownstreamTrees(kids, preDistX);
-  if (!trialMode) updateAllConnections();
-}
-
-// Get the current actual spacing between a partnership's children.
-function getCurrentChildSpacing(pshipId) {
-  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
-    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed && !p.noSnap; });
-  if (kids.length < 2) return partnerGap;
-  kids.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
-  const x0 = parseFloat(persons.get(kids[0]).el.style.left);
-  const x1 = parseFloat(persons.get(kids[kids.length - 1]).el.style.left);
-  return (x1 - x0) / (kids.length - 1);
-}
-
-// Identify new overlaps involving children of this partnership or their branches.
-// Returns array of { personA, personB } pairs suitable for MRCA lookup.
-// Extracts person representatives from ALL overlap types:
-//   - shape-shape: directly uses the two person IDs
-//   - branch region: uses a child from each partnership as representative
-//   - cline through shape: uses the child from the child link + the overlapped person
-function getNewChildOverlaps(pshipId, beforePairs) {
-  const afterPairs = getOverlappingPairs();
-  const kidIds = new Set(childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId));
-  const result = [];
-  const seen = new Set(); // dedup by sorted person pair
-
-  for (const key of afterPairs) {
-    if (beforePairs.has(key)) continue;
-    const parts = key.split('|');
-
-    let pA = null, pB = null;
-
-    // ── Branch region overlap: "branch:pshipIdA|branch:pshipIdB" ──
-    // Use a child from each partnership as the person representative.
-    if (parts[0].startsWith('branch:') && parts[1].startsWith('branch:')) {
-      const psIdA = parts[0].slice(7); // remove "branch:" prefix
-      const psIdB = parts[1].slice(7);
-      // At least one branch must belong to our partnership
-      if (psIdA !== pshipId && psIdB !== pshipId) continue;
-      const childOfA = childLinks.find(cl => cl.partnershipId === psIdA);
-      const childOfB = childLinks.find(cl => cl.partnershipId === psIdB);
-      if (childOfA && childOfB) {
-        pA = childOfA.childId;
-        pB = childOfB.childId;
-      }
-    }
-    // ── Child link line through shape: "cline:childLinkId|personId" or "personId|cline:..." ──
-    else if (parts[0].startsWith('cline:') || parts[1].startsWith('cline:')) {
-      const clinePart = parts[0].startsWith('cline:') ? parts[0] : parts[1];
-      const personPart = parts[0].startsWith('cline:') ? parts[1] : parts[0];
-      // Skip if the person part is also a prefixed key
-      if (personPart.includes(':')) continue;
-      const clId = clinePart.slice(6); // remove "cline:" prefix
-      const cl = childLinks.find(c => c.id === clId);
-      if (cl && (kidIds.has(cl.childId) || kidIds.has(personPart))) {
-        pA = cl.childId;
-        pB = personPart;
-      }
-    }
-    // ── Partnership line through shape: "line:pshipId|personId" — skip ──
-    else if (parts.some(p => p.startsWith('line:'))) {
-      continue;
-    }
-    // ── Shape-shape overlap: "personA|personB" ──
-    else {
-      const aIsChild = kidIds.has(parts[0]);
-      const bIsChild = kidIds.has(parts[1]);
-      if (aIsChild || bIsChild) {
-        pA = parts[0];
-        pB = parts[1];
-      }
-    }
-
-    if (pA && pB && pA !== pB) {
-      const dedupKey = [pA, pB].sort().join('|');
-      if (!seen.has(dedupKey)) {
-        seen.add(dedupKey);
-        result.push({ childPerson: kidIds.has(pA) ? pA : pB, otherPerson: kidIds.has(pA) ? pB : pA });
-      }
-    }
-  }
-  return result;
-}
-
-// Main resolution function. Tries three strategies before falling back to the warning.
-// Returns true if overlaps were resolved, false if the warning should be shown.
-// Performance: all trial iterations use trialMode (skips expensive SVG connection updates)
-// and position reads are cached within each overlap check.
-function tryResolveChildOverlaps(pshipId, childId, beforePairs) {
-  // getNewChildOverlaps extracts person pairs from ALL overlap types (shape-shape,
-  // branch region, cline-through-shape) for Strategy 1's MRCA lookup.
-  const newOverlaps = getNewChildOverlaps(pshipId, beforePairs);
-
-  const savedPos = saveAllPositions();
-  const MAX_ANCESTOR_SPACING = 50 * SHAPE_SIZE;
-
-  // ── Strategy 1: Expand ancestor sibling row ──
-  // For each overlap with a common ancestor, try increasing spacing of the
-  // divergence partnership's children until the overlap resolves.
-  // Linear search from smallest increment upward to find the tightest spacing.
-  for (const overlap of newOverlaps) {
-    const mrcaResult = findMRCA(overlap.childPerson, overlap.otherPerson);
-    if (!mrcaResult) continue;
-    const divPship = findDivergencePartnership(mrcaResult.mrcaId, overlap.childPerson, overlap.otherPerson);
-    if (!divPship) continue;
-    const baseSpacing = getCurrentChildSpacing(divPship.id);
-    for (let spacing = baseSpacing + SHAPE_SIZE; spacing <= MAX_ANCESTOR_SPACING; spacing += SHAPE_SIZE) {
-      restoreAllPositions(savedPos);
-      redistributeAndShift(divPship.id, spacing, true);
-      if (!hasNewOverlaps(beforePairs)) {
-        // Found the tightest working spacing — re-apply with full connection updates
-        restoreAllPositions(savedPos);
-        redistributeAndShift(divPship.id, spacing);
-        return true;
-      }
-    }
-  }
-
-  // ── Strategy 2: Compact current sibship to 1× shape width ──
-  restoreAllPositions(savedPos);
-  redistributeAndShift(pshipId, SHAPE_SIZE, true);
-  if (!hasNewOverlaps(beforePairs)) {
-    // Re-apply with full connection updates
-    restoreAllPositions(savedPos);
-    redistributeAndShift(pshipId, SHAPE_SIZE);
-    return true;
-  }
-
-  // ── Strategy 3: Flip new child to the other end of the sibship ──
-  const kids = childLinks.filter(cl => cl.partnershipId === pshipId).map(cl => cl.childId)
-    .filter(id => { const p = persons.get(id); return p && !p.siblingFixed; });
-  if (kids.length >= 2) {
-    const child = persons.get(childId);
-    if (child && !child.noSnap) {
-      // Restore first so all position reads are consistent
-      restoreAllPositions(savedPos);
-      const childX = parseFloat(child.el.style.left);
-      const otherXs = kids.filter(id => id !== childId).map(id => parseFloat(persons.get(id).el.style.left));
-      const minSibX = Math.min(...otherXs);
-      const maxSibX = Math.max(...otherXs);
-      const midSibX = (minSibX + maxSibX) / 2;
-      const flipLeft = childX >= midSibX;
-
-      const pship = partnerships.find(p => p.id === pshipId);
-      const parentGap = pship ? Math.abs(parseFloat(persons.get(pship.fromId).el.style.left) - parseFloat(persons.get(pship.toId).el.style.left)) : partnerGap;
-      const defaultSpacing = Math.min(parentGap, partnerGap);
-
-      // Try default spacing at the other end
-      if (flipLeft) {
-        child.el.style.left = (minSibX - partnerGap) + 'px'; child.x = minSibX - partnerGap;
-      } else {
-        child.el.style.left = (maxSibX + partnerGap) + 'px'; child.x = maxSibX + partnerGap;
-      }
-      redistributeAndShift(pshipId, defaultSpacing, true);
-      if (!hasNewOverlaps(beforePairs)) {
-        restoreAllPositions(savedPos);
-        if (flipLeft) { child.el.style.left = (minSibX - partnerGap) + 'px'; child.x = minSibX - partnerGap; }
-        else { child.el.style.left = (maxSibX + partnerGap) + 'px'; child.x = maxSibX + partnerGap; }
-        redistributeAndShift(pshipId, defaultSpacing);
-        return true;
-      }
-
-      // Try flipped end with compact spacing
-      restoreAllPositions(savedPos);
-      if (flipLeft) {
-        child.el.style.left = (minSibX - SHAPE_SIZE) + 'px'; child.x = minSibX - SHAPE_SIZE;
-      } else {
-        child.el.style.left = (maxSibX + SHAPE_SIZE) + 'px'; child.x = maxSibX + SHAPE_SIZE;
-      }
-      redistributeAndShift(pshipId, SHAPE_SIZE, true);
-      if (!hasNewOverlaps(beforePairs)) {
-        restoreAllPositions(savedPos);
-        if (flipLeft) { child.el.style.left = (minSibX - SHAPE_SIZE) + 'px'; child.x = minSibX - SHAPE_SIZE; }
-        else { child.el.style.left = (maxSibX + SHAPE_SIZE) + 'px'; child.x = maxSibX + SHAPE_SIZE; }
-        redistributeAndShift(pshipId, SHAPE_SIZE);
-        return true;
-      }
-    }
-  }
-
-  // ── No strategy worked — restore original positions and signal failure ──
-  restoreAllPositions(savedPos);
-  updateAllConnections();
-  return false;
-}
-
 // ══════════════════════
 // CHILD CONNECTIONS
 // ══════════════════════
 
 function addChildLink(partnershipId, childId, customId) {
-  const childOverlapsBefore = !customId ? getOverlappingPairs() : null;
+  if (!customId) normalizeRelatedPartnershipTypes();
   if (!customId) pushUndo();
   const id = customId || 'child-' + (++lineIdCounter);
   const pship = partnerships.find(p => p.id === partnershipId);
@@ -3759,8 +4087,24 @@ function addChildLink(partnershipId, childId, customId) {
   hitPath.setAttribute('fill', 'none');
   hitPath.classList.add('conn-hit');
 
-  const onChildClick = () => {
+  const onChildClick = (ev) => {
     if (currentTool === 'move') {
+      if (ev && ev.shiftKey) {
+        document.querySelectorAll('.person.selected, .person.multi-selected, .label.selected').forEach(el => el.classList.remove('selected', 'multi-selected'));
+        selectedPerson = null; selectedLabel = null; multiSelected.clear(); hideProps(); hideMultiSelectPanel();
+        document.querySelectorAll('.partnership-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+        selectedPartnershipId = null; multiSelectedPartnerships.clear();
+        document.getElementById('partnershipPropsPanel').classList.remove('visible');
+        document.getElementById('multiPartnershipPanel').classList.remove('visible');
+        removeLinkDeleteBtn();
+        if (selectedChildLinkId && !multiSelectedChildLinks.has(selectedChildLinkId)) {
+          multiSelectedChildLinks.add(selectedChildLinkId);
+          selectedChildLinkId = null;
+          document.getElementById('childLinkPropsPanel').classList.remove('visible');
+        }
+        toggleMultiSelectChildLink(id);
+        return;
+      }
       deselectAll();
       selectedChildLinkId = id;
       vertLine.classList.add('child-link-highlighted');
@@ -3770,184 +4114,124 @@ function addChildLink(partnershipId, childId, customId) {
   };
   vertLine.addEventListener('click', onChildClick);
   hitPath.addEventListener('click', onChildClick);
-  hitPath.addEventListener('touchend', (ev) => { if (ev.cancelable) ev.preventDefault(); onChildClick(); });
+  hitPath.addEventListener('touchend', (ev) => { if (ev.cancelable) ev.preventDefault(); onChildClick(ev); });
 
   svg.appendChild(hitPath);
   svg.appendChild(vertLine);
   const els = [vertLine, hitPath];
   const cl = { id, partnershipId, childId, els, branchYOffset: 0, dashed: false };
 
-  // In default mode, capture child's connected group BEFORE the link merges the two pedigrees
   let childGroup = null;
   let crossPedigree = false;
+  let oldX = 0, oldY = 0;
   if (!customId && !individualMoveMode) {
     childGroup = getConnectedGroup(childId);
     crossPedigree = !childGroup.has(pship.fromId) && !childGroup.has(pship.toId);
-    childGroup.delete(childId); // childId handled separately
+    childGroup.delete(childId);
+    oldX = getPersonX(childId);
+    oldY = getPersonY(childId);
   }
+
+  const existingSiblings = getExistingChildIds(partnershipId, childId).filter(id => {
+    const p = persons.get(id);
+    return p && !p.noSnap;
+  });
 
   childLinks.push(cl);
+
   if (!customId && !individualMoveMode) {
     const child = persons.get(childId);
-    const oldX = child ? parseFloat(child.el.style.left) : 0;
-    const oldY = child ? parseFloat(child.el.style.top) : 0;
+    const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
+    let childGroupMoved = false;
+    if (child && !child.noSnap && fp && tp) {
+      const movingIds = new Set([childId]);
+      if (crossPedigree && childGroup) childGroup.forEach(id => movingIds.add(id));
 
-    // Snap child height: place child at fixed distance below parents
-    const existingSiblings = childLinks.filter(cl => cl.partnershipId === partnershipId && cl.childId !== childId);
-    if (existingSiblings.length === 0) {
-      // First child: snap to fixed height below parents
-      snapChildHeight(partnershipId, childId);
-    } else {
-      // Joining existing siblings: snap new child to the existing children's Y
-      if (child && !child.noSnap) {
-        let targetY = null;
-        for (const sib of existingSiblings) {
-          const sp = persons.get(sib.childId);
-          if (sp && !sp.noSnap) { targetY = parseFloat(sp.el.style.top); break; }
+      if (existingSiblings.length === 0) {
+        const parentY = Math.min(getPersonY(pship.fromId), getPersonY(pship.toId));
+        const targetY = parentY + childHeight;
+        const targetX = (getPersonX(pship.fromId) + getPersonX(pship.toId)) / 2;
+        clearSlotForDefaultPlacement(targetX, targetY, movingIds, 'nearest');
+        setPersonPos(childId, targetX, targetY);
+        if (crossPedigree && childGroup && childGroup.size > 0) {
+          moveDefaultIds(childGroup, targetX - oldX, targetY - oldY);
+          childGroupMoved = true;
         }
-        if (targetY !== null) {
-          child.el.style.top = targetY + 'px';
-          child.y = targetY;
-        }
-      }
-    }
-    // Snapshot all children's X positions before distribution
-    const allKids = childLinks.filter(c => c.partnershipId === partnershipId).map(c => c.childId);
-    const preDistX = new Map();
-    allKids.forEach(cid => {
-      const cp = persons.get(cid);
-      if (cp) preDistX.set(cid, parseFloat(cp.el.style.left));
-    });
+      } else {
+        const targetY = getPersonY(existingSiblings[0]);
+        setPersonPos(childId, getPersonX(childId), targetY);
 
-    distributeChildren(partnershipId);
+        const allSiblingIds = [...existingSiblings, childId];
+        const hasAnchors = allSiblingIds.some(sid => childHasExternalPartner(sid, allSiblingIds));
 
-    // After distribution, shift each child's downstream connections by their dx
-    // (so partners and descendants move with the child, not overlap)
-    // IMPORTANT: only traverse DOWNWARD (through the child's own partnerships),
-    // never upward through child links to parents — prevents consanguineous cascade
-    const siblingSet = new Set(allKids);
-    allKids.forEach(cid => {
-      // Skip the newly added child in cross-pedigree merges — its group is handled below
-      if (crossPedigree && cid === childId) return;
-      const cp = persons.get(cid);
-      if (!cp || cp.noSnap) return;
-      const prevX = preDistX.get(cid);
-      if (prevX === undefined) return;
-      const dx = parseFloat(cp.el.style.left) - prevX;
-      if (Math.abs(dx) < 0.5) return;
-      // Downward-only traversal: through child's own partnerships to partners + descendants
-      const downstream = new Set();
-      const dQueue = [cid];
-      while (dQueue.length) {
-        const did = dQueue.shift();
-        if (downstream.has(did)) continue;
-        downstream.add(did);
-        partnerships.forEach(ps => {
-          if (ps.fromId === did || ps.toId === did) {
-            const pid = ps.fromId === did ? ps.toId : ps.fromId;
-            if (!downstream.has(pid)) dQueue.push(pid);
-            childLinks.forEach(cl2 => {
-              if (cl2.partnershipId === ps.id && !downstream.has(cl2.childId)) dQueue.push(cl2.childId);
-            });
+        if (!hasAnchors) {
+          distributeChildren(partnershipId);
+          // Simple sibships may still distribute quickly. No global collision
+          // pass follows this; if the new child collides with a neighbouring
+          // pedigree, only the new child's own attached group is moved.
+          if (crossPedigree && childGroup && childGroup.size > 0) {
+            moveDefaultIds(childGroup, getPersonX(childId) - oldX, getPersonY(childId) - oldY);
+            childGroupMoved = true;
           }
-        });
-      }
-      downstream.delete(cid); // child itself already moved by distributeChildren
-      // Remove siblings — they were already positioned by distributeChildren
-      siblingSet.forEach(sid => downstream.delete(sid));
-      downstream.forEach(sid => {
-        const sp = persons.get(sid);
-        if (sp) {
-          const spx = parseFloat(sp.el.style.left) + dx;
-          sp.el.style.left = spx + 'px';
-          sp.x = spx;
-        }
-      });
-    });
-
-    // Move cross-pedigree child's pre-existing group by the total delta from original position
-    if (crossPedigree && child && childGroup && childGroup.size > 0) {
-      const dx = parseFloat(child.el.style.left) - oldX;
-      const dy = parseFloat(child.el.style.top) - oldY;
-      if (dx !== 0 || dy !== 0) {
-        childGroup.forEach(gid => {
-          // Skip anyone already shifted by the subtree logic above
-          if (siblingSet.has(gid)) return;
-          const gp = persons.get(gid);
-          if (gp) {
-            const gpx = parseFloat(gp.el.style.left) + dx;
-            const gpy = parseFloat(gp.el.style.top) + dy;
-            gp.el.style.left = gpx + 'px';
-            gp.el.style.top = gpy + 'px';
-            gp.x = gpx;
-            gp.y = gpy;
-          }
-        });
-      }
-    }
-  }
-  updateChildLinkPos(cl);
-  updateAllConnections();
-
-  // For cross-pedigree child adds, ensure child is at the correct default height
-  if (crossPedigree && !customId && !individualMoveMode) {
-    const child = persons.get(childId);
-    if (child && !child.noSnap) {
-      const fp = persons.get(pship.fromId), tp = persons.get(pship.toId);
-      if (fp && tp) {
-        let correctY;
-        const sibs = childLinks.filter(c => c.partnershipId === partnershipId && c.childId !== childId);
-        if (sibs.length === 0) {
-          correctY = Math.min(parseFloat(fp.el.style.top), parseFloat(tp.el.style.top)) + childHeight;
         } else {
-          for (const sib of sibs) {
-            const sp = persons.get(sib.childId);
-            if (sp && !sp.noSnap) { correctY = parseFloat(sp.el.style.top); break; }
-          }
-        }
-        if (correctY !== undefined) {
-          const drift = correctY - parseFloat(child.el.style.top);
-          if (Math.abs(drift) > 0.5) {
-            child.el.style.top = correctY + 'px';
-            child.y = correctY;
-            if (childGroup && childGroup.size > 0) {
-              childGroup.forEach(gid => {
-                const gp = persons.get(gid);
-                if (gp) {
-                  const gpy = parseFloat(gp.el.style.top) + drift;
-                  gp.el.style.top = gpy + 'px';
-                  gp.y = gpy;
-                }
-              });
+          const blocks = getSiblingBlocks(partnershipId, childId);
+          const desiredX = oldX;
+          let targetX = desiredX;
+          let side = 'right';
+
+          if (blocks.length === 0 || desiredX <= blocks[0].childX) {
+            side = 'left';
+            targetX = (blocks[0] ? blocks[0].bounds.left : desiredX) - DEFAULT_SNAP_GAP - SHAPE_SIZE;
+          } else if (desiredX >= blocks[blocks.length - 1].childX) {
+            side = 'right';
+            targetX = blocks[blocks.length - 1].bounds.right + DEFAULT_SNAP_GAP;
+          } else {
+            let insertAfterIdx = 0;
+            for (let i = 0; i < blocks.length - 1; i++) {
+              if (desiredX >= blocks[i].childX && desiredX <= blocks[i + 1].childX) { insertAfterIdx = i; break; }
             }
-            updateAllConnections();
+            const leftBlock = blocks[insertAfterIdx];
+            const rightBlock = blocks[insertAfterIdx + 1];
+            side = 'right';
+            const leftEdge = leftBlock.bounds.right + DEFAULT_SNAP_GAP;
+            const rightEdge = rightBlock.bounds.left - DEFAULT_SNAP_GAP - SHAPE_SIZE;
+            if (rightEdge < leftEdge) {
+              const needed = leftEdge - rightEdge;
+              shiftSiblingBlocks(partnershipId, rightBlock.bounds.left - 1, 'right', needed, movingIds);
+            }
+            targetX = Math.max(leftEdge, Math.min(desiredX, Math.max(leftEdge, rightEdge)));
           }
+
+          const childRect = personRectAt(targetX, targetY);
+          openSiblingSlot(partnershipId, childRect, side, movingIds);
+          setPersonPos(childId, targetX, targetY);
+          if (crossPedigree && childGroup && childGroup.size > 0) {
+            const dx = targetX - oldX;
+            const dy = targetY - oldY;
+            moveDefaultIds(childGroup, dx, dy);
+            childGroupMoved = true;
+          }
+          reserveSiblingSpaceForIds(partnershipId, movingIds, childId);
         }
       }
-    }
-  }
 
-  // Check for new overlaps introduced by this action — try to resolve automatically
-  if (!customId && !individualMoveMode && childOverlapsBefore && hasNewOverlaps(childOverlapsBefore)) {
-    if (!tryResolveChildOverlaps(partnershipId, childId, childOverlapsBefore)) {
-      // No automatic resolution found — fall back to warning
-      const proceed = confirm(
-        'Adding this child has created overlapping shapes or connections.\n\n' +
-        'Cancel to undo, then use Individual Move mode or Free Position (No Snap) to rearrange the pedigree before adding this child.\n\n' +
-        'Press OK to keep the child link as-is (manual adjustment will be needed).'
-      );
-      if (!proceed) {
-        revertLastAction();
-        document.getElementById('statusBar').textContent = 'Child link cancelled — rearrange in Individual Move mode first';
-        return null;
+      if (crossPedigree && childGroup && childGroup.size > 0 && !childGroupMoved) {
+        const dx = getPersonX(childId) - oldX;
+        const dy = getPersonY(childId) - oldY;
+        moveDefaultIds(childGroup, dx, dy);
       }
+      reserveSiblingSpaceForIds(partnershipId, movingIds, childId);
     }
+    alignConnectedPersons();
+    resolveDefaultConstructionOverlaps(getDefaultNuclearFamilyBlock(partnershipId), 'right');
   }
 
-  expandCanvasIfNeeded();
+  updateChildLinkPos(cl);
+  syncAfterDefaultPlacement();
   scheduleSave();
   return cl;
 }
+
 
 function snapChildHeight(partnershipId, childId) {
   const pship = partnerships.find(p => p.id === partnershipId);
@@ -4015,17 +4299,40 @@ function distributeChildren(partnershipId) {
 
   if (anchors.length >= 2) {
     // Multiple anchors: keep them all at their current positions,
-    // distribute free children evenly between the outermost anchors
+    // distribute free children evenly between the outermost anchors,
+    // avoiding any external partner positions
     anchors.sort((a, b) => parseFloat(persons.get(a).el.style.left) - parseFloat(persons.get(b).el.style.left));
     const leftAnchorX = parseFloat(persons.get(anchors[0]).el.style.left);
     const rightAnchorX = parseFloat(persons.get(anchors[anchors.length - 1]).el.style.left);
     const anchorSet = new Set(anchors);
     const freeKids = kids.filter(id => !anchorSet.has(id) && !persons.get(id)?.noSnap);
     if (freeKids.length > 0) {
+      // Collect external partner positions to avoid — but only those BETWEEN
+      // the outermost anchors (partners on the outside don't affect distribution)
+      const occupied = new Set();
+      anchors.forEach(aid => {
+        partnerships.forEach(kp => {
+          if (kp.fromId !== aid && kp.toId !== aid) return;
+          const partnerId = kp.fromId === aid ? kp.toId : kp.fromId;
+          if (kids.includes(partnerId)) return;
+          const partner = persons.get(partnerId);
+          if (!partner) return;
+          const px = parseFloat(partner.el.style.left);
+          // Only include if between the outermost anchors
+          if (px > leftAnchorX && px < rightAnchorX) occupied.add(px);
+        });
+      });
       const spacing = (rightAnchorX - leftAnchorX) / (freeKids.length + 1);
       freeKids.forEach((cid, i) => {
         const child = persons.get(cid);
-        child.el.style.left = (leftAnchorX + (i + 1) * spacing) + 'px';
+        let targetX = leftAnchorX + (i + 1) * spacing;
+        // Nudge away from any occupied partner position
+        for (const ox of occupied) {
+          if (Math.abs(targetX - ox) < SHAPE_SIZE) {
+            targetX = (targetX < ox) ? ox - SHAPE_SIZE - 4 : ox + SHAPE_SIZE + 4;
+          }
+        }
+        child.el.style.left = targetX + 'px';
         child.x = parseFloat(child.el.style.left);
       });
     }
@@ -4033,45 +4340,47 @@ function distributeChildren(partnershipId) {
     const anchorId = anchors[0];
     const anchorP = persons.get(anchorId);
     const anchorX = parseFloat(anchorP.el.style.left);
-    // Determine expand direction from the anchor's partner position
-    let expandDir = null;
+    const anchorIdx = kids.indexOf(anchorId);
+
+    // Find external partner positions to skip over, BUT only when the partner
+    // is BETWEEN the anchor and other siblings (i.e. inside the sibship).
+    // If the partner is on the outside (beyond the edge), no offset is needed
+    // because no children are distributed past it.
+    let rightPartnerWidth = 0;
+    let leftPartnerWidth = 0;
+    const hasSiblingsRight = anchorIdx < kids.length - 1;
+    const hasSiblingsLeft = anchorIdx > 0;
     const anchorPships = partnerships.filter(p => p.fromId === anchorId || p.toId === anchorId);
     for (const kp of anchorPships) {
       const partnerId = kp.fromId === anchorId ? kp.toId : kp.fromId;
-      if (kids.includes(partnerId)) continue;
+      if (kids.includes(partnerId)) continue; // sibling partner, not external
       const partner = persons.get(partnerId);
       if (!partner) continue;
-      expandDir = parseFloat(partner.el.style.left) > anchorX ? 'left' : 'right';
-      break;
+      const px = parseFloat(partner.el.style.left);
+      if (px > anchorX && hasSiblingsRight) {
+        rightPartnerWidth = Math.max(rightPartnerWidth, px - anchorX);
+      } else if (px < anchorX && hasSiblingsLeft) {
+        leftPartnerWidth = Math.max(leftPartnerWidth, anchorX - px);
+      }
     }
 
-    if (expandDir === 'left') {
-      kids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        if (child && !child.noSnap) {
-          child.el.style.left = (anchorX - (kids.length - 1 - i) * childSpacing) + 'px';
-          child.x = parseFloat(child.el.style.left);
-        }
-      });
-    } else if (expandDir === 'right') {
-      kids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        if (child && !child.noSnap) {
-          child.el.style.left = (anchorX + i * childSpacing) + 'px';
-          child.x = parseFloat(child.el.style.left);
-        }
-      });
-    } else {
-      // Fallback: centered distribution
-      const totalWidth = childSpacing * (kids.length - 1);
-      const startX = midX - totalWidth / 2;
-      kids.forEach((cid, i) => {
-        const child = persons.get(cid);
-        if (child && !child.noSnap) {
-          child.el.style.left = (startX + childSpacing * i) + 'px';
-          child.x = parseFloat(child.el.style.left);
-        }
-      });
+    // Distribute children on BOTH sides of the anchor, keeping anchor in place
+    // and skipping over any partner positions
+    for (let i = anchorIdx - 1; i >= 0; i--) {
+      const child = persons.get(kids[i]);
+      if (child && !child.noSnap) {
+        const offset = (anchorIdx - i) * childSpacing + leftPartnerWidth;
+        child.el.style.left = (anchorX - offset) + 'px';
+        child.x = parseFloat(child.el.style.left);
+      }
+    }
+    for (let i = anchorIdx + 1; i < kids.length; i++) {
+      const child = persons.get(kids[i]);
+      if (child && !child.noSnap) {
+        const offset = (i - anchorIdx) * childSpacing + rightPartnerWidth;
+        child.el.style.left = (anchorX + offset) + 'px';
+        child.x = parseFloat(child.el.style.left);
+      }
     }
   } else {
     // Normal centered distribution
@@ -4180,6 +4489,7 @@ function removeChildLink(id) {
   if (idx === -1) return;
   childLinks[idx].els.forEach(el => el.remove());
   childLinks.splice(idx, 1);
+  multiSelectedChildLinks.delete(id);
   scheduleSave();
 }
 
@@ -4308,41 +4618,192 @@ function rebuildPathWithBridges(d, crossings) {
   const pts = parsePathPoints(d);
   if (pts.length < 2) return d;
 
+  const eps = 0.5;
+  const sameXY = (p, x, y) => Math.abs(p.x - x) < eps && Math.abs(p.y - y) < eps;
+  const isZeroSeg = (a, b) => Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps;
+  const isVerticalSeg = (a, b) => Math.abs(a.x - b.x) < eps && !isZeroSeg(a, b);
+  const isHorizontalSeg = (a, b) => Math.abs(a.y - b.y) < eps && !isZeroSeg(a, b);
+
+  function prevNonZeroSegment(segIndex) {
+    for (let j = segIndex - 1; j >= 0; j--) {
+      const a = pts[j], b = pts[j + 1];
+      if (isZeroSeg(a, b)) continue;
+      return { index: j, a, b, isV: isVerticalSeg(a, b), isH: isHorizontalSeg(a, b) };
+    }
+    return null;
+  }
+
+  function nextNonZeroSegment(segIndex) {
+    for (let j = segIndex + 1; j < pts.length - 1; j++) {
+      const a = pts[j], b = pts[j + 1];
+      if (isZeroSeg(a, b)) continue;
+      return { index: j, a, b, isV: isVerticalSeg(a, b), isH: isHorizontalSeg(a, b) };
+    }
+    return null;
+  }
+
+  function previousVerticalEndsHere(segIndex, x, y) {
+    const prev = prevNonZeroSegment(segIndex);
+    return !!(prev && prev.isV && sameXY(prev.b, x, y) && Math.abs(prev.a.x - x) < eps);
+  }
+
+  function followingVerticalStartsHere(segIndex, x, y) {
+    const next = nextNonZeroSegment(segIndex);
+    return !!(next && next.isV && sameXY(next.a, x, y) && Math.abs(next.b.x - x) < eps);
+  }
+
+  // If an external horizontal line sits exactly on this child link's branch Y,
+  // it may intersect both vertical stems at the two ends of the same horizontal
+  // branch. For a centred/straight child link the two verticals share one X and
+  // the incoming segment owns one full bridge. For an offset child link, keep
+  // both endpoint crossings but tag them as split halves: the trunk-side stem
+  // draws the upper half of the bridge, and the child-side stem draws the lower
+  // half. This avoids a double full-bridge while preserving the visual cue for
+  // which child descends from the branch.
+  function normaliseBranchEndpointCrossings(rawCrossings) {
+    const normalised = rawCrossings.map((c, idx) => ({ ...c, _idx: idx }));
+    const drop = new Set();
+
+    function sourceSet(c) {
+      if (Array.isArray(c.hSrcs) && c.hSrcs.length) return new Set(c.hSrcs);
+      if (c.hSrc) return new Set([c.hSrc]);
+      return new Set(['']);
+    }
+
+    function shareExternalLine(c1, c2) {
+      const s1 = sourceSet(c1), s2 = sourceSet(c2);
+      for (const src of s1) if (s2.has(src)) return true;
+      return false;
+    }
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (!isHorizontalSeg(a, b)) continue;
+      const y = a.y;
+      const leftX = Math.min(a.x, b.x), rightX = Math.max(a.x, b.x);
+      const firstCornerX = a.x;
+      const secondCornerX = b.x;
+      const offsetBranch = Math.abs(firstCornerX - secondCornerX) >= eps;
+
+      const atFirst = normalised.filter(c =>
+        Math.abs(c.cy - y) < eps && Math.abs(c.cx - firstCornerX) < 1 &&
+        c.cx >= leftX - eps && c.cx <= rightX + eps && !drop.has(c._idx)
+      );
+      const atSecond = normalised.filter(c =>
+        Math.abs(c.cy - y) < eps && Math.abs(c.cx - secondCornerX) < 1 &&
+        c.cx >= leftX - eps && c.cx <= rightX + eps && !drop.has(c._idx)
+      );
+
+      atFirst.forEach(c1 => {
+        atSecond.forEach(c2 => {
+          if (!shareExternalLine(c1, c2)) return;
+          if (offsetBranch) {
+            c1.branchBridgeHalf = 'upper';
+            c2.branchBridgeHalf = 'lower';
+          } else {
+            drop.add(c2._idx);
+          }
+        });
+      });
+    }
+
+    return normalised
+      .filter(c => !drop.has(c._idx))
+      .map(({ _idx, ...c }) => c);
+  }
+
+  crossings = normaliseBranchEndpointCrossings(crossings);
+
   let out = `M ${pts[0].x} ${pts[0].y}`;
+
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1];
-    const isV = Math.abs(a.x - b.x) < 0.5;
+    if (isZeroSeg(a, b)) continue;
 
-    if (isV) {
-      const x = a.x;
-      const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
-      const goDown = b.y > a.y;
-
-      // Filter crossings: must match this segment's X and fall within its Y range.
-      // Only clamp near segment END (so arc doesn't extend past). At segment START,
-      // the bridge extends above the corner — visually correct for crossings at
-      // the branch point where the vertical meets the horizontal.
-      const rel = crossings
-        .filter(c => Math.abs(c.cx - x) < 1 && c.cy >= minY && c.cy <= maxY)
-        .map(c => Math.min(c.cy, maxY - BRIDGE_RADIUS - 1))
-        .filter(cy => cy + BRIDGE_RADIUS < maxY); // arc end must fit in segment
-
-      if (rel.length > 0) {
-        const unique = [...new Set(rel)];
-        unique.sort((p, q) => goDown ? p - q : q - p);
-        for (const cy of unique) {
-          if (goDown) {
-            out += ` L ${x} ${cy - BRIDGE_RADIUS} A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${x} ${cy + BRIDGE_RADIUS}`;
-          } else {
-            out += ` L ${x} ${cy + BRIDGE_RADIUS} A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 0 ${x} ${cy - BRIDGE_RADIUS}`;
-          }
-        }
-      }
+    const isV = isVerticalSeg(a, b);
+    if (!isV) {
       out += ` L ${b.x} ${b.y}`;
-    } else {
-      out += ` L ${b.x} ${b.y}`;
+      continue;
     }
+
+    const x = a.x;
+    const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
+    const goDown = b.y > a.y;
+
+    const rel = crossings
+      .filter(c => Math.abs(c.cx - x) < 1 && c.cy >= minY - eps && c.cy <= maxY + eps)
+      .map(c => ({
+        ...c,
+        cy: Math.max(minY, Math.min(c.cy, maxY)),
+        atStart: Math.abs(c.cy - a.y) < eps,
+        atEnd: Math.abs(c.cy - b.y) < eps
+      }))
+      .filter(c => {
+        // If two vertical segments meet at the same point, the incoming segment
+        // owns the bridge. This lets the incoming line stop at the arc boundary
+        // and the outgoing line continue from the far side of the same arc.
+        if (c.atStart && previousVerticalEndsHere(i, x, c.cy)) return false;
+        if (c.atStart || c.atEnd) return true;
+        return c.cy - BRIDGE_RADIUS > minY && c.cy + BRIDGE_RADIUS < maxY;
+      });
+
+    const unique = [];
+    rel.forEach(c => {
+      if (!unique.some(u => Math.abs(u.cy - c.cy) < eps && Math.abs(u.cx - c.cx) < eps)) unique.push(c);
+    });
+    unique.sort((p, q) => goDown ? p.cy - q.cy : q.cy - p.cy);
+
+    let skipFinalEndpointLine = false;
+    for (const c of unique) {
+      const cy = c.cy;
+      const arcStartY = goDown ? cy - BRIDGE_RADIUS : cy + BRIDGE_RADIUS;
+      const arcEndY = goDown ? cy + BRIDGE_RADIUS : cy - BRIDGE_RADIUS;
+      const continuesIntoNextVertical = c.atEnd && followingVerticalStartsHere(i, x, cy);
+      const sideX = x + BRIDGE_RADIUS;
+
+      // Offset branch point: split one logical bridge across the two vertical
+      // stems. The parent/trunk-side stem contributes only the upper half, and
+      // the child-side stem contributes only the lower half.
+      if (c.branchBridgeHalf === 'upper' && c.atEnd && goDown) {
+        out += ` L ${x} ${cy - BRIDGE_RADIUS}`;
+        out += ` A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${sideX} ${cy}`;
+        out += ` M ${b.x} ${b.y}`;
+        continue;
+      }
+      if (c.branchBridgeHalf === 'lower' && c.atStart && goDown) {
+        out += ` M ${sideX} ${cy}`;
+        out += ` A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${x} ${cy + BRIDGE_RADIUS}`;
+        continue;
+      }
+
+      if (c.atStart) {
+        // Do not draw a short reverse stub from the branch point back to the
+        // top of the bridge. Start a separate bridge subpath instead.
+        out += ` M ${x} ${arcStartY}`;
+      } else {
+        out += ` L ${x} ${arcStartY}`;
+      }
+
+      out += goDown
+        ? ` A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 1 ${x} ${arcEndY}`
+        : ` A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 0 ${x} ${arcEndY}`;
+
+      if (c.atEnd && continuesIntoNextVertical) {
+        // Straight-through branch point: leave the SVG cursor at the far side
+        // of the arc so the following vertical segment continues from there.
+        // Crucially, do not draw back to the branch point through the bridge.
+        skipFinalEndpointLine = true;
+      } else if (c.atEnd) {
+        // Corner into a horizontal branch: restore the logical cursor to the
+        // corner for the horizontal segment without drawing a vertical stroke
+        // through the bridge.
+        out += ` M ${b.x} ${b.y}`;
+      }
+    }
+
+    if (!skipFinalEndpointLine) out += ` L ${b.x} ${b.y}`;
   }
+
   return out;
 }
 
@@ -4373,7 +4834,20 @@ function mergeNearbyCrossings(crossings) {
     while (j + 1 < crossings.length &&
            crossings[j + 1].cy - crossings[i].cy <= BRIDGE_RADIUS &&
            Math.abs(crossings[j + 1].cx - crossings[i].cx) < 1) j++;
-    merged.push({ cx: crossings[i].cx, cy: (crossings[i].cy + crossings[j].cy) / 2 });
+    const hSrcs = [];
+    for (let k = i; k <= j; k++) {
+      if (Array.isArray(crossings[k].hSrcs)) {
+        crossings[k].hSrcs.forEach(src => { if (!hSrcs.includes(src)) hSrcs.push(src); });
+      } else if (crossings[k].hSrc && !hSrcs.includes(crossings[k].hSrc)) {
+        hSrcs.push(crossings[k].hSrc);
+      }
+    }
+    merged.push({
+      cx: crossings[i].cx,
+      cy: (crossings[i].cy + crossings[j].cy) / 2,
+      hSrc: hSrcs[0],
+      hSrcs
+    });
     i = j + 1;
   }
   return merged;
@@ -4388,7 +4862,7 @@ function applyLineCrossings() {
   const byVSrc = new Map();
   crossings.forEach(c => {
     if (!byVSrc.has(c.vSrc)) byVSrc.set(c.vSrc, []);
-    byVSrc.get(c.vSrc).push({ cx: c.cx, cy: c.cy });
+    byVSrc.get(c.vSrc).push({ cx: c.cx, cy: c.cy, hSrc: c.hSrc });
   });
   // Merge nearby crossings (e.g. consanguineous double lines)
   byVSrc.forEach((pts, key) => byVSrc.set(key, mergeNearbyCrossings(pts)));
@@ -4505,6 +4979,10 @@ function flushConnectionUpdate() {
 function alignConnectedPersons() {
   // 1. Align partners: both partners in a partnership snap to leftmost partner's Y
   partnerships.forEach(ps => {
+    // Consanguineous partnerships are cross-branch relationship lines, not
+    // ordinary adjacent partner units.  Auto-aligning their Y coordinate can
+    // unexpectedly move established cousin/descendant branches.
+    if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
     const p1 = persons.get(ps.fromId), p2 = persons.get(ps.toId);
     if (!p1 || !p2) return;
     // If both are noSnap, skip entirely
@@ -4662,6 +5140,92 @@ function getConnectedGroup(startId) {
     });
   }
   return visited;
+}
+
+function getConnectedGroupExcludingPartnership(startId, excludePartnershipId) {
+  // Same graph walk as getConnectedGroup(), but with one partnership and its
+  // child links removed. This lets us ask: "were these two people already
+  // connected before this partnership existed?" If yes, the line is an
+  // internal/consanguineous relationship for default-layout purposes.
+  const visited = new Set();
+  const queue = [startId];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id) || !persons.has(id)) continue;
+    visited.add(id);
+    partnerships.forEach(p => {
+      if (p.id === excludePartnershipId) return;
+      if (p.fromId === id && !visited.has(p.toId)) queue.push(p.toId);
+      if (p.toId === id && !visited.has(p.fromId)) queue.push(p.fromId);
+      if (p.fromId === id || p.toId === id) {
+        childLinks.forEach(cl => {
+          if (cl.partnershipId === excludePartnershipId) return;
+          if (cl.partnershipId === p.id && !visited.has(cl.childId)) queue.push(cl.childId);
+        });
+      }
+    });
+    childLinks.forEach(cl => {
+      if (cl.partnershipId === excludePartnershipId) return;
+      if (cl.childId === id) {
+        const ps = partnerships.find(p => p.id === cl.partnershipId);
+        if (ps && ps.id !== excludePartnershipId) {
+          if (!visited.has(ps.fromId)) queue.push(ps.fromId);
+          if (!visited.has(ps.toId)) queue.push(ps.toId);
+        }
+      }
+    });
+  }
+  return visited;
+}
+
+function areAlreadyRelatedForPartnership(fromId, toId, excludePartnershipId) {
+  if (!persons.has(fromId) || !persons.has(toId)) return false;
+  if (fromId === toId) return false;
+  return getConnectedGroupExcludingPartnership(fromId, excludePartnershipId || null).has(toId);
+}
+
+function canonicalPartnershipType(fromId, toId, requestedType, excludePartnershipId) {
+  // Any partnership between people already connected by the pedigree should be
+  // stored and rendered as consanguineous. This prevents later default-mode
+  // sibling spacing from treating the line as an ordinary adjacent spouse unit.
+  if (areAlreadyRelatedForPartnership(fromId, toId, excludePartnershipId)) return 'consanguineous';
+  return requestedType || 'normal';
+}
+
+function setPartnershipVisualType(ps, type) {
+  if (!ps) return false;
+  type = canonicalPartnershipType(ps.fromId, ps.toId, type || ps.type || 'normal', ps.id);
+  const oldType = ps.type || 'normal';
+  const svg = document.getElementById('lines-layer');
+  ps.type = type;
+
+  if (ps.el2) { ps.el2.remove(); ps.el2 = null; }
+  if (ps.slash) { ps.slash.forEach(s => s.remove()); ps.slash = null; }
+
+  if (type === 'consanguineous') {
+    const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l2.setAttribute('stroke', STROKE_COLOR);
+    l2.setAttribute('stroke-width', STROKE_W);
+    l2.style.pointerEvents = 'none';
+    svg.appendChild(l2);
+    ps.el2 = l2;
+  }
+
+  updatePartnershipPos(ps);
+  return oldType !== type;
+}
+
+function normalizeRelatedPartnershipTypes() {
+  // Upgrade older/session-imported cousin or descendant partnerships that were
+  // saved as 'normal'. Without this, later sibling insertion can still traverse
+  // them as ordinary spouse blocks and introduce very large gaps.
+  let changed = false;
+  partnerships.forEach(ps => {
+    if (ps.type !== 'consanguineous' && areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) {
+      if (setPartnershipVisualType(ps, 'consanguineous')) changed = true;
+    }
+  });
+  return changed;
 }
 
 // Like getConnectedGroup but skips one specific partnership (used to find a child's own subtree
@@ -4926,8 +5490,15 @@ function onPointerUp(e) {
         if (p) { p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
       });
     }
+    const wasDefaultGroupDrag = !individualMoveMode;
+    const finalDragIds = new Set(dragState.dragIds);
+    const finalOrigins = new Map(dragState.origins);
     dragState = null;
     alignConnectedPersons();
+    if (wasDefaultGroupDrag) {
+      protectDraggedGroupFromOverlap(finalDragIds, finalOrigins);
+      updateAllConnections();
+    }
     updateNumbering();
     updateTextWrapping();
     expandCanvasIfNeeded();
@@ -5436,11 +6007,15 @@ document.addEventListener('keydown', (e) => {
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
     if (multiSelected.size > 0) {
-      if (confirm(`Remove ${multiSelected.size} selected individuals?`)) {
-        pushUndo(); undoGroupActive = true;
-        [...multiSelected].forEach(id => removePerson(id));
-        undoGroupActive = false; multiSelected.clear();
-      }
+      deleteMultiSelected();
+      return;
+    }
+    if (multiSelectedPartnerships.size > 0) {
+      deleteMultiSelectedPartnerships();
+      return;
+    }
+    if (multiSelectedChildLinks.size > 0) {
+      deleteMultiSelectedChildLinks();
       return;
     }
     if (selectedPerson) removePerson(selectedPerson);
@@ -5449,6 +6024,53 @@ document.addEventListener('keydown', (e) => {
     if (selectedChildLinkId) deleteSelectedChildLink();
   }
   if (e.key === 'Escape') { deselectAll(); connectSource = null; childPartnershipSource = null; twinSource = null; exitAllEditModes(); updateBanner(); updateStatus(); }
+  // Arrow key nudging in individual move mode
+  if (individualMoveMode && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
+    // Must have a person or label selected
+    const hasPersons = selectedPerson || multiSelected.size > 0;
+    const hasLabel = selectedLabel;
+    if (!hasPersons && !hasLabel) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+    const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+    // Debounced undo: push only on first press of a burst
+    if (!nudgeState) {
+      pushUndo();
+      nudgeState = { timer: null };
+    }
+    clearTimeout(nudgeState.timer);
+    nudgeState.timer = setTimeout(() => { nudgeState = null; }, 500);
+    if (hasPersons) {
+      const ids = multiSelected.size > 0 ? [...multiSelected] : [selectedPerson];
+      ids.forEach(id => {
+        const p = persons.get(id);
+        if (!p) return;
+        const newX = parseFloat(p.el.style.left) + dx;
+        const newY = parseFloat(p.el.style.top) + dy;
+        p.el.style.left = newX + 'px';
+        p.el.style.top = newY + 'px';
+        p.x = newX;
+        p.y = newY;
+      });
+      updateAllConnections();
+      updateNumbering();
+      updateTextWrapping();
+      expandCanvasIfNeeded();
+    }
+    if (hasLabel) {
+      const lbl = labels.get(selectedLabel);
+      if (lbl) {
+        const newX = parseFloat(lbl.el.style.left) + dx;
+        const newY = parseFloat(lbl.el.style.top) + dy;
+        lbl.el.style.left = newX + 'px';
+        lbl.el.style.top = newY + 'px';
+      }
+    }
+    scheduleSave();
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
     const ae = document.activeElement;
     if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.contentEditable === 'true')) return;
@@ -5469,6 +6091,8 @@ function clearAll() {
   persons.clear(); labels.clear();
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
   multiSelected.clear();
+  multiSelectedPartnerships.clear();
+  multiSelectedChildLinks.clear();
   selectedPerson = null; selectedLabel = null; connectSource = null; childPartnershipSource = null; twinSource = null;
   selectedPartnershipId = null; selectedChildLinkId = null;
   removeLinkDeleteBtn();
@@ -5477,8 +6101,11 @@ function clearAll() {
   drawStrokes.length = 0;
   canvasWidth = 6000; canvasHeight = 6000; applyCanvasSize();
   hideProps();
+  hideMultiSelectPanel();
   document.getElementById('partnershipPropsPanel').classList.remove('visible');
   document.getElementById('childLinkPropsPanel').classList.remove('visible');
+  document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  document.getElementById('multiChildLinkPanel').classList.remove('visible');
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
   document.getElementById('statusBar').textContent = 'Canvas cleared';
 }
@@ -5488,6 +6115,7 @@ function clearAll() {
 // ══════════════════════
 
 function buildSessionData() {
+  normalizeRelatedPartnershipTypes();
   // Sync freetext labels from DOM before saving
   if (numberingMode === 'freetext') {
     persons.forEach(p => {
@@ -5544,9 +6172,13 @@ function restoreSession(data) {
   document.getElementById('draw-layer').innerHTML = '';
   persons.clear(); labels.clear();
   partnerships.length = 0; childLinks.length = 0; twinLinks.length = 0;
-  multiSelected.clear(); selectedPerson = null; selectedLabel = null;
+  multiSelected.clear(); multiSelectedPartnerships.clear(); multiSelectedChildLinks.clear();
+  selectedPerson = null; selectedLabel = null;
   selectedPartnershipId = null; selectedChildLinkId = null;
   removeLinkDeleteBtn();
+  hideMultiSelectPanel();
+  document.getElementById('multiPartnershipPanel').classList.remove('visible');
+  document.getElementById('multiChildLinkPanel').classList.remove('visible');
   drawStrokes.length = 0;
 
   personIdCounter = data.personIdCounter || 0;
@@ -5582,7 +6214,6 @@ function restoreSession(data) {
     addChildLink(cd.partnershipId, cd.childId, cd.id);
     const cl = childLinks.find(c => c.id === cd.id);
     if (cl) {
-      if (cd.branchYOffset) { cl.branchYOffset = cd.branchYOffset; updateChildLinkPos(cl); }
       if (cd.dashed) {
         cl.dashed = true;
         cl.els[0].setAttribute('stroke-dasharray', '6 4');
@@ -5594,6 +6225,8 @@ function restoreSession(data) {
     addTwinLink(td.child1Id, td.child2Id, td.type, td.id);
     const n = parseInt(td.id.split('-')[1]) || 0; if (n > lineIdCounter) lineIdCounter = n;
   });
+
+  normalizeRelatedPartnershipTypes();
 
   if (data.zoom) zoomLevel = data.zoom;
   if (data.panX !== undefined) panX = data.panX;
@@ -5802,7 +6435,7 @@ function saveAsImage() {
   });
   const pngCrossings = findLineCrossings(pngSegs);
   const pngByV = new Map();
-  pngCrossings.forEach(c => { if (!pngByV.has(c.vSrc)) pngByV.set(c.vSrc, []); pngByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy }); });
+  pngCrossings.forEach(c => { if (!pngByV.has(c.vSrc)) pngByV.set(c.vSrc, []); pngByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy, hSrc: c.hSrc }); });
   pngByV.forEach((pts, key) => pngByV.set(key, mergeNearbyCrossings(pts)));
 
   // Draw partnerships (with bridge overlays for rare vertical partnerships)
@@ -6218,7 +6851,7 @@ function saveAsSVG() {
   });
   const svgCrossings = findLineCrossings(svgSegs);
   const svgByV = new Map();
-  svgCrossings.forEach(c => { if (!svgByV.has(c.vSrc)) svgByV.set(c.vSrc, []); svgByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy }); });
+  svgCrossings.forEach(c => { if (!svgByV.has(c.vSrc)) svgByV.set(c.vSrc, []); svgByV.get(c.vSrc).push({ cx: c.cx, cy: c.cy, hSrc: c.hSrc }); });
   svgByV.forEach((pts, key) => svgByV.set(key, mergeNearbyCrossings(pts)));
 
   // ── Partnerships ──
@@ -6507,9 +7140,922 @@ function tryAutoRestore() {
   return false;
 }
 
+
+// ── Redistribute Engine (constrained clinical pedigree layout) ──
+
+function redistributePedigreeWithWarning() {
+  const ok = window.confirm(
+    'Redistribute the pedigree automatically?\n\n' +
+    'This uses a clinical-pedigree layout: generations are layered, partners are kept adjacent, children are centred under the parental partnership, sibling order is preserved where possible, and free-position / no-snap people are treated as fixed boundary pins.\n\n' +
+    'This may move many shapes. Use Undo if you do not like the result.'
+  );
+  if (!ok) return;
+
+  if (typeof pushUndo === 'function') pushUndo();
+
+  const previousIndividualMoveMode = individualMoveMode;
+  individualMoveMode = false;
+  try {
+    runManagedPedigreeLayout({
+      seedIds: Array.from(persons.keys()),
+      reason: 'manualRedistribute',
+      fromButton: true,
+      fresh: true
+    });
+  } finally {
+    individualMoveMode = previousIndividualMoveMode;
+  }
+
+  const status = document.getElementById('statusBar');
+  if (status) status.textContent = 'Pedigree redistributed with constrained clinical layout';
+}
+
+// The layout below is intentionally independent of SVG drawing.  It only writes
+// person x/y positions; the existing updateAllConnections(), updateNumbering(),
+// line-bridge, twin, adoption/dashed-line and export code then redraw normally.
+// Algorithmic model:
+//   individual nodes + virtual family/partnership nodes
+//   topological generation ranks
+//   Sugiyama-style barycentric row ordering
+//   branch-width-aware child placement
+//   fixed-pin/noSnap handling
+//   final hard guards for symbol overlap and partnership-line corridors
+
+function managedGetLeft(p) { return parseFloat(p?.el?.style?.left) || 0; }
+function managedGetTop(p) { return parseFloat(p?.el?.style?.top) || 0; }
+
+function managedSetPersonPos(personData, x, y) {
+  if (!personData || !personData.el || !isFinite(x) || !isFinite(y)) return;
+  personData.el.style.left = Math.round(x * 10) / 10 + 'px';
+  personData.el.style.top = Math.round(y * 10) / 10 + 'px';
+  personData.x = Math.round(x * 10) / 10;
+  personData.y = Math.round(y * 10) / 10;
+}
+
+function managedAverage(values) {
+  const clean = (values || []).filter(v => isFinite(v));
+  return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : 0;
+}
+
+function managedMedian(values) {
+  const clean = (values || []).filter(v => isFinite(v)).sort((a, b) => a - b);
+  if (!clean.length) return 0;
+  const mid = Math.floor(clean.length / 2);
+  return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
+}
+
+function syncPersonDataFromDom() {
+  persons.forEach(p => {
+    if (!p || !p.el) return;
+    p.x = managedGetLeft(p);
+    p.y = managedGetTop(p);
+  });
+}
+
+function studioLayoutCenterGap() {
+  return Math.max(SHAPE_SIZE + 34, partnerGap || SHAPE_SIZE * 2);
+}
+
+function studioLayoutBranchGap() {
+  return Math.max(28, Math.min(studioLayoutCenterGap() * 0.45, SHAPE_SIZE * 1.4));
+}
+
+function studioPersonSexClass(p) {
+  const shape = (p && p.shape) || '';
+  if (shape === 'male' || shape === 'adopted-male') return 'male';
+  if (shape === 'female' || shape === 'adopted-female') return 'female';
+  return 'unknown';
+}
+
+function studioSortPeopleByOldPosition(a, b) {
+  return ((a?.oldX ?? a?.x ?? 0) - (b?.oldX ?? b?.x ?? 0)) ||
+         ((a?.oldY ?? a?.y ?? 0) - (b?.oldY ?? b?.y ?? 0)) ||
+         String(a?.id || '').localeCompare(String(b?.id || ''));
+}
+
+function studioOrderedParents(model, fam) {
+  const parents = (fam.parents || []).map(id => model.people.get(id)).filter(Boolean);
+  if (parents.length !== 2) return parents;
+  const a = parents[0], b = parents[1];
+  const sa = studioPersonSexClass(a.data), sb = studioPersonSexClass(b.data);
+  if (sa === 'male' && sb === 'female') return [a, b];
+  if (sa === 'female' && sb === 'male') return [b, a];
+  return parents.slice().sort(studioSortPeopleByOldPosition);
+}
+
+function buildManagedLayoutModel() {
+  const model = { people: new Map(), families: new Map() };
+
+  persons.forEach((p, id) => {
+    const x = managedGetLeft(p), y = managedGetTop(p);
+    model.people.set(id, {
+      id,
+      data: p,
+      oldX: x,
+      oldY: y,
+      x,
+      y,
+      rank: 0,
+      noSnap: !!p.noSnap,
+      partnerFamilies: [],
+      childOfFamilies: []
+    });
+  });
+
+  partnerships.forEach(ps => {
+    if (!model.people.has(ps.fromId) || !model.people.has(ps.toId)) return;
+    const fam = {
+      id: ps.id,
+      partnership: ps,
+      parents: [ps.fromId, ps.toId],
+      children: [],
+      rank: 0,
+      x: managedAverage([model.people.get(ps.fromId).oldX + SHAPE_HALF, model.people.get(ps.toId).oldX + SHAPE_HALF])
+    };
+    model.families.set(ps.id, fam);
+    model.people.get(ps.fromId).partnerFamilies.push(ps.id);
+    model.people.get(ps.toId).partnerFamilies.push(ps.id);
+  });
+
+  childLinks.forEach(cl => {
+    const fam = model.families.get(cl.partnershipId);
+    const child = model.people.get(cl.childId);
+    if (!fam || !child) return;
+    if (!fam.children.includes(cl.childId)) fam.children.push(cl.childId);
+    child.childOfFamilies.push(cl.partnershipId);
+  });
+
+  return model;
+}
+
+function studioMakeDisjointSet(ids) {
+  const parent = new Map(ids.map(id => [id, id]));
+  function find(id) {
+    let p = parent.get(id);
+    if (p === undefined) return id;
+    if (p !== id) { p = find(p); parent.set(id, p); }
+    return p;
+  }
+  function union(a, b) {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent.set(rb, ra);
+  }
+  return { find, union };
+}
+
+function assignManagedRanks(model) {
+  if (studioTryAssignRanks(model, true)) return;
+  if (studioTryAssignRanks(model, false)) return;
+
+  // Last-resort fallback for impossible directed cycles: preserve existing
+  // vertical rows, so the user can still manually resolve the unusual pedigree.
+  const ordered = Array.from(model.people.values()).sort((a, b) => a.oldY - b.oldY || a.oldX - b.oldX);
+  let rank = -1, lastY = null;
+  ordered.forEach(p => {
+    if (lastY === null || Math.abs(p.oldY - lastY) > Math.max(70, SHAPE_SIZE * 1.3)) {
+      rank += 1;
+      lastY = p.oldY;
+    }
+    p.rank = Math.max(0, rank);
+  });
+  model.families.forEach(fam => {
+    fam.rank = Math.max(0, ...fam.parents.map(id => model.people.get(id)?.rank ?? 0));
+  });
+}
+
+function studioTryAssignRanks(model, unionPartners) {
+  const ids = Array.from(model.people.keys());
+  const dsu = studioMakeDisjointSet(ids);
+  if (unionPartners) {
+    model.families.forEach(fam => {
+      if (fam.parents.length === 2) dsu.union(fam.parents[0], fam.parents[1]);
+    });
+  }
+
+  const groups = new Map();
+  ids.forEach(id => {
+    const root = dsu.find(id);
+    if (!groups.has(root)) groups.set(root, { id: root, members: [], rank: 0 });
+    groups.get(root).members.push(id);
+  });
+
+  const edges = new Map(), indegree = new Map();
+  groups.forEach((_, gid) => { edges.set(gid, new Set()); indegree.set(gid, 0); });
+
+  for (const fam of model.families.values()) {
+    for (const parentId of fam.parents) {
+      for (const childId of fam.children) {
+        if (!model.people.has(parentId) || !model.people.has(childId)) continue;
+        const a = dsu.find(parentId), b = dsu.find(childId);
+        if (a === b) return false;
+        if (!edges.get(a).has(b)) {
+          edges.get(a).add(b);
+          indegree.set(b, (indegree.get(b) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  const queue = Array.from(groups.keys())
+    .filter(gid => (indegree.get(gid) || 0) === 0)
+    .sort((a, b) => managedAverage(groups.get(a).members.map(id => model.people.get(id).oldY)) -
+                    managedAverage(groups.get(b).members.map(id => model.people.get(id).oldY)));
+
+  let processed = 0;
+  while (queue.length) {
+    const gid = queue.shift();
+    const group = groups.get(gid);
+    processed += 1;
+    for (const next of edges.get(gid) || []) {
+      const ng = groups.get(next);
+      ng.rank = Math.max(ng.rank, group.rank + 1);
+      indegree.set(next, indegree.get(next) - 1);
+      if (indegree.get(next) === 0) {
+        queue.push(next);
+        queue.sort((a, b) => (groups.get(a).rank - groups.get(b).rank) ||
+                             managedAverage(groups.get(a).members.map(id => model.people.get(id).oldX)) -
+                             managedAverage(groups.get(b).members.map(id => model.people.get(id).oldX)));
+      }
+    }
+  }
+  if (processed !== groups.size) return false;
+
+  groups.forEach(g => g.members.forEach(id => { model.people.get(id).rank = g.rank; }));
+  model.families.forEach(fam => {
+    fam.rank = Math.max(0, ...fam.parents.map(id => model.people.get(id)?.rank ?? 0));
+  });
+  return true;
+}
+
+function studioBuildPersonAdjacency(model) {
+  const adj = new Map();
+  model.people.forEach((_, id) => adj.set(id, new Set()));
+  model.families.forEach(fam => {
+    fam.parents.forEach(a => fam.parents.forEach(b => { if (a !== b) adj.get(a)?.add(b); }));
+    fam.children.forEach(childId => {
+      fam.parents.forEach(parentId => {
+        adj.get(parentId)?.add(childId);
+        adj.get(childId)?.add(parentId);
+      });
+    });
+  });
+  return adj;
+}
+
+function getManagedLayoutComponents(model, seedIds) {
+  const adj = studioBuildPersonAdjacency(model);
+  const wanted = new Set((seedIds || []).filter(id => model.people.has(id)));
+  const starts = wanted.size ? Array.from(wanted) : Array.from(model.people.keys());
+  const seen = new Set();
+  const comps = [];
+
+  starts.forEach(startId => {
+    if (seen.has(startId)) return;
+    const comp = new Set();
+    const queue = [startId];
+    while (queue.length) {
+      const id = queue.shift();
+      if (comp.has(id) || !model.people.has(id)) continue;
+      comp.add(id);
+      const p = model.people.get(id);
+      // Free-position people are fixed visual boundary pins. Include them as
+      // endpoints, but do not traverse through them into another layout island.
+      if (p.noSnap) continue;
+      for (const next of adj.get(id) || []) if (!comp.has(next)) queue.push(next);
+    }
+    comp.forEach(id => seen.add(id));
+    if (comp.size) comps.push(comp);
+  });
+
+  // Also pick up any unseeded disconnected people.
+  model.people.forEach((_, id) => {
+    if (seen.has(id)) return;
+    const comp = new Set([id]);
+    seen.add(id);
+    comps.push(comp);
+  });
+  return comps;
+}
+
+function studioFamiliesInComponent(model, comp) {
+  const out = [];
+  model.families.forEach(fam => {
+    const participants = fam.parents.concat(fam.children);
+    if (!participants.some(id => comp.has(id))) return;
+    if (!participants.some(id => comp.has(id) && !model.people.get(id)?.noSnap)) return;
+    out.push(fam);
+  });
+  return out;
+}
+
+function studioFamilyChildOrder(model, fam) {
+  return (fam.children || [])
+    .map((id, idx) => ({ idx, p: model.people.get(id) }))
+    .filter(item => item.p)
+    .sort((a, b) => (a.p.oldX - b.p.oldX) || (a.idx - b.idx) || a.p.id.localeCompare(b.p.id))
+    .map(item => item.p);
+}
+
+function studioAncestorFamilySet(model, personId, memo, visiting) {
+  memo = memo || new Map();
+  visiting = visiting || new Set();
+  if (memo.has(personId)) return memo.get(personId);
+  if (visiting.has(personId)) return new Set();
+  visiting.add(personId);
+  const out = new Set();
+  const p = model.people.get(personId);
+  (p?.childOfFamilies || []).forEach(fid => {
+    out.add(fid);
+    const fam = model.families.get(fid);
+    (fam?.parents || []).forEach(pid => studioAncestorFamilySet(model, pid, memo, visiting).forEach(x => out.add(x)));
+  });
+  visiting.delete(personId);
+  memo.set(personId, out);
+  return out;
+}
+
+function studioFamilyIsInternalKinship(model, fam, memo) {
+  if (!fam || fam.parents.length < 2) return false;
+  if (fam.partnership && fam.partnership.type === 'consanguineous') return true;
+  memo = memo || new Map();
+  for (let i = 0; i < fam.parents.length; i++) {
+    const a = studioAncestorFamilySet(model, fam.parents[i], memo, new Set());
+    for (let j = i + 1; j < fam.parents.length; j++) {
+      const b = studioAncestorFamilySet(model, fam.parents[j], memo, new Set());
+      for (const fid of a) if (b.has(fid)) return true;
+    }
+  }
+  return false;
+}
+
+function studioComputeBranchWidths(model, comp, families) {
+  const famById = new Map((families || []).map(f => [f.id, f]));
+  const personMemo = new Map();
+  const familyMemo = new Map();
+  const ancestorMemo = new Map();
+  const branchGap = studioLayoutBranchGap();
+  const minPersonWidth = studioLayoutCenterGap();
+
+  function personWidth(id, visitingPeople, visitingFamilies) {
+    if (personMemo.has(id)) return personMemo.get(id);
+    const p = model.people.get(id);
+    if (!p || !comp.has(id)) return minPersonWidth;
+    if (visitingPeople.has(id)) return minPersonWidth;
+    visitingPeople.add(id);
+
+    let width = minPersonWidth;
+    (p.partnerFamilies || []).forEach(fid => {
+      const fam = famById.get(fid);
+      if (!fam || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
+      const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
+      if (!children.length) return;
+      const childWidths = children.map(ch => personWidth(ch.id, visitingPeople, visitingFamilies));
+      const childSpan = childWidths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, childWidths.length - 1);
+      const coupleSpan = fam.parents.filter(pid => comp.has(pid)).length > 1 ? studioLayoutCenterGap() + SHAPE_SIZE : SHAPE_SIZE;
+      width = Math.max(width, childSpan, coupleSpan);
+    });
+
+    visitingPeople.delete(id);
+    personMemo.set(id, width);
+    return width;
+  }
+
+  function familyWidth(fid, visitingPeople, visitingFamilies) {
+    if (familyMemo.has(fid)) return familyMemo.get(fid);
+    const fam = famById.get(fid);
+    if (!fam) return minPersonWidth;
+    if (visitingFamilies.has(fid)) return minPersonWidth;
+    visitingFamilies.add(fid);
+    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
+    const childWidths = children.map(ch => personWidth(ch.id, visitingPeople, visitingFamilies));
+    const childSpan = childWidths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, childWidths.length - 1);
+    const parentSpan = Math.max(SHAPE_SIZE, (fam.parents.filter(pid => comp.has(pid)).length - 1) * studioLayoutCenterGap() + SHAPE_SIZE);
+    const width = Math.max(parentSpan, childSpan || minPersonWidth);
+    visitingFamilies.delete(fid);
+    familyMemo.set(fid, width);
+    return width;
+  }
+
+  comp.forEach(id => personWidth(id, new Set(), new Set()));
+  (families || []).forEach(fam => familyWidth(fam.id, new Set(), new Set()));
+  return { people: personMemo, families: familyMemo };
+}
+
+function studioRowsForComponent(model, comp) {
+  const rows = new Map();
+  comp.forEach(id => {
+    const p = model.people.get(id);
+    if (!p) return;
+    if (!rows.has(p.rank)) rows.set(p.rank, []);
+    rows.get(p.rank).push(p);
+  });
+  rows.forEach(row => row.sort((a, b) => (a.x - b.x) || studioSortPeopleByOldPosition(a, b)));
+  return rows;
+}
+
+function studioMoveDescendantIsland(model, comp, startId, dx, visited, ancestorMemo) {
+  if (!isFinite(dx) || Math.abs(dx) < 0.1) return;
+  visited = visited || new Set();
+  ancestorMemo = ancestorMemo || new Map();
+  if (visited.has(startId)) return;
+  visited.add(startId);
+  const p = model.people.get(startId);
+  if (!p || !comp.has(startId) || p.noSnap) return;
+  p.x += dx;
+
+  (p.partnerFamilies || []).forEach(fid => {
+    const fam = model.families.get(fid);
+    if (!fam || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
+    fam.parents.forEach(pid => {
+      if (pid === startId) return;
+      const partner = model.people.get(pid);
+      if (partner && comp.has(pid) && !partner.noSnap && !visited.has(pid)) {
+        partner.x += dx;
+        visited.add(pid);
+      }
+    });
+    (fam.children || []).forEach(cid => studioMoveDescendantIsland(model, comp, cid, dx, visited, ancestorMemo));
+  });
+}
+
+function studioResolveRowOverlaps(model, comp) {
+  const gap = studioLayoutCenterGap();
+  const rows = studioRowsForComponent(model, comp);
+  let moved = false;
+
+  rows.forEach(row => {
+    // Pairwise relaxation handles fixed noSnap pins better than a one-way cursor.
+    for (let pass = 0; pass < Math.max(18, row.length * 6); pass++) {
+      let passMoved = false;
+      row.sort((a, b) => (a.x - b.x) || a.id.localeCompare(b.id));
+      for (let i = 0; i < row.length - 1; i++) {
+        const a = row[i], b = row[i + 1];
+        const required = a.x + gap;
+        if (b.x >= required - 0.5) continue;
+        const overlap = required - b.x;
+        if (a.noSnap && b.noSnap) continue;
+        if (a.noSnap && !b.noSnap) {
+          b.x += overlap;
+        } else if (!a.noSnap && b.noSnap) {
+          a.x -= overlap;
+        } else {
+          a.x -= overlap / 2;
+          b.x += overlap / 2;
+        }
+        passMoved = true;
+        moved = true;
+      }
+      if (!passMoved) break;
+    }
+  });
+  return moved;
+}
+
+function studioPartnerBlocksForRow(model, row, families) {
+  const rowSet = new Set(row.map(p => p.id));
+  const adjacency = new Map(row.map(p => [p.id, new Set()]));
+  const ancestorMemo = new Map();
+  (families || []).forEach(fam => {
+    if (fam.parents.length !== 2) return;
+    const a = model.people.get(fam.parents[0]), b = model.people.get(fam.parents[1]);
+    if (!a || !b || a.rank !== b.rank || !rowSet.has(a.id) || !rowSet.has(b.id)) return;
+    if (studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
+    adjacency.get(a.id)?.add(b.id);
+    adjacency.get(b.id)?.add(a.id);
+  });
+
+  const used = new Set();
+  const blocks = [];
+  row.forEach(p => {
+    if (used.has(p.id) || !(adjacency.get(p.id)?.size)) return;
+    const ids = [];
+    const q = [p.id];
+    used.add(p.id);
+    while (q.length) {
+      const id = q.shift();
+      ids.push(id);
+      for (const next of adjacency.get(id) || []) {
+        if (!used.has(next)) { used.add(next); q.push(next); }
+      }
+    }
+    const people = ids.map(id => model.people.get(id)).filter(Boolean).sort((a, b) => {
+      const sa = studioPersonSexClass(a.data), sb = studioPersonSexClass(b.data);
+      if (sa === 'male' && sb === 'female') return -1;
+      if (sa === 'female' && sb === 'male') return 1;
+      return studioSortPeopleByOldPosition(a, b);
+    });
+    blocks.push(people);
+  });
+  return blocks;
+}
+
+function studioEnforcePartnerAdjacency(model, comp, families) {
+  const gap = studioLayoutCenterGap();
+  let moved = false;
+  const ancestorMemo = new Map();
+  (families || []).forEach(fam => {
+    if (fam.parents.length !== 2 || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
+    const ordered = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
+    if (ordered.length !== 2) return;
+    const [left, right] = ordered;
+    if (left.rank !== right.rank) return;
+    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
+    const parentCurrentCenter = managedAverage([left.x + SHAPE_HALF, right.x + SHAPE_HALF]);
+    const childCenter = children.length ? managedAverage(children.map(ch => ch.x + SHAPE_HALF)) : parentCurrentCenter;
+    const center = children.length ? (parentCurrentCenter * 0.45 + childCenter * 0.55) : parentCurrentCenter;
+    const targetLeft = center - gap / 2 - SHAPE_HALF;
+    const targetRight = center + gap / 2 - SHAPE_HALF;
+    if (left.noSnap && !right.noSnap) {
+      const nx = left.x + gap;
+      if (Math.abs(right.x - nx) > 0.5) { right.x = nx; moved = true; }
+    } else if (right.noSnap && !left.noSnap) {
+      const nx = right.x - gap;
+      if (Math.abs(left.x - nx) > 0.5) { left.x = nx; moved = true; }
+    } else if (!left.noSnap && !right.noSnap) {
+      if (Math.abs(left.x - targetLeft) > 0.5) { left.x = left.x * 0.35 + targetLeft * 0.65; moved = true; }
+      if (Math.abs(right.x - targetRight) > 0.5) { right.x = right.x * 0.35 + targetRight * 0.65; moved = true; }
+    }
+  });
+  return moved;
+}
+
+function studioComputeBarycentricTargets(model, comp, families, branchWidths) {
+  const targets = new Map();
+  function push(id, x, weight) {
+    if (!isFinite(x) || !model.people.has(id)) return;
+    if (!targets.has(id)) targets.set(id, { total: 0, weight: 0 });
+    const t = targets.get(id);
+    t.total += x * weight;
+    t.weight += weight;
+  }
+
+  const branchGap = studioLayoutBranchGap();
+  const gap = studioLayoutCenterGap();
+  const ancestorMemo = new Map();
+
+  (families || []).forEach(fam => {
+    const parents = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
+    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
+    if (!parents.length && !children.length) return;
+
+    let familyCenter = null;
+    if (parents.length) familyCenter = managedAverage(parents.map(p => p.x + SHAPE_HALF));
+    if (familyCenter === null && children.length) familyCenter = managedAverage(children.map(ch => ch.x + SHAPE_HALF));
+    if (!isFinite(familyCenter)) familyCenter = 0;
+
+    if (parents.length === 2 && parents[0].rank === parents[1].rank && !studioFamilyIsInternalKinship(model, fam, ancestorMemo)) {
+      const [left, right] = parents;
+      const childCenter = children.length ? managedAverage(children.map(ch => ch.x + SHAPE_HALF)) : familyCenter;
+      const center = children.length ? (familyCenter * 0.35 + childCenter * 0.65) : familyCenter;
+      push(left.id, center - gap / 2 - SHAPE_HALF, 7);
+      push(right.id, center + gap / 2 - SHAPE_HALF, 7);
+      fam.x = center;
+      familyCenter = center;
+    } else if (parents.length) {
+      fam.x = familyCenter;
+    }
+
+    if (children.length) {
+      const widths = children.map(ch => Math.max(gap, branchWidths.people.get(ch.id) || gap));
+      const totalWidth = widths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, widths.length - 1);
+      let cursor = familyCenter - totalWidth / 2;
+      children.forEach((child, idx) => {
+        const childCenter = cursor + widths[idx] / 2;
+        push(child.id, childCenter - SHAPE_HALF, children.length === 1 ? 12 : 9);
+        cursor += widths[idx] + branchGap;
+      });
+    }
+  });
+
+  return targets;
+}
+
+function studioApplyBarycentricOrdering(model, comp, families, targets) {
+  const rows = studioRowsForComponent(model, comp);
+  let moved = false;
+  rows.forEach(row => {
+    const blocks = studioPartnerBlocksForRow(model, row, families);
+    const blocked = new Set(blocks.flat().map(p => p.id));
+    const items = [];
+    blocks.forEach(block => {
+      const key = managedAverage(block.map(p => {
+        const t = targets.get(p.id);
+        return t && t.weight ? t.total / t.weight : p.x;
+      }));
+      items.push({ people: block, key });
+    });
+    row.forEach(p => {
+      if (blocked.has(p.id)) return;
+      const t = targets.get(p.id);
+      const key = t && t.weight ? t.total / t.weight : p.x;
+      items.push({ people: [p], key });
+    });
+    items.sort((a, b) => (a.key - b.key) || studioSortPeopleByOldPosition(a.people[0], b.people[0]));
+
+    let cursor = Math.min(...row.map(p => p.noSnap ? p.x : p.x));
+    if (!isFinite(cursor)) cursor = 80;
+    items.forEach(item => {
+      const sortedPeople = item.people;
+      sortedPeople.forEach((p, idx) => {
+        if (p.noSnap) {
+          cursor = Math.max(cursor, p.x + studioLayoutCenterGap());
+          return;
+        }
+        const targetX = cursor + idx * studioLayoutCenterGap();
+        if (Math.abs(p.x - targetX) > 0.5) {
+          p.x = p.x * 0.55 + targetX * 0.45;
+          moved = true;
+        }
+      });
+      cursor += sortedPeople.length * studioLayoutCenterGap();
+    });
+  });
+  return moved;
+}
+
+function studioPlaceChildBranches(model, comp, families, branchWidths) {
+  const branchGap = studioLayoutBranchGap();
+  const gap = studioLayoutCenterGap();
+  let moved = false;
+
+  const orderedFamilies = (families || []).slice().sort((a, b) => (a.rank - b.rank) || String(a.id).localeCompare(String(b.id)));
+  orderedFamilies.forEach(fam => {
+    const parents = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
+    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id) && !ch.noSnap);
+    if (!children.length) return;
+
+    const parentCenter = parents.length
+      ? managedAverage(parents.map(p => p.x + SHAPE_HALF))
+      : managedAverage(children.map(ch => ch.x + SHAPE_HALF));
+    const widths = children.map(ch => Math.max(gap, branchWidths.people.get(ch.id) || gap));
+    const total = widths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, widths.length - 1);
+    let cursor = parentCenter - total / 2;
+
+    children.forEach((child, idx) => {
+      const targetX = cursor + widths[idx] / 2 - SHAPE_HALF;
+      const dx = targetX - child.x;
+      if (Math.abs(dx) > 0.75) {
+        studioMoveDescendantIsland(model, comp, child.id, dx * 0.75, new Set(), new Map());
+        moved = true;
+      }
+      cursor += widths[idx] + branchGap;
+    });
+  });
+  return moved;
+}
+
+function studioInitialiseComponentCoordinates(model, comp, families, options) {
+  const people = Array.from(comp).map(id => model.people.get(id)).filter(Boolean);
+  if (!people.length) return;
+  const fresh = !!(options && (options.fresh || options.fromButton || options.reason === 'manualRedistribute'));
+  const generationGap = Math.max(childHeight || 0, SHAPE_SIZE * 2.45);
+  const minRank = Math.min(...people.map(p => p.rank || 0));
+  const movable = people.filter(p => !p.noSnap);
+  const yAnchors = (movable.length ? movable : people).map(p => p.oldY - ((p.rank || 0) - minRank) * generationGap);
+  const baseY = yAnchors.length
+    ? (fresh ? Math.min(...yAnchors) : managedMedian(yAnchors))
+    : 80;
+
+  people.forEach(p => {
+    p.y = p.noSnap ? p.oldY : baseY + ((p.rank || 0) - minRank) * generationGap;
+    p.x = p.noSnap ? p.oldX : p.oldX;
+  });
+
+  if (fresh) {
+    const rows = studioRowsForComponent(model, comp);
+    const minOldX = Math.min(...people.map(p => p.oldX));
+    rows.forEach(row => {
+      row.sort(studioSortPeopleByOldPosition);
+      let cursor = isFinite(minOldX) ? minOldX : 80;
+      row.forEach(p => {
+        if (p.noSnap) {
+          cursor = Math.max(cursor, p.oldX + studioLayoutCenterGap());
+          return;
+        }
+        p.x = cursor;
+        cursor += studioLayoutCenterGap();
+      });
+    });
+  }
+}
+
+function nudgeManagedComponentToOldCentre(model, comp) {
+  const movable = Array.from(comp).map(id => model.people.get(id)).filter(p => p && !p.noSnap);
+  if (!movable.length) return;
+  const dx = managedMedian(movable.map(p => p.oldX)) - managedMedian(movable.map(p => p.x));
+  const dy = managedMedian(movable.map(p => p.oldY)) - managedMedian(movable.map(p => p.y));
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+  movable.forEach(p => { p.x += dx; p.y += dy; });
+}
+
+function keepManagedComponentInPositiveSpace(model, comp) {
+  const movable = Array.from(comp).map(id => model.people.get(id)).filter(p => p && !p.noSnap);
+  if (!movable.length) return;
+  const minX = Math.min(...movable.map(p => p.x));
+  const minY = Math.min(...movable.map(p => p.y));
+  const dx = minX < 40 ? 40 - minX : 0;
+  const dy = minY < 40 ? 40 - minY : 0;
+  if (dx || dy) movable.forEach(p => { p.x += dx; p.y += dy; });
+}
+
+function layoutManagedComponent(model, comp, options) {
+  const people = Array.from(comp).map(id => model.people.get(id)).filter(Boolean);
+  if (!people.length || people.every(p => p.noSnap)) return;
+
+  const fresh = !!(options && (options.fresh || options.fromButton || options.reason === 'manualRedistribute'));
+  const families = studioFamiliesInComponent(model, comp);
+  studioInitialiseComponentCoordinates(model, comp, families, options || {});
+
+  for (let iter = 0; iter < 24; iter++) {
+    const branchWidths = studioComputeBranchWidths(model, comp, families);
+    const targets = studioComputeBarycentricTargets(model, comp, families, branchWidths);
+
+    targets.forEach((t, id) => {
+      const p = model.people.get(id);
+      if (!p || p.noSnap || !t.weight) return;
+      const targetX = t.total / t.weight;
+      const damping = iter < 5 ? 0.72 : 0.48;
+      p.x = p.x * (1 - damping) + targetX * damping;
+    });
+
+    studioApplyBarycentricOrdering(model, comp, families, targets);
+    studioEnforcePartnerAdjacency(model, comp, families);
+    studioResolveRowOverlaps(model, comp);
+  }
+
+  const finalWidths = studioComputeBranchWidths(model, comp, families);
+  for (let i = 0; i < 4; i++) {
+    studioPlaceChildBranches(model, comp, families, finalWidths);
+    studioEnforcePartnerAdjacency(model, comp, families);
+    studioResolveRowOverlaps(model, comp);
+  }
+
+  if (!fresh) nudgeManagedComponentToOldCentre(model, comp);
+  keepManagedComponentInPositiveSpace(model, comp);
+}
+
+function applyManagedLayoutToPersons(model, comp) {
+  comp.forEach(id => {
+    const lp = model.people.get(id);
+    if (!lp || lp.noSnap) return;
+    managedSetPersonPos(lp.data, lp.x, lp.y);
+    if (lp.data.siblingFixed) lp.data.siblingFixed = false;
+  });
+}
+
+function managedSegmentIntersectsPersonBox(x1, y1, x2, y2, person, pad) {
+  const left = managedGetLeft(person) - pad;
+  const right = managedGetLeft(person) + SHAPE_SIZE + pad;
+  const top = managedGetTop(person) - pad;
+  const bottom = managedGetTop(person) + SHAPE_SIZE + pad;
+  if (Math.max(x1, x2) < left || Math.min(x1, x2) > right || Math.max(y1, y2) < top || Math.min(y1, y2) > bottom) return false;
+  if (Math.abs(y1 - y2) <= Math.max(6, SHAPE_SIZE * 0.2)) {
+    const y = (y1 + y2) / 2;
+    return y >= top && y <= bottom && right > Math.min(x1, x2) + SHAPE_HALF && left < Math.max(x1, x2) - SHAPE_HALF;
+  }
+  function ccw(ax, ay, bx, by, cx, cy) { return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax); }
+  function segHit(ax, ay, bx, by, cx, cy, dx, dy) {
+    return ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
+           ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy);
+  }
+  if (x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) return true;
+  if (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom) return true;
+  return segHit(x1, y1, x2, y2, left, top, right, top) ||
+         segHit(x1, y1, x2, y2, right, top, right, bottom) ||
+         segHit(x1, y1, x2, y2, right, bottom, left, bottom) ||
+         segHit(x1, y1, x2, y2, left, bottom, left, top);
+}
+
+function enforceManagedPartnershipLineClearance() {
+  const rowGap = studioLayoutCenterGap();
+  const pad = Math.max(3, (typeof STROKE_W !== 'undefined' ? STROKE_W : 2) + 2);
+  let moved = false;
+
+  partnerships.forEach(pship => {
+    const a = persons.get(pship.fromId);
+    const b = persons.get(pship.toId);
+    if (!a || !b) return;
+    const ac = getPersonCenter(a), bc = getPersonCenter(b);
+    const minX = Math.min(ac.x, bc.x), maxX = Math.max(ac.x, bc.x), midX = (ac.x + bc.x) / 2;
+    const blockers = Array.from(persons.values()).filter(p => {
+      if (!p || p.id === a.id || p.id === b.id || p.noSnap) return false;
+      return managedSegmentIntersectsPersonBox(ac.x, ac.y, bc.x, bc.y, p, pad);
+    }).sort((p, q) => managedGetLeft(p) - managedGetLeft(q));
+
+    blockers.forEach(blocker => {
+      const bx = managedGetLeft(blocker) + SHAPE_HALF;
+      const leftTarget = minX - rowGap - SHAPE_HALF;
+      const rightTarget = maxX + rowGap - SHAPE_HALF;
+      const current = managedGetLeft(blocker);
+      const nextX = bx < midX
+        ? (Math.abs(current - leftTarget) <= Math.abs(current - rightTarget) ? leftTarget : rightTarget)
+        : (Math.abs(current - rightTarget) <= Math.abs(current - leftTarget) ? rightTarget : leftTarget);
+      if (Math.abs(current - nextX) > 0.5) {
+        managedSetPersonPos(blocker, nextX, managedGetTop(blocker));
+        moved = true;
+      }
+    });
+  });
+  return moved;
+}
+
+function enforceManagedNoPersonOverlap() {
+  const rowGap = studioLayoutCenterGap();
+  const tolerance = Math.max(14, SHAPE_SIZE * 0.35);
+  const rows = [];
+  Array.from(persons.values()).forEach(p => {
+    const y = managedGetTop(p);
+    let row = rows.find(r => Math.abs(r.y - y) <= tolerance);
+    if (!row) { row = { y, items: [] }; rows.push(row); }
+    row.items.push(p);
+    row.y = managedAverage(row.items.map(item => managedGetTop(item)));
+  });
+
+  let moved = false;
+  rows.forEach(row => {
+    row.items.sort((a, b) => managedGetLeft(a) - managedGetLeft(b));
+    for (let pass = 0; pass < Math.max(16, row.items.length * 6); pass++) {
+      let passMoved = false;
+      row.items.sort((a, b) => managedGetLeft(a) - managedGetLeft(b));
+      for (let i = 0; i < row.items.length - 1; i++) {
+        const a = row.items[i], b = row.items[i + 1];
+        const required = managedGetLeft(a) + rowGap;
+        if (managedGetLeft(b) >= required - 0.5) continue;
+        const overlap = required - managedGetLeft(b);
+        if (a.noSnap && b.noSnap) continue;
+        if (a.noSnap && !b.noSnap) {
+          managedSetPersonPos(b, managedGetLeft(b) + overlap, managedGetTop(b));
+        } else if (!a.noSnap && b.noSnap) {
+          managedSetPersonPos(a, managedGetLeft(a) - overlap, managedGetTop(a));
+        } else {
+          managedSetPersonPos(a, managedGetLeft(a) - overlap / 2, managedGetTop(a));
+          managedSetPersonPos(b, managedGetLeft(b) + overlap / 2, managedGetTop(b));
+        }
+        passMoved = true;
+        moved = true;
+      }
+      if (!passMoved) break;
+    }
+  });
+  return moved;
+}
+
+function runManagedPedigreeLayout(options) {
+  if (persons.size === 0) {
+    updateTextWrapping();
+    updateAllConnections();
+    updateNumbering();
+    return;
+  }
+
+  syncPersonDataFromDom();
+  const model = buildManagedLayoutModel();
+  assignManagedRanks(model);
+  const components = getManagedLayoutComponents(model, options?.seedIds || []);
+
+  components.forEach(comp => layoutManagedComponent(model, comp, options || {}));
+  components.forEach(comp => applyManagedLayoutToPersons(model, comp));
+
+  for (let i = 0; i < 8; i++) {
+    const movedOverlap = enforceManagedNoPersonOverlap();
+    updateAllConnections();
+    const movedLine = enforceManagedPartnershipLineClearance();
+    if (!movedOverlap && !movedLine) break;
+  }
+
+  updateTextWrapping();
+  updateAllConnections();
+  updateNumbering();
+  expandCanvasIfNeeded();
+  scheduleSave();
+}
+
+/*
+Experimental integration changes that should NOT be copied for the button-only product direction:
+
+1. addPartnership() / addChildLink()
+   Earlier experimental builds called runManagedPedigreeLayout() automatically after every structural edit.
+   For the new product decision, keep the original freeform behaviour and call the engine only from
+   redistributePedigreeWithWarning().
+
+2. toggleIndividualMove(), startDrag(), onPointerUp(), getConnectedGroup()
+   Earlier builds experimented with subgraph movement semantics. Do not copy those movement overrides if
+   the goal is to restore the original Studio feel.
+
+3. computeChildLinkD(), updateChildLinkPos(), saveAsImage(), saveAsSVG()
+   Earlier builds experimented with forced-straight only-child lines. The agreed final direction was that
+   straight placement should be an insertion/layout convenience only, not a permanent rendering rule.
+   The button-only redistribution engine can use the original connection-rendering functions.
+
+4. Unsafe-partner fallback helpers are retained above for reference, but a button-only redistribution feature
+   does not need to intercept partner creation. If the developer wants warnings during manual editing, implement
+   that as a separate product choice, not as part of automatic redistribution.
+*/
+
 // ── Init ──
 applyCanvasSize();
 initColorPickers();
+initMultiColorPickers();
 initDrawColorPicker();
 tryAutoRestore();
 updateStatus();

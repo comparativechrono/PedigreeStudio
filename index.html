@@ -733,9 +733,10 @@
     <h3>Selected Partnership</h3>
     <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
     <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
-      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
-      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Normal</button>
+      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang.</button>
+      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Separated</button>
+      <button class="btn btn-secondary" data-pt="consanguineous-separated" onclick="setPartnershipType('consanguineous-separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang. Sep.</button>
     </div>
     <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change the type of the selected partnership.</p>
     <button class="btn btn-danger" onclick="deleteSelectedPartnership()" style="margin-top:8px;">
@@ -829,9 +830,10 @@
     <h3>Partnerships Selected <span class="multi-select-count" id="multiPartnershipCount"></span></h3>
     <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
     <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-secondary" data-mpt="normal" onclick="multiSetPartnershipType('normal')" style="flex:1;margin:0;padding:5px;font-size:10px;">Normal</button>
-      <button class="btn btn-secondary" data-mpt="consanguineous" onclick="multiSetPartnershipType('consanguineous')" style="flex:1;margin:0;padding:5px;font-size:10px;">Consang.</button>
-      <button class="btn btn-secondary" data-mpt="separated" onclick="multiSetPartnershipType('separated')" style="flex:1;margin:0;padding:5px;font-size:10px;">Separated</button>
+      <button class="btn btn-secondary" data-mpt="normal" onclick="multiSetPartnershipType('normal')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Normal</button>
+      <button class="btn btn-secondary" data-mpt="consanguineous" onclick="multiSetPartnershipType('consanguineous')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang.</button>
+      <button class="btn btn-secondary" data-mpt="separated" onclick="multiSetPartnershipType('separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Separated</button>
+      <button class="btn btn-secondary" data-mpt="consanguineous-separated" onclick="multiSetPartnershipType('consanguineous-separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang. Sep.</button>
     </div>
     <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change type for all selected partnerships.</p>
     <button class="btn btn-danger" onclick="deleteMultiSelectedPartnerships()" style="margin-top:8px;">
@@ -1378,23 +1380,78 @@ function rebuildDrawLayer() {
   drawStrokes.forEach(s => { s.el = createStrokeSVG(s); });
 }
 
+function isConsanguineousPartnershipType(type) {
+  return type === 'consanguineous' || type === 'consanguineous-separated';
+}
+
+function isSharedPartnerPartnershipType(type) {
+  return type === 'shared-partner' || type === 'shared-partner-separated';
+}
+
+function isSeparatedPartnershipType(type) {
+  return type === 'separated' || type === 'consanguineous-separated' || type === 'shared-partner-separated';
+}
+
+function isProtectedInternalPartnershipType(type) {
+  return isConsanguineousPartnershipType(type) || isSharedPartnerPartnershipType(type);
+}
+
+function requestedTypeWantsSeparated(requestedType) {
+  return isSeparatedPartnershipType(requestedType) || requestedType === 'separated';
+}
+
+function displayPartnershipType(type) {
+  if (type === 'consanguineous-separated') return 'consanguineous separated';
+  if (type === 'consanguineous') return 'consanguineous';
+  if (type === 'shared-partner-separated') return 'shared partner separated';
+  if (type === 'shared-partner') return 'shared partner';
+  if (type === 'separated') return 'separated';
+  return 'normal';
+}
+
+function visiblePartnershipButtonType(type) {
+  // shared-partner is an internal protected-layout type. It deliberately
+  // renders like a normal single partnership line, so the UI highlights Normal
+  // when such a line is selected. shared-partner-separated renders like a
+  // normal separated line, so the UI highlights Separated.
+  if (type === 'shared-partner') return 'normal';
+  if (type === 'shared-partner-separated') return 'separated';
+  return type || 'normal';
+}
+
+function protectedPartnershipStatus(finalType, requestedType) {
+  if (finalType === 'consanguineous-separated') {
+    return 'Related partners kept as a consanguineous separated protected layout line';
+  }
+  if (finalType === 'consanguineous' && requestedType !== 'consanguineous') {
+    return 'Related partners are shown as consanguineous to protect default layout';
+  }
+  if (finalType === 'shared-partner-separated') {
+    return 'Shared-partner link shown as separated but kept as a protected layout line';
+  }
+  if (finalType === 'shared-partner' && requestedType !== 'shared-partner') {
+    return 'Shared-partner link kept as a normal-looking protected layout line';
+  }
+  return 'Partnership changed to ' + displayPartnershipType(finalType);
+}
+
 function setPartnershipType(t) {
   currentPartnershipType = t;
   document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
-  // If a partnership is selected, change its type. Related/internal partner
-  // links are canonicalised to consanguineous even if the user clicks Normal,
-  // because treating them as ordinary spouse blocks breaks default spacing.
+  // If a partnership is selected, change its type. Some relationship lines are
+  // protected internal links: true blood relationships are canonicalised to
+  // consanguineous; shared-partner/affinal loops are stored as shared-partner variants
+  // but rendered as normal-looking single or separated lines. In both cases, default layout must not
+  // treat the link as an ordinary adjacent spouse block.
   if (selectedPartnershipId) {
     const ps = partnerships.find(p => p.id === selectedPartnershipId);
     if (ps) {
       const finalType = canonicalPartnershipType(ps.fromId, ps.toId, t, ps.id);
       pushUndo();
       setPartnershipVisualType(ps, finalType);
-      document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === finalType));
+      document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === visiblePartnershipButtonType(finalType)));
       scheduleSave();
-      document.getElementById('statusBar').textContent = finalType === 'consanguineous' && t !== 'consanguineous'
-        ? 'Related partners are shown as consanguineous'
-        : 'Partnership changed to ' + finalType;
+      document.getElementById('statusBar').textContent = protectedPartnershipStatus(finalType, t);
     }
   }
 }
@@ -1733,12 +1790,12 @@ function centerTextY(shape) { return shape === 'miscarriage' ? 30 : 26; }
 
 function computePartnershipGeom(fcx, fcy, tcx, tcy, type) {
   const geom = { x1: fcx, y1: fcy, x2: tcx, y2: tcy, consang: null, slashLines: null };
-  if (type === 'consanguineous') {
+  if (isConsanguineousPartnershipType(type)) {
     const dx = tcx - fcx, dy = tcy - fcy, len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = -dy / len * 4, ny = dx / len * 4;
     geom.consang = { x1: fcx + nx, y1: fcy + ny, x2: tcx + nx, y2: tcy + ny };
   }
-  if (type === 'separated') {
+  if (isSeparatedPartnershipType(type)) {
     const mx = (fcx + tcx) / 2, my = (fcy + tcy) / 2, sx = mx - 20;
     geom.slashLines = [
       { x1: sx - 5, y1: my - 8, x2: sx + 5, y2: my + 8 },
@@ -2201,9 +2258,14 @@ function hideProps() {
 function showPartnershipProps(id) {
   const ps = partnerships.find(p => p.id === id);
   if (!ps) return;
-  document.querySelectorAll('#partnershipPropsPanel [data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === ps.type));
+  const visibleType = visiblePartnershipButtonType(ps.type);
+  document.querySelectorAll('#partnershipPropsPanel [data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === visibleType));
   document.getElementById('partnershipPropsPanel').classList.add('visible');
-  document.getElementById('statusBar').textContent = 'Partnership selected (' + ps.type + ')';
+  let status = 'Partnership selected (' + displayPartnershipType(ps.type) + ')';
+  if (ps.type === 'shared-partner') status = 'Partnership selected (shared partner — normal line, protected layout)';
+  if (ps.type === 'shared-partner-separated') status = 'Partnership selected (shared partner — separated line, protected layout)';
+  if (ps.type === 'consanguineous-separated') status = 'Partnership selected (consanguineous separated, protected layout)';
+  document.getElementById('statusBar').textContent = status;
 }
 
 function showChildLinkProps(id) {
@@ -2727,7 +2789,7 @@ function multiSetPartnershipType(type) {
   currentPartnershipType = type;
   document.querySelectorAll('[data-mpt]').forEach(b => b.classList.toggle('active', b.dataset.mpt === type));
   scheduleSave();
-  if (coerced) document.getElementById('statusBar').textContent = 'Related partners are shown as consanguineous';
+  if (coerced) document.getElementById('statusBar').textContent = 'Some related/shared-partner links were kept as protected layout lines; separated requests were mapped to protected separated variants where needed';
 }
 
 function deleteMultiSelectedPartnerships() {
@@ -3312,7 +3374,7 @@ function getDefaultDownstreamBlock(startId) {
       // pushed thousands of pixels apart.  Children of the consanguineous
       // partnership are still handled when that partnership itself is the
       // active family being laid out.
-      if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
+      if (isProtectedInternalPartnership(ps)) return;
       const partnerId = ps.fromId === id ? ps.toId : ps.fromId;
       if (persons.has(partnerId) && !visited.has(partnerId)) queue.push(partnerId);
       childLinks.forEach(cl => {
@@ -3617,7 +3679,7 @@ function getDefaultDisplacementBlockForPerson(personId, protectedIds) {
     // They are usually already placed in separate cousin/descendant branches;
     // default mode should draw the relationship line without dragging either
     // branch into the other's sibling block.
-    if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
+    if (isProtectedInternalPartnership(ps)) return;
     const otherId = ps.fromId === personId ? ps.toId : ps.fromId;
     const ids = new Set([personId, otherId]);
     childLinks.filter(cl => cl.partnershipId === ps.id).forEach(cl => {
@@ -3886,7 +3948,7 @@ function addPartnership(fromId, toId, customId, type) {
   hitArea.classList.add('conn-hit');
 
   let line2 = null;
-  if (pType === 'consanguineous') {
+  if (isConsanguineousPartnershipType(pType)) {
     line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line2.setAttribute('stroke', '#1a2332');
     line2.setAttribute('stroke-width', '2');
@@ -4976,13 +5038,46 @@ function flushConnectionUpdate() {
 // AUTO-ALIGN CONNECTED
 // ══════════════════════
 
+function partnershipHasChildren(partnershipId) {
+  return childLinks.some(cl => cl.partnershipId === partnershipId);
+}
+
+function alignOrdinaryPartnersToMovedPerson(movedPersonId, targetY) {
+  // Individual Move post-drag repair for ordinary/separated partnerships.
+  // The generic alignConnectedPersons() uses the leftmost partner as the Y
+  // reference. In Individual Move mode, the actively dragged person should be
+  // the user's explicit Y reference whether the partnership has children or not.
+  // Therefore run this after alignConnectedPersons() and re-snap every ordinary
+  // partner of the moved person to the moved person's final Y. Protected internal
+  // relationship lines (consanguinity/shared-partner variants) are skipped
+  // because they are relationship lines, not same-row spouse blocks.
+  const moved = persons.get(movedPersonId);
+  if (!moved || moved.noSnap || !Number.isFinite(targetY)) return;
+
+  partnerships.forEach(ps => {
+    if (ps.fromId !== movedPersonId && ps.toId !== movedPersonId) return;
+    if (isProtectedInternalPartnership(ps)) return;
+
+    const otherId = ps.fromId === movedPersonId ? ps.toId : ps.fromId;
+    const other = persons.get(otherId);
+    if (!other) return;
+
+    moved.el.style.top = targetY + 'px';
+    moved.y = targetY;
+    if (!other.noSnap) {
+      other.el.style.top = targetY + 'px';
+      other.y = targetY;
+    }
+  });
+}
+
 function alignConnectedPersons() {
   // 1. Align partners: both partners in a partnership snap to leftmost partner's Y
   partnerships.forEach(ps => {
     // Consanguineous partnerships are cross-branch relationship lines, not
     // ordinary adjacent partner units.  Auto-aligning their Y coordinate can
     // unexpectedly move established cousin/descendant branches.
-    if (ps.type === 'consanguineous' || areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) return;
+    if (isProtectedInternalPartnership(ps)) return;
     const p1 = persons.get(ps.fromId), p2 = persons.get(ps.toId);
     if (!p1 || !p2) return;
     // If both are noSnap, skip entirely
@@ -5184,12 +5279,76 @@ function areAlreadyRelatedForPartnership(fromId, toId, excludePartnershipId) {
   return getConnectedGroupExcludingPartnership(fromId, excludePartnershipId || null).has(toId);
 }
 
+function getParentIdsForPerson(personId) {
+  const out = [];
+  childLinks.forEach(cl => {
+    if (cl.childId !== personId) return;
+    const ps = partnerships.find(p => p.id === cl.partnershipId);
+    if (!ps) return;
+    if (persons.has(ps.fromId) && ps.fromId !== personId) out.push(ps.fromId);
+    if (persons.has(ps.toId) && ps.toId !== personId) out.push(ps.toId);
+  });
+  return out;
+}
+
+function getAncestorIdsForPerson(personId) {
+  // Upward-only parent traversal. This is deliberately not the same as
+  // getConnectedGroup(): spouses/partners are not traversed, and a co-parent
+  // is not treated as a blood relative merely because they share a child.
+  const out = new Set();
+  const queue = getParentIdsForPerson(personId);
+  while (queue.length) {
+    const id = queue.shift();
+    if (out.has(id) || !persons.has(id)) continue;
+    out.add(id);
+    getParentIdsForPerson(id).forEach(pid => { if (!out.has(pid)) queue.push(pid); });
+  }
+  return out;
+}
+
+function areConsanguineouslyRelatedForPartnership(fromId, toId) {
+  if (!persons.has(fromId) || !persons.has(toId) || fromId === toId) return false;
+  const fromAncestors = getAncestorIdsForPerson(fromId);
+  const toAncestors = getAncestorIdsForPerson(toId);
+  if (fromAncestors.has(toId) || toAncestors.has(fromId)) return true;
+  for (const id of fromAncestors) if (toAncestors.has(id)) return true;
+  return false;
+}
+
 function canonicalPartnershipType(fromId, toId, requestedType, excludePartnershipId) {
-  // Any partnership between people already connected by the pedigree should be
-  // stored and rendered as consanguineous. This prevents later default-mode
-  // sibling spacing from treating the line as an ordinary adjacent spouse unit.
-  if (areAlreadyRelatedForPartnership(fromId, toId, excludePartnershipId)) return 'consanguineous';
-  return requestedType || 'normal';
+  // v11 distinguishes protected layout semantics from the visible line style.
+  //
+  // 1. True consanguinity: the partners share an ancestor, or one is an
+  //    ancestor/descendant of the other. These are stored as either
+  //    'consanguineous' or 'consanguineous-separated'. Both use protected
+  //    layout mechanics and render as double lines; the separated variant also
+  //    draws separation slashes.
+  // 2. Shared-partner / affinal loops: the endpoints are already connected
+  //    elsewhere in the pedigree, but not through a blood/ancestor path. The
+  //    common example is two cousins sharing the same partner. These are stored
+  //    as either 'shared-partner' or 'shared-partner-separated'. Both use the
+  //    same protected layout mechanics as consanguinity, but they render as
+  //    normal-looking single lines (with slashes for the separated variant).
+  const requested = requestedType || 'normal';
+  const wantsSeparated = requestedTypeWantsSeparated(requested);
+  if (areConsanguineouslyRelatedForPartnership(fromId, toId)) {
+    return wantsSeparated ? 'consanguineous-separated' : 'consanguineous';
+  }
+  if (areAlreadyRelatedForPartnership(fromId, toId, excludePartnershipId)) {
+    return wantsSeparated ? 'shared-partner-separated' : 'shared-partner';
+  }
+  // Internal shared-partner types are only valid for already-connected
+  // affinal loops. If an imported/free-standing link has one, reduce it to the
+  // visible ordinary type that matches its line style.
+  if (requested === 'shared-partner') return 'normal';
+  if (requested === 'shared-partner-separated') return 'separated';
+  return requested;
+}
+
+function isProtectedInternalPartnership(ps) {
+  if (!ps) return false;
+  return isProtectedInternalPartnershipType(ps.type) ||
+         areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id);
 }
 
 function setPartnershipVisualType(ps, type) {
@@ -5202,7 +5361,7 @@ function setPartnershipVisualType(ps, type) {
   if (ps.el2) { ps.el2.remove(); ps.el2 = null; }
   if (ps.slash) { ps.slash.forEach(s => s.remove()); ps.slash = null; }
 
-  if (type === 'consanguineous') {
+  if (isConsanguineousPartnershipType(type)) {
     const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     l2.setAttribute('stroke', STROKE_COLOR);
     l2.setAttribute('stroke-width', STROKE_W);
@@ -5216,13 +5375,15 @@ function setPartnershipVisualType(ps, type) {
 }
 
 function normalizeRelatedPartnershipTypes() {
-  // Upgrade older/session-imported cousin or descendant partnerships that were
-  // saved as 'normal'. Without this, later sibling insertion can still traverse
-  // them as ordinary spouse blocks and introduce very large gaps.
+  // Upgrade or correct older/session-imported internal relationship lines.
+  // True blood relationships become consanguineous variants; shared-partner/affinal
+  // loops become shared-partner variants. This is intentionally run before saving, after
+  // loading, and before default construction operations.
   let changed = false;
   partnerships.forEach(ps => {
-    if (ps.type !== 'consanguineous' && areAlreadyRelatedForPartnership(ps.fromId, ps.toId, ps.id)) {
-      if (setPartnershipVisualType(ps, 'consanguineous')) changed = true;
+    const finalType = canonicalPartnershipType(ps.fromId, ps.toId, ps.type || 'normal', ps.id);
+    if ((ps.type || 'normal') !== finalType) {
+      if (setPartnershipVisualType(ps, finalType)) changed = true;
     }
   });
   return changed;
@@ -5441,13 +5602,18 @@ function onPointerMove(e) {
     if (p && orig) { p.el.style.left = (orig.x + dx) + 'px'; p.el.style.top = (orig.y + dy) + 'px'; }
   });
 
-  // Individual move mode: push descendants to track the person's Y movement
+  // Individual move mode: keep descendants vertically attached to the dragged person.
+  // Earlier versions used Math.max(0, dy), so descendants were pushed down when a
+  // person moved downward but were left behind when that person moved upward.
+  // Use the actual clamped drag delta instead: moving up now pulls the same
+  // downstream descendant/partner set up, preserving branch spacing in both
+  // directions while still respecting the parent-floor constraint above.
   if (individualMoveMode && dragState.descendants && dragState.descOrigins) {
     dragState.descendants.forEach(id => {
       const p = persons.get(id);
       const orig = dragState.descOrigins.get(id);
       if (p && orig) {
-        p.el.style.top = (orig.y + Math.max(0, dy)) + 'px';
+        p.el.style.top = (orig.y + dy) + 'px';
       }
     });
   }
@@ -5490,11 +5656,19 @@ function onPointerUp(e) {
         if (p) { p.x = parseFloat(p.el.style.left); p.y = parseFloat(p.el.style.top); }
       });
     }
+    const wasIndividualSingleDrag = individualMoveMode && dragState.dragIds.size === 1;
+    const movedPersonId = dragState.personId;
+    const movedPerson = persons.get(movedPersonId);
+    const movedPersonFinalY = movedPerson ? parseFloat(movedPerson.el.style.top) : NaN;
     const wasDefaultGroupDrag = !individualMoveMode;
     const finalDragIds = new Set(dragState.dragIds);
     const finalOrigins = new Map(dragState.origins);
     dragState = null;
     alignConnectedPersons();
+    if (wasIndividualSingleDrag) {
+      alignOrdinaryPartnersToMovedPerson(movedPersonId, movedPersonFinalY);
+      updateAllConnections();
+    }
     if (wasDefaultGroupDrag) {
       protectDraggedGroupFromOverlap(finalDragIds, finalOrigins);
       updateAllConnections();
@@ -7327,8 +7501,16 @@ function studioTryAssignRanks(model, unionPartners) {
   const ids = Array.from(model.people.keys());
   const dsu = studioMakeDisjointSet(ids);
   if (unionPartners) {
+    const ancestorMemo = new Map();
     model.families.forEach(fam => {
-      if (fam.parents.length === 2) dsu.union(fam.parents[0], fam.parents[1]);
+      // Protected internal relationship lines (consanguineous, consanguineous-separated,
+      // shared-partner, shared-partner-separated, or an inferred internal kinship link)
+      // are visual/relationship links, not ordinary spouse blocks.  Do not union their
+      // endpoints into one rank group, otherwise a shared partner loop can collapse two
+      // cousin branches into a single synthetic spouse block during Redistribute.
+      if (fam.parents.length === 2 && !studioFamilyIsInternalKinship(model, fam, ancestorMemo)) {
+        dsu.union(fam.parents[0], fam.parents[1]);
+      }
     });
   }
 
@@ -7390,8 +7572,18 @@ function studioTryAssignRanks(model, unionPartners) {
 function studioBuildPersonAdjacency(model) {
   const adj = new Map();
   model.people.forEach((_, id) => adj.set(id, new Set()));
+  const ancestorMemo = new Map();
   model.families.forEach(fam => {
-    fam.parents.forEach(a => fam.parents.forEach(b => { if (a !== b) adj.get(a)?.add(b); }));
+    const protectedInternal = studioFamilyIsInternalKinship(model, fam, ancestorMemo);
+    // Ordinary partnerships connect the two parents as a spouse block.  Protected
+    // internal links do not: the people are already connected through another path
+    // and the line should not create an extra component/rank/partner constraint.
+    if (!protectedInternal) {
+      fam.parents.forEach(a => fam.parents.forEach(b => { if (a !== b) adj.get(a)?.add(b); }));
+    }
+    // Children still connect to both recorded parents, including children of a
+    // consanguineous/shared-partner family.  This preserves parent-child structure
+    // without turning the protected partner line itself into an ordinary spouse edge.
     fam.children.forEach(childId => {
       fam.parents.forEach(parentId => {
         adj.get(parentId)?.add(childId);
@@ -7476,7 +7668,7 @@ function studioAncestorFamilySet(model, personId, memo, visiting) {
 
 function studioFamilyIsInternalKinship(model, fam, memo) {
   if (!fam || fam.parents.length < 2) return false;
-  if (fam.partnership && fam.partnership.type === 'consanguineous') return true;
+  if (fam.partnership && (isProtectedInternalPartnershipType(fam.partnership.type))) return true;
   memo = memo || new Map();
   for (let i = 0; i < fam.parents.length; i++) {
     const a = studioAncestorFamilySet(model, fam.parents[i], memo, new Set());
@@ -7932,6 +8124,11 @@ function enforceManagedPartnershipLineClearance() {
   let moved = false;
 
   partnerships.forEach(pship => {
+    // Do not push people out of the way for protected internal relationship lines.
+    // These may legitimately span cousin branches or shared-partner loops; treating
+    // them like ordinary spouse corridors reintroduces the large-gap behaviour that
+    // default mode now avoids.
+    if (isProtectedInternalPartnership(pship)) return;
     const a = persons.get(pship.fromId);
     const b = persons.get(pship.toId);
     if (!a || !b) return;
@@ -8007,6 +8204,12 @@ function runManagedPedigreeLayout(options) {
     updateNumbering();
     return;
   }
+
+  // Ensure v9-v11 protected relationship semantics are available to the
+  // managed layout engine even for older/imported sessions.  In particular,
+  // consanguineous-separated must behave like consanguineous, and shared-partner
+  // variants must behave like protected internal relationship lines.
+  if (typeof normalizeRelatedPartnershipTypes === 'function') normalizeRelatedPartnershipTypes();
 
   syncPersonDataFromDom();
   const model = buildManagedLayoutModel();

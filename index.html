@@ -8276,9 +8276,12 @@ const PSL = (() => {
       const joins = its.filter(it => foreignOriginUnplaced(it, fam));
       plain.concat(joins).forEach(it => place(it));
     }
+    const visiting = new Set();
     function placeAncestors(fam) {
       const di = dropItem(fam);
-      if (!di || placed.has(di)) return;
+      // (visiting guards against someone being their own ancestor)
+      if (!di || placed.has(di) || visiting.has(di)) return;
+      visiting.add(di);
       di.members.forEach(m => {
         const p = people.get(m);
         if (p && p.origin && famOf.get(p.origin)) placeAncestors(famOf.get(p.origin));

@@ -45,6 +45,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Consanguinity**: double partnership line
 - **Separation/divorce**: crossed partnership line
 - **Child connections**: right-angle descent lines from partnership midpoint
+- **Partner lines over people**: when a partner line would pass behind someone (a person with three or more partners), it is drawn up and over them
 - **Identical twins**: V-shaped lines with horizontal connecting bar
 - **Non-identical twins**: V-shaped lines without bar
 
@@ -60,6 +61,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Multi-select**: rubber-band selection or Shift+click
 - **Touch support**: fully responsive on tablets and phones
 - **Partnership type cycling**: click an existing partnership line to change between normal, consanguineous, and separated
+- **Redistribute (tidy)**: lays the whole pedigree out again in one go: generations in rows, partners side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. It copes with partners from different generations, people with several partners, children with two sets of parents, large sibships and free-position people (who stay where you put them). Undo puts the previous drawing back
 
 ### Data and export
 - **PNG export** at 2× resolution for clinical reports and publications
@@ -114,6 +116,7 @@ Click an existing partnership line while in **Move** mode to select it. Use the 
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads
 - **Compatibility**: any modern browser on any operating system
+- **Layout tests**: `tests/layout/` holds the test pedigrees and scripts used to check the redistribute layout (see its README); they are not needed to run the Studio
 
 ---
 

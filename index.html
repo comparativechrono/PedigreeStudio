@@ -339,6 +339,7 @@
   /* ── Connection hit areas ── */
   .conn-hit { pointer-events: stroke; cursor: pointer; }
   .partnership-line.highlighted { stroke: var(--accent) !important; stroke-width: 4 !important; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
+  .partnership-line.highlighted + .partnership-route { stroke: var(--accent); stroke-width: 4; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
   .child-link-highlighted { stroke: var(--accent) !important; stroke-width: 4 !important; filter: drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px var(--accent)); }
   .link-delete-btn {
     position: absolute; width: 22px; height: 22px; border-radius: 50%;
@@ -1790,21 +1791,124 @@ function centerTextY(shape) { return shape === 'miscarriage' ? 30 : 26; }
 
 // ── Partnership line geometry ──
 
-function computePartnershipGeom(fcx, fcy, tcx, tcy, type) {
-  const geom = { x1: fcx, y1: fcy, x2: tcx, y2: tcy, consang: null, slashLines: null };
-  if (isConsanguineousPartnershipType(type)) {
+// blockers: people a level partner line would otherwise pass behind (someone
+// with three or more partners), from partnershipBlockers(). The line then goes
+// up and over them: geom.full is the whole line as a path (geom.full2 the
+// second line of a consanguineous partnership), geom.arches just the parts
+// over people, and geom.dash the dash pattern that leaves gaps in the straight
+// line where the arches are. The children's line leaves from a clear stretch
+// of the line (geom.dropX).
+const PARTNER_HOP_GAP = 7, PARTNER_HOP_RISE = 21, PARTNER_HOP_ROUND = 6;
+function computePartnershipGeom(fcx, fcy, tcx, tcy, type, blockers) {
+  const geom = { x1: fcx, y1: fcy, x2: tcx, y2: tcy, consang: null, slashLines: null, full: null, full2: null, arches: null, arches2: null, dash: null, dash2: null, segs: null, dropX: (fcx + tcx) / 2 };
+  const consang = isConsanguineousPartnershipType(type);
+  if (consang) {
     const dx = tcx - fcx, dy = tcy - fcy, len = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = -dy / len * 4, ny = dx / len * 4;
     geom.consang = { x1: fcx + nx, y1: fcy + ny, x2: tcx + nx, y2: tcy + ny };
   }
+  let spans = [];
+  if (blockers && blockers.length) {
+    const xa = Math.min(fcx, tcx), xb = Math.max(fcx, tcx), y = fcy, g = PARTNER_HOP_GAP, rr = PARTNER_HOP_ROUND;
+    spans = blockers.map(b => ({ a: b.l - g, b: b.r + g, ty: b.top - PARTNER_HOP_RISE }));
+    // o: how far the second line of a consanguineous pair sits from the first
+    const arch = (s, o) => {
+      const a = s.a + o, b = s.b - o, ty = s.ty + o;
+      return ` L ${a} ${ty + rr} Q ${a} ${ty} ${a + rr} ${ty} L ${b - rr} ${ty} Q ${b} ${ty} ${b} ${ty + rr} L ${b} ${y + o}`;
+    };
+    const full = o => {
+      let d = `M ${xa} ${y + o}`;
+      spans.forEach(s => { d += ` L ${s.a + o} ${y + o}` + arch(s, o); });
+      return d + ` L ${xb} ${y + o}`;
+    };
+    const arches = o => spans.map(s => `M ${s.a + o} ${y + o}` + arch(s, o)).join(' ');
+    const dash = o => {
+      // visible, hidden, visible ... measured from (fcx, fcy)
+      const parts = [];
+      let x = xa;
+      spans.forEach(s => { parts.push(s.a + o - x, (s.b - o) - (s.a + o)); x = s.b - o; });
+      parts.push(xb - x + 1);
+      if (fcx > tcx) parts.reverse();
+      if (parts.length % 2) parts.push(0);
+      return parts.map(v => Math.max(0, v).toFixed(1)).join(' ');
+    };
+    geom.full = full(0); geom.arches = arches(0); geom.dash = dash(0);
+    if (consang) {
+      const o = fcx < tcx ? 4 : -4;
+      geom.full2 = full(o); geom.arches2 = arches(o); geom.dash2 = dash(o);
+    }
+    // the straight and level pieces, for working out where other lines cross
+    const segs = [];
+    let x = xa;
+    spans.forEach(s => {
+      segs.push({ type: 'h', y, x1: x, x2: s.a });
+      segs.push({ type: 'v', x: s.a, y1: s.ty, y2: y });
+      segs.push({ type: 'h', y: s.ty, x1: s.a, x2: s.b });
+      segs.push({ type: 'v', x: s.b, y1: s.ty, y2: y });
+      x = s.b;
+    });
+    segs.push({ type: 'h', y, x1: x, x2: xb });
+    geom.segs = segs;
+    // the children's line leaves from the middle unless someone is in the way
+    const c = 8, mx = (xa + xb) / 2;
+    const inSpan = v => spans.some(s => v > s.a - c && v < s.b + c);
+    if (inSpan(mx)) {
+      const ok = [];
+      spans.forEach(s => { ok.push(s.a - c, s.b + c); });
+      const free = ok.filter(v => v > xa + SHAPE_HALF + 4 && v < xb - SHAPE_HALF - 4 && !inSpan(v));
+      if (free.length) geom.dropX = free.sort((p, q) => Math.abs(p - mx) - Math.abs(q - mx))[0];
+    }
+  }
   if (isSeparatedPartnershipType(type)) {
-    const mx = (fcx + tcx) / 2, my = (fcy + tcy) / 2, sx = mx - 20;
+    const mx = geom.dropX, my = (fcy + tcy) / 2;
+    let sx = mx - 20;
+    if (spans.some(s => sx + 14 > s.a && sx - 6 < s.b)) sx = mx + 12;
     geom.slashLines = [
       { x1: sx - 5, y1: my - 8, x2: sx + 5, y2: my + 8 },
       { x1: sx + 3, y1: my - 8, x2: sx + 13, y2: my + 8 }
     ];
   }
   return geom;
+}
+
+// People whose symbol a level partner line would pass behind
+function partnershipBlockers(pship) {
+  const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+  if (!fromP || !toP) return [];
+  const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+  if (Math.abs(fc.y - tc.y) > 1) return [];
+  const lo = Math.min(fc.x, tc.x) + SHAPE_HALF, hi = Math.max(fc.x, tc.x) - SHAPE_HALF;
+  if (hi <= lo) return [];
+  const found = [];
+  persons.forEach((p, id) => {
+    if (id === pship.fromId || id === pship.toId) return;
+    const l = parseFloat(p.el.style.left), t = parseFloat(p.el.style.top);
+    if (fc.y <= t + 2 || fc.y >= t + SHAPE_SIZE - 2) return;
+    if (l + SHAPE_SIZE <= lo || l >= hi) return;
+    found.push({ l, r: l + SHAPE_SIZE, top: t });
+  });
+  found.sort((a, b) => a.l - b.l);
+  // people close together share one bridge
+  const merged = [];
+  found.forEach(b => {
+    const last = merged[merged.length - 1];
+    if (last && b.l - last.r < 2 * PARTNER_HOP_GAP + 2 * PARTNER_HOP_ROUND) { last.r = Math.max(last.r, b.r); last.top = Math.min(last.top, b.top); }
+    else merged.push({ l: b.l, r: b.r, top: b.top });
+  });
+  return merged;
+}
+
+function partnershipGeomFor(pship) {
+  const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
+  if (!fromP || !toP) return null;
+  const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
+  return computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type, partnershipBlockers(pship));
+}
+
+// where a partnership's children's line leaves the partner line
+function partnershipDropX(pship) {
+  const geom = partnershipGeomFor(pship);
+  return geom ? geom.dropX : 0;
 }
 
 // ── Child link path d-string ──
@@ -2321,7 +2425,7 @@ function getLinkMidpoint(id, linkType) {
     const f = persons.get(ps.fromId), t = persons.get(ps.toId);
     if (!f || !t) return { x: 0, y: 0 };
     const fc = getPersonCenter(f), tc = getPersonCenter(t);
-    return { x: (fc.x + tc.x) / 2, y: (fc.y + tc.y) / 2 - 16 };
+    return { x: partnershipDropX(ps), y: (fc.y + tc.y) / 2 - 16 };
   }
   if (linkType === 'child') {
     const cl = childLinks.find(c => c.id === id);
@@ -4080,6 +4184,8 @@ function removePartnership(id) {
   const ps = partnerships[idx];
   ps.el.remove(); ps.hitEl.remove();
   if (ps.el2) ps.el2.remove();
+  if (ps.routeEl) ps.routeEl.remove();
+  if (ps.routeEl2) ps.routeEl2.remove();
   if (ps.slash) ps.slash.forEach(s => s.remove());
   if (ps.bridgeMask) { ps.bridgeMask.remove(); ps.bridgeArc.remove(); }
   if (ps.bridgeMask2) { ps.bridgeMask2.remove(); ps.bridgeArc2.remove(); }
@@ -4096,7 +4202,7 @@ function updatePartnershipPos(pship) {
   const toP = persons.get(pship.toId);
   if (!fromP || !toP) return;
   const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-  const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+  const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type, partnershipBlockers(pship));
   [pship.el, pship.hitEl].forEach(l => { l.setAttribute('x1', geom.x1); l.setAttribute('y1', geom.y1); l.setAttribute('x2', geom.x2); l.setAttribute('y2', geom.y2); });
 
   // Consanguineous: second parallel line
@@ -4104,6 +4210,7 @@ function updatePartnershipPos(pship) {
     pship.el2.setAttribute('x1', geom.consang.x1); pship.el2.setAttribute('y1', geom.consang.y1);
     pship.el2.setAttribute('x2', geom.consang.x2); pship.el2.setAttribute('y2', geom.consang.y2);
   }
+  updatePartnershipRoute(pship, geom);
 
   // Separated: slash marks through the line
   if (geom.slashLines) {
@@ -4121,6 +4228,38 @@ function updatePartnershipPos(pship) {
     pship.slash = slashEls;
   } else {
     if (pship.slash) { pship.slash.forEach(s => s.remove()); pship.slash = null; }
+  }
+}
+
+// A partner line that has to pass someone gets a gap where they are and an
+// arch drawn over them; the straight line still takes the clicks
+function updatePartnershipRoute(pship, geom) {
+  const make = (after) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    el.classList.add('partnership-route');
+    el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', STROKE_COLOR);
+    el.setAttribute('stroke-width', String(STROKE_W));
+    el.style.pointerEvents = 'none';
+    after.after(el);
+    return el;
+  };
+  if (geom.arches) {
+    if (!pship.routeEl) pship.routeEl = make(pship.el);
+    pship.routeEl.setAttribute('d', geom.arches);
+    pship.el.setAttribute('stroke-dasharray', geom.dash);
+    if (geom.arches2 && pship.el2) {
+      if (!pship.routeEl2) pship.routeEl2 = make(pship.el2);
+      pship.routeEl2.setAttribute('d', geom.arches2);
+      pship.el2.setAttribute('stroke-dasharray', geom.dash2);
+    } else if (pship.routeEl2) { pship.routeEl2.remove(); pship.routeEl2 = null; }
+    pship.routeSegs = geom.segs;
+  } else {
+    if (pship.routeEl) { pship.routeEl.remove(); pship.routeEl = null; }
+    if (pship.routeEl2) { pship.routeEl2.remove(); pship.routeEl2 = null; }
+    pship.el.removeAttribute('stroke-dasharray');
+    if (pship.el2) pship.el2.removeAttribute('stroke-dasharray');
+    pship.routeSegs = null;
   }
 }
 
@@ -4564,7 +4703,7 @@ function updateChildLinkPos(cl) {
   const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
   if (!fromP || !toP) return;
   const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-  const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+  const midX = partnershipDropX(pship), midY = (fc.y + tc.y) / 2;
   const childCenter = getPersonCenter(child);
   const childTop = parseFloat(child.el.style.top);
 
@@ -4635,7 +4774,11 @@ function collectAllSegments() {
   partnerships.forEach(p => {
     const x1 = parseFloat(p.el.getAttribute('x1')), y1 = parseFloat(p.el.getAttribute('y1'));
     const x2 = parseFloat(p.el.getAttribute('x2')), y2 = parseFloat(p.el.getAttribute('y2'));
-    if (Math.abs(y1 - y2) < eps) {
+    if (p.routeSegs) {
+      // drawn over someone: the pieces as drawn (the upright sides of each
+      // arch get their own source so no bridge is built on the straight line)
+      p.routeSegs.forEach(s => segs.push(Object.assign({}, s, { src: s.type === 'v' ? p.id + '-arch' : p.id, fam: p.id })));
+    } else if (Math.abs(y1 - y2) < eps) {
       segs.push({ type: 'h', y: y1, x1: Math.min(x1, x2), x2: Math.max(x1, x2), src: p.id, fam: p.id });
     } else if (Math.abs(x1 - x2) < eps) {
       segs.push({ type: 'v', x: x1, y1: Math.min(y1, y2), y2: Math.max(y1, y2), src: p.id, fam: p.id });
@@ -4665,6 +4808,9 @@ function findLineCrossings(segs) {
     for (const v of vSegs) {
       if (h.src === v.src) continue; // same child link — skip
       if (h.fam && v.fam && h.fam === v.fam) continue; // siblings from same family — skip
+      // a line that only starts or ends on the other (a children's line leaving
+      // a partner line that another partner line runs along) does not cross it
+      if (Math.abs(h.y - v.y1) < 0.5 || Math.abs(h.y - v.y2) < 0.5) continue;
       if (v.x > h.x1 + hMargin && v.x < h.x2 - hMargin &&
           h.y >= v.y1 && h.y <= v.y2) {
         crossings.push({ cx: v.x, cy: h.y, hSrc: h.src, vSrc: v.src });
@@ -6391,6 +6537,7 @@ function restoreSession(data) {
     addChildLink(cd.partnershipId, cd.childId, cd.id);
     const cl = childLinks.find(c => c.id === cd.id);
     if (cl) {
+      cl.branchYOffset = Number(cd.branchYOffset) || 0;
       if (cd.dashed) {
         cl.dashed = true;
         cl.els[0].setAttribute('stroke-dasharray', '6 4');
@@ -6566,7 +6713,7 @@ function saveAsImage() {
     const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
     if (!fromP || !toP) return;
     const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type, partnershipBlockers(pship));
     pngPshipGeoms.push({ pship, geom });
   });
 
@@ -6578,7 +6725,7 @@ function saveAsImage() {
     const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
     if (!fromP || !toP) return;
     const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-    const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+    const midX = partnershipDropX(pship), midY = (fc.y + tc.y) / 2;
     const childCenter = getPersonCenter(child);
     const childTop = parseFloat(child.el.style.top);
     const siblingIds = childLinks.filter(c2 => c2.partnershipId === cl.partnershipId).map(c2 => c2.childId);
@@ -6607,7 +6754,8 @@ function saveAsImage() {
   });
   pngPshipGeoms.forEach(item => {
     const g = item.geom;
-    if (Math.abs(g.y1 - g.y2) < 0.5) pngSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
+    if (g.segs) g.segs.forEach(sg => pngSegs.push(Object.assign({}, sg, { src: sg.type === 'v' ? item.pship.id + '-arch' : item.pship.id, fam: item.pship.id })));
+    else if (Math.abs(g.y1 - g.y2) < 0.5) pngSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
     else if (Math.abs(g.x1 - g.x2) < 0.5) pngSegs.push({ type: 'v', x: g.x1, y1: Math.min(g.y1, g.y2), y2: Math.max(g.y1, g.y2), src: item.pship.id, fam: item.pship.id });
   });
   const pngCrossings = findLineCrossings(pngSegs);
@@ -6618,8 +6766,10 @@ function saveAsImage() {
   // Draw partnerships (with bridge overlays for rare vertical partnerships)
   pngPshipGeoms.forEach(item => {
     const g = item.geom;
-    ctx.beginPath(); ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2); ctx.stroke();
-    if (g.consang) { ctx.beginPath(); ctx.moveTo(g.consang.x1, g.consang.y1); ctx.lineTo(g.consang.x2, g.consang.y2); ctx.stroke(); }
+    if (g.full) strokePathD(g.full);
+    else { ctx.beginPath(); ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2); ctx.stroke(); }
+    if (g.full2) strokePathD(g.full2);
+    else if (g.consang) { ctx.beginPath(); ctx.moveTo(g.consang.x1, g.consang.y1); ctx.lineTo(g.consang.x2, g.consang.y2); ctx.stroke(); }
     if (g.slashLines) g.slashLines.forEach(sl => { ctx.beginPath(); ctx.moveTo(sl.x1, sl.y1); ctx.lineTo(sl.x2, sl.y2); ctx.stroke(); });
 
     // Partnership bridge arcs (vertical partnerships only)
@@ -6983,7 +7133,7 @@ function saveAsSVG() {
     const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
     if (!fromP || !toP) return;
     const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type);
+    const geom = computePartnershipGeom(fc.x, fc.y, tc.x, tc.y, pship.type, partnershipBlockers(pship));
     svgPshipGeoms.push({ pship, geom });
   });
 
@@ -6995,7 +7145,7 @@ function saveAsSVG() {
     const fromP = persons.get(pship.fromId), toP = persons.get(pship.toId);
     if (!fromP || !toP) return;
     const fc = getPersonCenter(fromP), tc = getPersonCenter(toP);
-    const midX = (fc.x + tc.x) / 2, midY = (fc.y + tc.y) / 2;
+    const midX = partnershipDropX(pship), midY = (fc.y + tc.y) / 2;
     const childCenter = getPersonCenter(child);
     const childTop = parseFloat(child.el.style.top);
     const siblingIds = childLinks.filter(c2 => c2.partnershipId === cl.partnershipId).map(c2 => c2.childId);
@@ -7024,7 +7174,8 @@ function saveAsSVG() {
   });
   svgPshipGeoms.forEach(item => {
     const g = item.geom;
-    if (Math.abs(g.y1 - g.y2) < 0.5) svgSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
+    if (g.segs) g.segs.forEach(sg => svgSegs.push(Object.assign({}, sg, { src: sg.type === 'v' ? item.pship.id + '-arch' : item.pship.id, fam: item.pship.id })));
+    else if (Math.abs(g.y1 - g.y2) < 0.5) svgSegs.push({ type: 'h', y: g.y1, x1: Math.min(g.x1, g.x2), x2: Math.max(g.x1, g.x2), src: item.pship.id, fam: item.pship.id });
     else if (Math.abs(g.x1 - g.x2) < 0.5) svgSegs.push({ type: 'v', x: g.x1, y1: Math.min(g.y1, g.y2), y2: Math.max(g.y1, g.y2), src: item.pship.id, fam: item.pship.id });
   });
   const svgCrossings = findLineCrossings(svgSegs);
@@ -7035,8 +7186,10 @@ function saveAsSVG() {
   // ── Partnerships ──
   svgPshipGeoms.forEach(item => {
     const g = item.geom;
-    els.push(svgLine(g.x1, g.y1, g.x2, g.y2, STROKE_COLOR, STROKE_W));
-    if (g.consang) els.push(svgLine(g.consang.x1, g.consang.y1, g.consang.x2, g.consang.y2, STROKE_COLOR, STROKE_W));
+    if (g.full) els.push(`<path d="${g.full}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+    else els.push(svgLine(g.x1, g.y1, g.x2, g.y2, STROKE_COLOR, STROKE_W));
+    if (g.full2) els.push(`<path d="${g.full2}" stroke="${STROKE_COLOR}" stroke-width="${STROKE_W}" fill="none"/>`);
+    else if (g.consang) els.push(svgLine(g.consang.x1, g.consang.y1, g.consang.x2, g.consang.y2, STROKE_COLOR, STROKE_W));
     if (g.slashLines) g.slashLines.forEach(sl => els.push(svgLine(sl.x1, sl.y1, sl.x2, sl.y2, STROKE_COLOR, STROKE_W)));
     const pPts = svgByV.get(item.pship.id);
     if (pPts && pPts.length > 0) {
@@ -7320,886 +7473,1802 @@ function tryAutoRestore() {
 }
 
 
-// ── Redistribute Engine (constrained clinical pedigree layout) ──
+// ── Tidy: lay the whole pedigree out again ──
 
 function redistributePedigreeWithWarning() {
-  const ok = window.confirm(
-    'Redistribute the pedigree automatically?\n\n' +
-    'This uses a clinical-pedigree layout: generations are layered, partners are kept adjacent, children are centred under the parental partnership, sibling order is preserved where possible, and free-position / no-snap people are treated as fixed boundary pins.\n\n' +
-    'This may move many shapes. Use Undo if you do not like the result.'
-  );
-  if (!ok) return;
-
+  if (!persons.size) return;
+  if (!window.confirm('Tidy the whole pedigree? Everyone will be moved. You can undo this.')) return;
   if (typeof pushUndo === 'function') pushUndo();
-
   const previousIndividualMoveMode = individualMoveMode;
   individualMoveMode = false;
   try {
-    runManagedPedigreeLayout({
-      seedIds: Array.from(persons.keys()),
-      reason: 'manualRedistribute',
-      fromButton: true,
-      fresh: true
-    });
+    runManagedPedigreeLayout({ seedIds: Array.from(persons.keys()), reason: 'manualRedistribute', fromButton: true, fresh: true });
   } finally {
     individualMoveMode = previousIndividualMoveMode;
   }
-
+  if (typeof fitToView === 'function') fitToView();
   const status = document.getElementById('statusBar');
-  if (status) status.textContent = 'Pedigree redistributed with constrained clinical layout';
+  if (status) status.textContent = 'Pedigree tidied';
 }
 
-// The layout below is intentionally independent of SVG drawing.  It only writes
-// person x/y positions; the existing updateAllConnections(), updateNumbering(),
-// line-bridge, twin, adoption/dashed-line and export code then redraw normally.
-// Algorithmic model:
-//   individual nodes + virtual family/partnership nodes
-//   topological generation ranks
-//   Sugiyama-style barycentric row ordering
-//   branch-width-aware child placement
-//   fixed-pin/noSnap handling
-//   final hard guards for symbol overlap and partnership-line corridors
+// ── Layout engine ──
+//
+// Lays the whole pedigree out again from its relationships. It writes person
+// positions and sibship-line heights; the normal drawing code then redraws
+// every line.
+//
+//   1. Generations: partners share a row and children sit below their
+//      parents, with the lines of descent as short as possible overall.
+//      Partners from different generations (an uncle and his niece, a widow
+//      and her late husband's son) share a row when that is possible; when it
+//      is not, their line slants and their children's line gets a clear path.
+//   2. Order within each row: partner chains stay together, sibships stay
+//      together under their parents in birth order (as drawn), and several
+//      starting orders are improved by local search for the fewest crossing
+//      lines. Lines of descent longer than one row get a corridor through the
+//      rows in between.
+//   3. Positions: an optimisation puts children under their parents (exactly,
+//      wherever the family allows), keeps partners at the set spacing, leaves
+//      room for notes and keeps the drawing narrow. Sibship lines that would
+//      run along each other are drawn at different heights.
+//   4. Separate families are laid side by side. People with a free position
+//      stay where they are and everyone else is arranged around them.
 
-function managedGetLeft(p) { return parseFloat(p?.el?.style?.left) || 0; }
-function managedGetTop(p) { return parseFloat(p?.el?.style?.top) || 0; }
+const PSL = (() => {
+  'use strict';
 
+  // ── settings derived from the Studio's spacing controls ──
+  function settings() {
+    const pg = (typeof partnerGap === 'number' && partnerGap > 0) ? partnerGap : SHAPE_SIZE * 2;
+    const ch = (typeof childHeight === 'number' && childHeight > 0) ? childHeight : SHAPE_SIZE * 2.5;
+    return {
+      S: SHAPE_SIZE,
+      H: SHAPE_HALF,
+      partnerGap: Math.max(SHAPE_SIZE + 24, pg),
+      sibGap: Math.max(SHAPE_SIZE + 34, pg),
+      familyGap: Math.max(12, pg * 0.2),
+      componentGap: Math.max(SHAPE_SIZE * 2, pg * 1.5),
+      rowGap: Math.max(SHAPE_SIZE * 2, ch),
+      textPad: 12,
+      busGap: Math.max(20, pg * 0.3),
+      busStep: 10,
+      spreadFree: Math.max(SHAPE_SIZE * 4, pg * 2),
+      corridor: 14
+    };
+  }
+
+  // ── reading the pedigree ──
+  let measureCtx = null;
+  function textMetrics(p) {
+    const text = (p.text || '').replace(/\s+$/, '');
+    if (!text) return { w: 0, h: 0 };
+    const el = p.el && p.el.querySelector('.person-text');
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    let font = '11px -apple-system, sans-serif', lh = 15;
+    if (el) {
+      const cs = getComputedStyle(el);
+      font = cs.font || (cs.fontSize + ' ' + cs.fontFamily);
+      lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.35 || 15;
+    }
+    measureCtx.font = font;
+    const lines = text.split('\n');
+    let w = 0;
+    lines.forEach(l => { w = Math.max(w, measureCtx.measureText(l).width); });
+    return { w: Math.min(Math.ceil(w) + 2, 260), h: Math.ceil(lines.length * lh) };
+  }
+
+  function sexOf(shape) {
+    if (shape === 'male' || shape === 'adopted-male') return 'M';
+    if (shape === 'female' || shape === 'adopted-female') return 'F';
+    return 'U';
+  }
+
+  function buildModel() {
+    const people = new Map();
+    persons.forEach((p, id) => {
+      const tm = textMetrics(p);
+      people.set(id, {
+        id, data: p,
+        x0: parseFloat(p.el.style.left) || 0,
+        y0: parseFloat(p.el.style.top) || 0,
+        sex: sexOf(p.shape),
+        pinned: !!p.noSnap,
+        proband: !!p.proband,
+        textW: tm.w, textH: tm.h,
+        origin: null,          // couple id this person is a child of
+        couples: [],           // couple ids this person is a partner in
+        rank: 0, comp: -1, item: null, off: 0, x: 0, y: 0
+      });
+    });
+    const couples = new Map();
+    partnerships.forEach(ps => {
+      if (!people.has(ps.fromId) || !people.has(ps.toId) || ps.fromId === ps.toId) return;
+      const prot = (typeof isProtectedInternalPartnership === 'function') ? isProtectedInternalPartnership(ps) : false;
+      couples.set(ps.id, { id: ps.id, a: ps.fromId, b: ps.toId, protected: prot, children: [], also: [] });
+      people.get(ps.fromId).couples.push(ps.id);
+      people.get(ps.toId).couples.push(ps.id);
+    });
+    childLinks.forEach(cl => {
+      const c = couples.get(cl.partnershipId), k = people.get(cl.childId);
+      if (!c || !k || k.id === c.a || k.id === c.b) return;
+      // a child linked to a second couple (adoptive parents as well as birth
+      // parents) is drawn with the first; the second still has to be above
+      if (k.origin) { if (k.origin !== c.id) c.also.push(k.id); return; }
+      k.origin = c.id;
+      c.children.push(k.id);
+    });
+    // birth order: left to right as drawn now; twins kept next to each other
+    couples.forEach(c => {
+      c.children.sort((u, v) => {
+        const a = people.get(u), b = people.get(v);
+        return (a.x0 - b.x0) || (a.y0 - b.y0) || String(u).localeCompare(String(v));
+      });
+    });
+    const twinOf = new Map();
+    twinLinks.forEach(t => {
+      if (!people.has(t.child1Id) || !people.has(t.child2Id)) return;
+      if (!twinOf.has(t.child1Id)) twinOf.set(t.child1Id, new Set());
+      if (!twinOf.has(t.child2Id)) twinOf.set(t.child2Id, new Set());
+      twinOf.get(t.child1Id).add(t.child2Id);
+      twinOf.get(t.child2Id).add(t.child1Id);
+    });
+    couples.forEach(c => {
+      // move each twin directly after the first of its set
+      const out = [];
+      c.children.forEach(id => {
+        if (out.includes(id)) return;
+        out.push(id);
+        const tw = twinOf.get(id);
+        if (tw) c.children.forEach(o => { if (tw.has(o) && !out.includes(o)) out.push(o); });
+      });
+      c.children = out;
+    });
+    return { people, couples, twinOf };
+  }
+
+  // ── 1. generations ──
+  function assignRanks(model) {
+    const { people, couples } = model;
+    const ids = Array.from(people.keys());
+    const parent = new Map(ids.map(id => [id, id]));
+    const find = id => { let r = id; while (parent.get(r) !== r) r = parent.get(r); let c = id; while (parent.get(c) !== r) { const n = parent.get(c); parent.set(c, r); c = n; } return r; };
+    // parent -> child edges between people
+    const childEdges = [];
+    couples.forEach(c => c.children.concat(c.also).forEach(k => { childEdges.push([c.a, k]); childEdges.push([c.b, k]); }));
+
+    function groupGraph() {
+      const out = new Map();
+      childEdges.forEach(([p, k]) => {
+        const a = find(p), b = find(k);
+        if (!out.has(a)) out.set(a, new Set());
+        out.get(a).add(b);
+      });
+      return out;
+    }
+    function reaches(g, from, to) {
+      if (from === to) return true;
+      const seen = new Set([from]);
+      const stack = [from];
+      while (stack.length) {
+        const n = stack.pop();
+        for (const m of g.get(n) || []) {
+          if (m === to) return true;
+          if (!seen.has(m)) { seen.add(m); stack.push(m); }
+        }
+      }
+      return false;
+    }
+    // the parent-child relationships alone must not contain a cycle
+    if (hasCycle(groupGraph())) return fallbackRanks(model);
+
+    // bring partners onto one row wherever that does not create a cycle;
+    // ordinary partnerships first, then related / shared-partner ones
+    const cand = Array.from(couples.values()).sort((u, v) => (u.protected - v.protected) ||
+      (Math.abs(people.get(u.a).y0 - people.get(u.b).y0) - Math.abs(people.get(v.a).y0 - people.get(v.b).y0)));
+    cand.forEach(c => {
+      const a = find(c.a), b = find(c.b);
+      if (a === b) { c.sameRow = true; return; }
+      const g = groupGraph();
+      if (reaches(g, a, b) || reaches(g, b, a)) { c.sameRow = false; return; }
+      parent.set(b, a);
+      c.sameRow = true;
+    });
+
+    // generations: parents at least one row above their children, with the
+    // lines of descent as short as possible overall
+    const g = groupGraph();
+    if (hasCycle(g)) return fallbackRanks(model);
+    const groups = Array.from(new Set(ids.map(find)));
+    const weight = new Map();
+    const addEdge = (u, v, w) => { const k = u + '\u0000' + v; weight.set(k, (weight.get(k) || 0) + w); };
+    childEdges.forEach(([p, k]) => { const a = find(p), b = find(k); if (a !== b) addEdge(a, b, 0.5); });
+    // partners who could not share a row: keep them in neighbouring rows
+    couples.forEach(c => {
+      const a = find(c.a), b = find(c.b);
+      if (a === b) return;
+      if (reaches(g, a, b)) addEdge(a, b, 1);
+      else if (reaches(g, b, a)) addEdge(b, a, 1);
+    });
+    const edges = [];
+    weight.forEach((w, k) => { const [u, v] = k.split('\u0000'); edges.push({ u, v, w }); });
+    const rank = layer(groups, edges);
+    people.forEach(p => { p.rank = rank.get(find(p.id)); });
+    couples.forEach(c => { c.sameRow = people.get(c.a).rank === people.get(c.b).rank; });
+  }
+
+  // Ranks for a directed acyclic graph: rank(v) >= rank(u) + 1 on every edge,
+  // minimising the weighted total of rank(v) - rank(u). Network simplex, as
+  // used for the same job in Gansner, Koutsofios, North and Vo (1993).
+  function layer(nodes, edgeList) {
+    const n = nodes.length;
+    const at = new Map(nodes.map((x, i) => [x, i]));
+    const E = edgeList.map(e => ({ u: at.get(e.u), v: at.get(e.v), w: e.w, tree: false }));
+    const adj = Array.from({ length: n }, () => []);
+    E.forEach((e, k) => { adj[e.u].push(k); adj[e.v].push(k); });
+    const rank = new Float64Array(n);
+    // longest path from the sources
+    const indeg = new Int32Array(n);
+    E.forEach(e => { indeg[e.v]++; });
+    const queue = [];
+    for (let i = 0; i < n; i++) if (!indeg[i]) queue.push(i);
+    for (let h = 0; h < queue.length; h++) {
+      const x = queue[h];
+      adj[x].forEach(k => { const e = E[k]; if (e.u !== x) return; rank[e.v] = Math.max(rank[e.v], rank[x] + 1); if (--indeg[e.v] === 0) queue.push(e.v); });
+    }
+    const slack = k => rank[E[k].v] - rank[E[k].u] - 1;
+    // a spanning tree of tight edges, one weakly connected part at a time
+    const inTree = new Uint8Array(n);
+    const done = new Uint8Array(n);
+    for (let root = 0; root < n; root++) {
+      if (done[root]) continue;
+      const part = [];
+      const st = [root]; done[root] = 1;
+      while (st.length) { const x = st.pop(); part.push(x); adj[x].forEach(k => { const y = E[k].u === x ? E[k].v : E[k].u; if (!done[y]) { done[y] = 1; st.push(y); } }); }
+      for (;;) {
+        inTree.fill(0);
+        part.forEach(x => adj[x].forEach(k => { E[k].tree = false; }));
+        inTree[root] = 1;
+        let size = 1;
+        const s2 = [root];
+        while (s2.length) {
+          const x = s2.pop();
+          adj[x].forEach(k => {
+            const e = E[k], y = e.u === x ? e.v : e.u;
+            if (inTree[y] || slack(k) !== 0) return;
+            inTree[y] = 1; e.tree = true; size++; s2.push(y);
+          });
+        }
+        if (size >= part.length) break;
+        let best = -1, bs = Infinity;
+        part.forEach(x => adj[x].forEach(k => { const e = E[k]; if (inTree[e.u] !== inTree[e.v] && slack(k) < bs) { bs = slack(k); best = k; } }));
+        if (best < 0) break;
+        const delta = inTree[E[best].v] ? -bs : bs;
+        part.forEach(x => { if (inTree[x]) rank[x] += delta; });
+      }
+      // improve: swap a tree edge with a negative cut value for the
+      // tightest edge across the cut
+      const treeEdges = () => { const out = []; part.forEach(x => adj[x].forEach(k => { if (E[k].tree && E[k].u === x) out.push(k); })); return out; };
+      const headSide = t => {
+        // nodes on the head side of tree edge t
+        const side = new Set([E[t].v]);
+        const s3 = [E[t].v];
+        while (s3.length) {
+          const x = s3.pop();
+          adj[x].forEach(k => { if (k === t || !E[k].tree) return; const y = E[k].u === x ? E[k].v : E[k].u; if (!side.has(y)) { side.add(y); s3.push(y); } });
+        }
+        return side;
+      };
+      for (let iter = 0; iter < 4 * part.length + 20; iter++) {
+        let leave = -1, worst = -1e-9, leaveSide = null;
+        for (const t of treeEdges()) {
+          const H = headSide(t);
+          let cut = 0;
+          part.forEach(x => adj[x].forEach(k => {
+            const e = E[k];
+            if (e.u !== x) return;
+            const hu = H.has(e.u), hv = H.has(e.v);
+            if (!hu && hv) cut += e.w; else if (hu && !hv) cut -= e.w;
+          }));
+          if (cut < worst) { worst = cut; leave = t; leaveSide = H; }
+        }
+        if (leave < 0) break;
+        let enter = -1, bs = Infinity;
+        part.forEach(x => adj[x].forEach(k => {
+          const e = E[k];
+          if (e.u !== x || e.tree) return;
+          if (leaveSide.has(e.u) && !leaveSide.has(e.v) && slack(k) < bs) { bs = slack(k); enter = k; }
+        }));
+        if (enter < 0) break;
+        leaveSide.forEach(x => { rank[x] += bs; });
+        E[leave].tree = false;
+        E[enter].tree = true;
+      }
+    }
+    let lo = Infinity;
+    for (let i = 0; i < n; i++) lo = Math.min(lo, rank[i]);
+    const out = new Map();
+    nodes.forEach((x, i) => out.set(x, rank[i] - (isFinite(lo) ? lo : 0)));
+    return out;
+  }
+
+  function hasCycle(g) {
+    const state = new Map();
+    const nodes = new Set();
+    g.forEach((set, n) => { nodes.add(n); set.forEach(m => nodes.add(m)); });
+    for (const start of nodes) {
+      if (state.get(start)) continue;
+      const stack = [[start, Array.from(g.get(start) || [])]];
+      state.set(start, 1);
+      while (stack.length) {
+        const top = stack[stack.length - 1];
+        if (!top[1].length) { state.set(top[0], 2); stack.pop(); continue; }
+        const m = top[1].pop();
+        const s = state.get(m) || 0;
+        if (s === 1) return true;
+        if (s === 0) { state.set(m, 1); stack.push([m, Array.from(g.get(m) || [])]); }
+      }
+    }
+    return false;
+  }
+
+  function fallbackRanks(model) {
+    // impossible relationships (someone is their own ancestor): keep the rows
+    // as drawn, so the user can still sort the pedigree out by hand
+    const list = Array.from(model.people.values()).sort((a, b) => a.y0 - b.y0);
+    let r = -1, last = null;
+    list.forEach(p => {
+      if (last === null || p.y0 - last > SHAPE_SIZE * 1.2) { r++; last = p.y0; }
+      p.rank = Math.max(0, r);
+    });
+    model.couples.forEach(c => { c.sameRow = model.people.get(c.a).rank === model.people.get(c.b).rank; });
+  }
+
+  // ── components ──
+  function components(model) {
+    const { people, couples } = model;
+    const adj = new Map(Array.from(people.keys()).map(id => [id, new Set()]));
+    couples.forEach(c => {
+      adj.get(c.a).add(c.b); adj.get(c.b).add(c.a);
+      c.children.concat(c.also).forEach(k => { [c.a, c.b].forEach(p => { adj.get(p).add(k); adj.get(k).add(p); }); });
+    });
+    const comps = [];
+    people.forEach((p, id) => {
+      if (p.comp >= 0) return;
+      const ids = [];
+      const stack = [id];
+      p.comp = comps.length;
+      while (stack.length) {
+        const n = stack.pop();
+        ids.push(n);
+        adj.get(n).forEach(m => { const q = people.get(m); if (q.comp < 0) { q.comp = comps.length; stack.push(m); } });
+      }
+      comps.push(ids);
+    });
+    return comps;
+  }
+
+  // ── 2. ordering ──
+  // Items are what gets ordered in a row: a "unit" (a person with any
+  // partners in the same row, as one rigid chain) or a "dummy" (a corridor
+  // for a line of descent passing through the row).
+  function buildRows(model, ids, cfg) {
+    const { people, couples } = model;
+    const inComp = new Set(ids);
+    const live = ids.filter(id => !people.get(id).pinned);
+    const minRank = Math.min(...ids.map(id => people.get(id).rank));
+    ids.forEach(id => { people.get(id).r = people.get(id).rank - minRank; });
+    const nRows = Math.max(...ids.map(id => people.get(id).r)) + 1;
+
+    // units: same-row partner chains
+    const uParent = new Map(live.map(id => [id, id]));
+    const ufind = id => { while (uParent.get(id) !== id) id = uParent.get(id); return id; };
+    const compCouples = Array.from(couples.values()).filter(c => inComp.has(c.a));
+    compCouples.forEach(c => {
+      const a = people.get(c.a), b = people.get(c.b);
+      if (a.pinned || b.pinned || a.r !== b.r) return;
+      const ra = ufind(c.a), rb = ufind(c.b);
+      if (ra !== rb) uParent.set(rb, ra);
+    });
+    const unitMembers = new Map();
+    live.forEach(id => {
+      const r = ufind(id);
+      if (!unitMembers.has(r)) unitMembers.set(r, []);
+      unitMembers.get(r).push(id);
+    });
+    const items = [];
+    unitMembers.forEach(members => {
+      const item = { kind: 'unit', id: 'u' + items.length, r: people.get(members[0]).r, members: orderUnit(members, model) };
+      items.push(item);
+    });
+    // people with a free position keep it, but still take part in the
+    // order of their row so that everyone else is arranged around them
+    ids.filter(id => people.get(id).pinned).forEach(id => {
+      items.push({ kind: 'unit', id: 'u' + items.length, r: people.get(id).r, members: [id], pinned: true });
+    });
+    items.forEach(item => {
+      item.members.forEach((id, i) => { people.get(id).item = item; });
+      item.couples = compCouples.filter(c => item.members.includes(c.a) && item.members.includes(c.b));
+    });
+
+    // families: couples with children in this component
+    const fams = [];
+    compCouples.forEach(c => {
+      const kids = c.children.concat(c.also).filter(k => inComp.has(k));
+      if (!kids.length) return;
+      const a = people.get(c.a), b = people.get(c.b);
+      // partners drawn in different rows: the line of descent leaves from the
+      // middle of the slanting partner line, so it runs down through the lower
+      // partner's row as well
+      const cross = a.r !== b.r && !a.pinned && !b.pinned;
+      const dropR = cross ? Math.min(a.r, b.r) : Math.max(a.r, b.r);
+      const fam = { id: c.id, couple: c, a: c.a, b: c.b, dropR, cross, kids, dummies: new Map(), targets: new Map() };
+      // children directly below and longer lines of descent
+      kids.forEach(k => {
+        const kr = people.get(k).r;
+        if (kr <= Math.max(a.r, b.r)) return;   // cannot draw sensibly; ignore for ordering
+        for (let r = dropR + 1; r < kr; r++) {
+          if (!fam.dummies.has(r)) {
+            const d = { kind: 'dummy', id: 'd' + c.id + '_' + r, r, fam, members: ['~' + c.id + '_' + r] };
+            fam.dummies.set(r, d);
+            items.push(d);
+          }
+        }
+      });
+      fams.push(fam);
+    });
+    // targets per row: what each family's line of descent reaches in that row
+    fams.forEach(fam => {
+      const lowR = Math.max(people.get(fam.a).r, people.get(fam.b).r);
+      fam.kids.forEach(k => {
+        const kr = people.get(k).r;
+        if (kr <= lowR) return;
+        if (!fam.targets.has(kr)) fam.targets.set(kr, []);
+        fam.targets.get(kr).push(k);
+      });
+      fam.dummies.forEach((d, r) => {
+        if (!fam.targets.has(r)) fam.targets.set(r, []);
+        fam.targets.get(r).push(d.members[0]);
+      });
+      // birth order: the children as they are drawn now, left to right
+      fam.birth = fam.kids.slice();
+    });
+    const famById = new Map(fams.map(f => [f.id, f]));
+    const dummyFor = new Map();
+    items.forEach(it => { if (it.kind === 'dummy') dummyFor.set(it.members[0], it); });
+
+    const rows = Array.from({ length: nRows }, () => []);
+    items.forEach(it => rows[it.r].push(it));
+    return { rows, items, fams, famById, dummyFor, nRows, live };
+  }
+
+  function orderUnit(members, model) {
+    const { people, couples } = model;
+    if (members.length === 1) return members;
+    const set = new Set(members);
+    const adj = new Map(members.map(id => [id, []]));
+    couples.forEach(c => { if (set.has(c.a) && set.has(c.b) && c.a !== c.b) { adj.get(c.a).push(c.b); adj.get(c.b).push(c.a); } });
+    const byX = (u, v) => (people.get(u).x0 - people.get(v).x0) || String(u).localeCompare(String(v));
+    const maxDeg = Math.max(...members.map(id => new Set(adj.get(id)).size));
+    if (maxDeg <= 2) {
+      // a path (or a ring, which we cut): walk from the leftmost end
+      const ends = members.filter(id => new Set(adj.get(id)).size <= 1).sort(byX);
+      const start = ends.length ? ends[0] : members.slice().sort(byX)[0];
+      const out = [start];
+      const seen = new Set(out);
+      let cur = start;
+      while (out.length < members.length) {
+        const next = Array.from(new Set(adj.get(cur))).filter(n => !seen.has(n)).sort(byX)[0];
+        if (!next) { members.filter(n => !seen.has(n)).sort(byX).forEach(n => { out.push(n); seen.add(n); }); break; }
+        out.push(next); seen.add(next); cur = next;
+      }
+      return out;
+    }
+    // someone with three or more partners: try every arrangement (chains are
+    // short) and keep the one where partner lines pass over the fewest
+    // people, those with children counting double, then the one closest to
+    // the drawing
+    if (members.length <= 7) {
+      const pairs = [];
+      couples.forEach(c => { if (set.has(c.a) && set.has(c.b) && c.a !== c.b) pairs.push([c.a, c.b, c.children.length ? 2 : 1]); });
+      const x0 = new Map(members.map(id => [id, people.get(id).x0]));
+      let best = null, bestCost = Infinity;
+      const perm = [], used = new Set();
+      const at = new Map();
+      (function rec() {
+        if (perm.length === members.length) {
+          let c = 0;
+          pairs.forEach(([a, b, w]) => { c += w * (Math.abs(at.get(a) - at.get(b)) - 1); });
+          let inv = 0;
+          for (let i = 0; i < perm.length; i++) for (let j = i + 1; j < perm.length; j++) if (x0.get(perm[i]) > x0.get(perm[j])) inv++;
+          c += inv * 1e-3;
+          if (c < bestCost - 1e-9) { bestCost = c; best = perm.slice(); }
+          return;
+        }
+        for (const m of members) {
+          if (used.has(m)) continue;
+          used.add(m); at.set(m, perm.length); perm.push(m);
+          rec();
+          perm.pop(); used.delete(m);
+        }
+      })();
+      return best;
+    }
+    const hub = members.slice().sort((u, v) => new Set(adj.get(v)).size - new Set(adj.get(u)).size || byX(u, v))[0];
+    const rest = members.filter(id => id !== hub).sort(byX);
+    const hx = people.get(hub).x0;
+    let left = rest.filter(id => people.get(id).x0 < hx);
+    let right = rest.filter(id => people.get(id).x0 >= hx);
+    while (left.length > right.length + 1) right.unshift(left.pop());
+    while (right.length > left.length + 1) left.push(right.shift());
+    return left.concat([hub], right);
+  }
+
+  // ── order cost ──
+  // number of pairs i < j with a[i] > a[j]
+  function inversions(a) {
+    const n = a.length;
+    if (n < 2) return 0;
+    if (n <= 48) {
+      let inv = 0;
+      for (let i = 0; i < n; i++) { const x = a[i]; for (let j = i + 1; j < n; j++) if (x > a[j]) inv++; }
+      return inv;
+    }
+    const vals = Array.from(new Set(a)).sort((x, y) => x - y);
+    const rank = new Map(vals.map((v, i) => [v, i + 1]));
+    const bit = new Int32Array(vals.length + 1);
+    let inv = 0;
+    for (let i = 0; i < n; i++) {
+      const rk = rank.get(a[i]);
+      let s = 0;
+      for (let q = rk; q > 0; q -= q & -q) s += bit[q];
+      inv += i - s;
+      for (let q = rk; q <= vals.length; q += q & -q) bit[q]++;
+    }
+    return inv;
+  }
+
+  function makeOrderer(model, R, cfg) {
+    const { people } = model;
+    const { rows, fams, dummyFor, nRows } = R;
+    const pos = new Map();   // member id -> ordinal in its row
+    const itemIndex = new Map();
+    const weightOf = new Map();
+    const itemOf = m => people.has(m) ? people.get(m).item : dummyFor.get(m);
+    R.items.forEach(it => it.members.forEach(m => {
+      const p = people.get(m);
+      weightOf.set(m, (it.kind === 'dummy' || (p && p.origin)) ? cfg.wInterleave : cfg.wStranger);
+    }));
+    const prefix = [];       // per row: summed stranger weights up to each position
+    R.rowSize = rows.map(row => row.reduce((n, it) => n + it.members.length, 0));
+    function index(r) {
+      let k = 0, acc = 0;
+      const row = rows[r];
+      const pre = prefix[r] && prefix[r].length === R.rowSize[r] + 1 ? prefix[r] : new Float64Array(R.rowSize[r] + 1);
+      for (let i = 0; i < row.length; i++) {
+        const it = row[i];
+        itemIndex.set(it, i);
+        const mem = it.members, n = mem.length;
+        for (let q = 0; q < n; q++) {
+          const m = mem[it.flipped ? n - 1 - q : q];
+          pos.set(m, k);
+          pre[k] = acc;
+          acc += weightOf.get(m);
+          k++;
+        }
+      }
+      pre[k] = acc;
+      prefix[r] = pre;
+    }
+    function indexAll() { for (let r = 0; r < nRows; r++) index(r); }
+
+    // the place a family's line of descent leaves from
+    function dropPos(fam) {
+      const a = people.get(fam.a), b = people.get(fam.b);
+      if (a.r === b.r) return (pos.get(fam.a) + pos.get(fam.b)) / 2;
+      if (fam.cross) return pos.get(a.r < b.r ? fam.a : fam.b);
+      // a free-position partner in another row: the other partner's place
+      return pos.get(fam.dropR === a.r ? fam.a : fam.b);
+    }
+    function dropItem(fam) {
+      const a = people.get(fam.a), b = people.get(fam.b);
+      if (a.r === b.r) return a.pinned && !b.pinned ? b.item : a.item;
+      if (fam.cross) return (a.r < b.r ? a : b).item;
+      return (fam.dropR === a.r ? a : b).item;
+    }
+    // partners who cannot share a row: their line runs between rows
+    // (when such partners have children, their line of descent, which leaves
+    // from the middle of the partner line, stands in for it)
+    const liveSet = new Set(R.live);
+    const crossCouples = Array.from(model.couples.values()).filter(c => {
+      const a = people.get(c.a), b = people.get(c.b);
+      const fam = R.famById.get(c.id);
+      if (fam && fam.cross && fam.dummies.has(Math.max(a.r, b.r))) return false;
+      return a.item && b.item && !a.pinned && !b.pinned && Math.abs(a.r - b.r) === 1 && liveSet.has(c.a);
+    });
+    // families whose line leaves a slanting partner line: the corridor sits
+    // next to the lower partner
+    const slanting = fams.filter(f => f.cross).map(f => {
+      const a = people.get(f.a), b = people.get(f.b);
+      const low = a.r > b.r ? a : b;
+      const d = f.dummies.get(low.r);
+      return d ? { r: low.r, item: low.item, d } : null;
+    }).filter(Boolean);
+    // and a free-position person sits next to their partners
+    const inRows = new Set(R.items);
+    model.couples.forEach(c => {
+      const a = people.get(c.a), b = people.get(c.b);
+      if (a.item && b.item && a.item !== b.item && a.r === b.r && inRows.has(a.item) && inRows.has(b.item)) slanting.push({ r: a.r, item: a.item, d: b.item });
+    });
+    const rowPins = Array.from({ length: nRows }, () => []);
+    R.items.forEach(it => { if (it.pinned) rowPins[it.r].push(it); });
+    // what crosses each gap between rows, and what each row holds
+    const band = Array.from({ length: nRows }, () => ({ fams: [], cross: [] }));
+    fams.forEach(fam => {
+      fam.targets.forEach((tg, r) => {
+        const from = r - 1;
+        if (from < 0) return;
+        if (fam.dropR === from || fam.dummies.has(from)) band[from].fams.push(fam);
+      });
+    });
+    crossCouples.forEach(c => {
+      const a = people.get(c.a), b = people.get(c.b);
+      band[Math.min(a.r, b.r)].cross.push(c);
+    });
+    const rowFams = Array.from({ length: nRows }, () => []);
+    fams.forEach(fam => fam.targets.forEach((tg, r) => rowFams[r].push({ fam, tg, own: ownSet(tg), birth: fam.birth.filter(k => tg.includes(k)) })));
+    function ownSet(tg) {
+      // the children, and partners of theirs who may sit among them
+      const own = new Set(tg);
+      tg.forEach(m => { const it = people.get(m) ? people.get(m).item : null; if (it && it.kind === 'unit') it.members.forEach(x => own.add(x)); });
+      return Array.from(own);
+    }
+    const rowTwins = Array.from({ length: nRows }, () => []);
+    model.twinOf.forEach((set, m) => set.forEach(o => {
+      const p = people.get(m), q = people.get(o);
+      if (m < o && p && q && p.item && q.item && !p.pinned && !q.pinned && p.r === q.r && rowTwins[p.r]) rowTwins[p.r].push([m, o]);
+    }));
+
+    // edges between row r and r+1, with the items they leave and reach
+    function edgesOf(r) {
+      const out = [];
+      if (r < 0 || r >= nRows - 1) return out;
+      band[r].cross.forEach(c => {
+        const a = people.get(c.a), b = people.get(c.b);
+        const up = a.r < b.r ? a : b, dn = a.r < b.r ? b : a;
+        out.push({ fam: 'x' + c.id, own: c.id, from: pos.get(up.id), to: pos.get(dn.id), fromItem: up.item, toItem: dn.item });
+      });
+      band[r].fams.forEach(fam => {
+        const tg = fam.targets.get(r + 1);
+        let from, fi;
+        if (fam.dropR === r) { from = dropPos(fam); fi = dropItem(fam); }
+        else { const d = fam.dummies.get(r); from = pos.get(d.members[0]); fi = d; }
+        if (from == null) return;
+        tg.forEach(t => out.push({ fam: fam.id, own: fam.id, from, to: pos.get(t), fromItem: fi, toItem: itemOf(t) }));
+      });
+      return out;
+    }
+    const sameFam = (a, b) => a.own === b.own;
+    function crossings(r) {
+      if (r < 0 || r >= nRows - 1) return 0;
+      const e = edgesOf(r);
+      const n = e.length;
+      api.work += 4 * n;
+      if (n < 2) return 0;
+      e.sort((a, b) => a.from - b.from || a.to - b.to);
+      // pairs with from_i < from_j and to_i > to_j
+      const tos = Array.from(new Set(e.map(x => x.to))).sort((a, b) => a - b);
+      const rank = new Map(tos.map((v, i) => [v, i + 1]));
+      const bit = new Int32Array(tos.length + 1);
+      let inv = 0, inserted = 0, half = 0;
+      for (let i = 0; i < n;) {
+        let j = i;
+        while (j < n && e[j].from === e[i].from) j++;
+        for (let k = i; k < j; k++) {
+          let s = 0;
+          for (let q = rank.get(e[k].to); q > 0; q -= q & -q) s += bit[q];
+          inv += inserted - s;
+        }
+        // lines from one point to different places (two families from one
+        // person) count half
+        for (let k = i; k < j; k++) for (let l = k + 1; l < j; l++) if (e[k].to !== e[l].to && !sameFam(e[k], e[l])) half++;
+        for (let k = i; k < j; k++) { for (let q = rank.get(e[k].to); q <= tos.length; q += q & -q) bit[q]++; inserted++; }
+        i = j;
+      }
+      // a family's own lines never cross each other
+      const byFam = new Map();
+      e.forEach(x => { if (!byFam.has(x.own)) byFam.set(x.own, []); byFam.get(x.own).push(x); });
+      byFam.forEach(list => {
+        for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+          const d1 = list[i].from - list[j].from, d2 = list[i].to - list[j].to;
+          if (d1 * d2 < 0) inv--;
+        }
+      });
+      return inv + 0.5 * half;
+    }
+    // terms that depend on one row: sibships split, strangers under a
+    // family's line, birth order, twins apart
+    function rowTerms(r) {
+      let t = 0;
+      const pre = prefix[r];
+      api.work += rowFams[r].length + rows[r].length;
+      const rf = rowFams[r];
+      for (let f = 0; f < rf.length; f++) {
+        const { tg, own, birth } = rf[f];
+        let lo = Infinity, hi = -Infinity;
+        for (let q = 0; q < tg.length; q++) { const p = pos.get(tg[q]); if (p < lo) lo = p; if (p > hi) hi = p; }
+        if (hi > lo + 1) {
+          let w = pre[hi] - pre[lo + 1];
+          for (let q = 0; q < own.length; q++) { const p = pos.get(own[q]); if (p > lo && p < hi) w -= weightOf.get(own[q]); }
+          t += w;
+        }
+        const nb = birth.length;
+        if (nb > 1) {
+          let inv = 0;
+          for (let i = 0; i < nb; i++) { const x = pos.get(birth[i]); for (let j = i + 1; j < nb; j++) if (x > pos.get(birth[j])) inv++; }
+          t += cfg.wOrder * inv;
+        }
+      }
+      rowTwins[r].forEach(([m, o]) => { if (Math.abs(pos.get(m) - pos.get(o)) > 1) t += cfg.wTwin; });
+      slanting.forEach(sl => {
+        if (sl.r !== r) return;
+        const i = itemIndex.get(sl.item), j = itemIndex.get(sl.d);
+        if (i === undefined || j === undefined) return;
+        t += cfg.wInterleave * (Math.abs(i - j) - 1);
+      });
+      // free-position people cannot change places with each other
+      const pins = rowPins[r];
+      for (let i = 0; i < pins.length; i++) for (let j = i + 1; j < pins.length; j++) {
+        if ((itemIndex.get(pins[i]) - itemIndex.get(pins[j])) * (pins[i].x0key - pins[j].x0key) < 0) t += cfg.wPinOrder;
+      }
+      // keep the user's arrangement where nothing else decides
+      const row = rows[r];
+      let inv = 0;
+      for (let i = 0; i < row.length; i++) {
+        const x = row[i].x0key;
+        if (x === undefined) continue;
+        for (let j = i + 1; j < row.length; j++) { const y = row[j].x0key; if (y !== undefined && x > y) inv++; }
+      }
+      t += cfg.wStable * inv;
+      return t;
+    }
+    function total() {
+      let c = 0;
+      for (let r = 0; r < nRows; r++) c += cfg.wCross * crossings(r) + rowTerms(r);
+      return c;
+    }
+    // everything that changes when only row r is rearranged
+    function local(r) {
+      return cfg.wCross * (crossings(r - 1) + crossings(r)) + rowTerms(r);
+    }
+    const api = { pos, index, indexAll, total, local, crossings, rowTerms, dropPos, edgesOf, sameFam, work: 0 };
+    return api;
+  }
+
+  // initial order: walk the family tree depth first, so every row starts out
+  // in a planar order for tree-shaped families and joins sit at sibship ends
+  function dfsOrder(model, R) {
+    const { people } = model;
+    const { rows, items, fams, nRows } = R;
+    const famOf = new Map(fams.map(f => [f.id, f]));
+    const placed = new Set();
+    const out = Array.from({ length: nRows }, () => []);
+    const itemOfMember = m => people.has(m) ? people.get(m).item : R.dummyFor.get(m);
+    const put = it => { if (!it || placed.has(it)) return false; placed.add(it); out[it.r].push(it); return true; };
+    const dropItem = fam => {
+      const a = people.get(fam.a), b = people.get(fam.b);
+      const p = (!a.pinned && (b.pinned || a.r >= b.r)) ? a : b;
+      return p.pinned ? null : p.item;
+    };
+    function foreignOriginUnplaced(it, fam) {
+      return it.members.some(m => {
+        const p = people.get(m);
+        if (!p || !p.origin || (fam && p.origin === fam.id)) return false;
+        const f = famOf.get(p.origin);
+        return f && dropItem(f) && !placed.has(dropItem(f));
+      });
+    }
+    function placeTargets(fam, r) {
+      const tg = fam.targets.get(r) || [];
+      const its = [];
+      tg.forEach(m => { const it = itemOfMember(m); if (it && !its.includes(it)) its.push(it); });
+      // keep birth order but send a child married into an unplaced family to the end
+      const plain = its.filter(it => !foreignOriginUnplaced(it, fam));
+      const joins = its.filter(it => foreignOriginUnplaced(it, fam));
+      plain.concat(joins).forEach(it => place(it));
+    }
+    const visiting = new Set();
+    function placeAncestors(fam) {
+      const di = dropItem(fam);
+      // (visiting guards against someone being their own ancestor)
+      if (!di || placed.has(di) || visiting.has(di)) return;
+      visiting.add(di);
+      di.members.forEach(m => {
+        const p = people.get(m);
+        if (p && p.origin && famOf.get(p.origin)) placeAncestors(famOf.get(p.origin));
+      });
+      place(di);
+    }
+    function place(it) {
+      if (!put(it)) return;
+      if (it.kind === 'dummy') {
+        const fam = it.fam;
+        placeTargets(fam, it.r + 1);
+        return;
+      }
+      it.members.forEach(m => {
+        const p = people.get(m);
+        if (p.origin && famOf.get(p.origin)) placeAncestors(famOf.get(p.origin));
+      });
+      // families whose line leaves from this item
+      fams.filter(f => dropItem(f) === it).forEach(f => placeTargets(f, f.dropR + 1));
+    }
+    const start = items.slice().sort((u, v) => (u.r - v.r) || (x0Of(u) - x0Of(v)));
+    function x0Of(it) { return it.kind === 'dummy' ? 0 : Math.min(...it.members.map(m => people.get(m).x0)); }
+    start.forEach(it => place(it));
+    return out;
+  }
+
+  // a second kind of starting order: grow the drawing outwards from a couple
+  // whose two partners both have their parents in the pedigree (the way an
+  // "hourglass" pedigree is drawn by hand). Each row is kept as two halves,
+  // left and right of the centre, filled from the middle outwards. A couple
+  // reached from below with both partners' families still to place keeps the
+  // family with more descendants on the outside; the other family's children
+  // go next to their sibling on the inside.
+  function centreOrder(model, R, centre, opts) {
+    opts = opts || {};
+    const { people } = model;
+    const { fams, nRows } = R;
+    const famOf = R.famById;
+    const inR = new Set(R.items);
+    const parts = { L: Array.from({ length: nRows }, () => []), R: Array.from({ length: nRows }, () => []) };
+    const placed = new Set();
+    const flips = new Map();
+    const itemOfMember = m => people.has(m) ? people.get(m).item : R.dummyFor.get(m);
+    const dropItem = fam => {
+      const a = people.get(fam.a), b = people.get(fam.b);
+      const p = (!a.pinned && (b.pinned || a.r >= b.r)) ? a : b;
+      return p.pinned ? null : p.item;
+    };
+    const famsFrom = new Map();
+    fams.forEach(f => { const d = dropItem(f); if (d) { if (!famsFrom.has(d)) famsFrom.set(d, []); famsFrom.get(d).push(f); } });
+    const childItems = (fam, r) => {
+      const its = [];
+      (fam.targets.get(r) || []).forEach(m => { const it = itemOfMember(m); if (it && !its.includes(it)) its.push(it); });
+      return its;
+    };
+    const originFam = m => { const p = people.get(m); return p && p.origin ? (famOf.get(p.origin) || null) : null; };
+    const seqOf = it => flips.get(it) ? it.members.slice().reverse() : it.members;
+    // partners drawn in another row
+    const crossPartners = it => {
+      const out = [];
+      if (it.kind !== 'unit') return out;
+      it.members.forEach(m => {
+        people.get(m).couples.forEach(cid => {
+          const c = model.couples.get(cid);
+          if (!c) return;
+          const q = people.get(c.a === m ? c.b : c.a);
+          if (q && q.item && q.item !== it && inR.has(q.item)) out.push({ m, item: q.item, partner: q.id });
+        });
+      });
+      return out;
+    };
+    // how much of the drawing hangs below a family's sibship, apart from one child
+    const weightCache = new Map();
+    function weight(fam, except) {
+      const key = fam.id + '|' + (except ? except.id : '');
+      if (weightCache.has(key)) return weightCache.get(key);
+      const seen = new Set([except]);
+      const stack = [];
+      let n = 0;
+      const push = m => { const it = itemOfMember(m); if (it && !seen.has(it)) { seen.add(it); stack.push(it); } };
+      fam.targets.forEach(tg => tg.forEach(push));
+      while (stack.length) {
+        const it = stack.pop();
+        if (it.r > fam.dropR + 1) n++;
+        if (it.kind === 'dummy') continue;
+        (famsFrom.get(it) || []).forEach(f => f.targets.forEach(tg => tg.forEach(push)));
+      }
+      weightCache.set(key, n);
+      return n;
+    }
+    // a family still to be placed above this member?
+    const pendingUp = m => { const f = originFam(m); const d = f && dropItem(f); return f && d && !placed.has(d) ? f : null; };
+    // a child whose partner's family is still to be placed (goes at the end of its sibship)
+    const isJoin = (it, fam) => it.kind === 'unit' && it.members.some(m => { const f = pendingUp(m); return f && f !== fam; });
+
+    function put(it, side, inside) {
+      if (!it || placed.has(it)) return false;
+      placed.add(it);
+      const arr = parts[side][it.r];
+      const k = inside ? arr.indexOf(inside) : -1;
+      if (k >= 0) arr.splice(k, 0, it); else arr.push(it);
+      return true;
+    }
+    // members whose family is still to be placed go to the outer end of the
+    // couple (the heavier family outermost); the member we arrived through
+    // goes to the inner end
+    function orient(it, side, inward) {
+      if (it.kind !== 'unit' || it.members.length < 2) return;
+      const pen = seq => {
+        let p = 0;
+        const n = seq.length;
+        seq.forEach((m, i) => {
+          const out = side === 'L' ? i : n - 1 - i;
+          if (m === inward) { p += (n - 1 - out) * 1000; return; }
+          const f = pendingUp(m);
+          if (f) p += out * (1 + weight(f, it));
+          if (crossPartners(it).some(cp => cp.m === m && !placed.has(cp.item))) p += out;
+        });
+        return p;
+      };
+      const nat = it.members, rev = nat.slice().reverse();
+      flips.set(it, pen(rev) < pen(nat));
+    }
+
+    // place a family's children (all rows of its line of descent) outwards
+    function placeChildren(fam, side) {
+      const rows = Array.from(fam.targets.keys()).sort((a, b) => a - b);
+      const added = [];
+      rows.forEach(r => {
+        let its = childItems(fam, r).filter(c => !placed.has(c));
+        if (side === 'L') its.reverse();
+        const plain = its.filter(c => !isJoin(c, fam)), joins = its.filter(c => isJoin(c, fam));
+        plain.concat(joins).forEach(c => { if (put(c, side)) added.push(c); });
+      });
+      added.forEach(c => { if (c.kind === 'unit') orient(c, side, c.members.find(m => people.get(m).origin === fam.id)); });
+      return added;
+    }
+    function visit(it, side, steps) {
+      if (it.kind === 'dummy') return;
+      const order = opts.upFirst ? ['up', 'down'] : ['down', 'up'];
+      (steps || order).forEach(s => { if (s === 'down') downs(it, side); else ups(it, side); });
+    }
+    function downs(it, side) {
+      (famsFrom.get(it) || []).forEach(f => {
+        const added = placeChildren(f, side);
+        added.forEach(c => visit(c, side, ['down']));
+        added.forEach(c => visit(c, side, ['up']));
+      });
+    }
+    function ups(it, side) {
+      if (it.kind !== 'unit') return;
+      const seq = seqOf(it);
+      const n = seq.length;
+      const list = [];
+      seq.forEach((m, i) => {
+        const f = pendingUp(m);
+        if (f) list.push({ m, f, i });
+      });
+      crossPartners(it).forEach(cp => { if (!placed.has(cp.item)) list.push({ m: cp.m, cross: cp, i: seq.indexOf(cp.m) }); });
+      // inner end first, so the outer families end up further out
+      list.sort((u, v) => side === 'L' ? v.i - u.i : u.i - v.i);
+      list.forEach(e => {
+        if (e.cross) {
+          if (put(e.cross.item, side)) { orient(e.cross.item, side, e.cross.partner); visit(e.cross.item, side); }
+          return;
+        }
+        if (!pendingUp(e.m)) return;
+        const innerEnd = n > 1 && (side === 'L' ? e.i === n - 1 : e.i === 0);
+        ancestors(e.f, side, it, innerEnd);
+      });
+    }
+    function ancestors(fam, side, from, inner) {
+      const d = dropItem(fam);
+      const sibRow = fam.dropR + 1;
+      const added = [];
+      const rows = Array.from(fam.targets.keys()).sort((a, b) => a - b);
+      rows.forEach(r => {
+        let its = childItems(fam, r).filter(c => c !== from && !placed.has(c));
+        if (inner && r === from.r && r === sibRow) {
+          // next to their sibling, on the inner side
+          if (side === 'R') its.reverse();
+          let anchor = from;
+          its.forEach(c => { if (put(c, side, anchor)) { anchor = c; added.push(c); } });
+        } else {
+          if (side === 'L') its.reverse();
+          const plain = its.filter(c => !isJoin(c, fam)), joins = its.filter(c => isJoin(c, fam));
+          plain.concat(joins).forEach(c => { if (put(c, side)) added.push(c); });
+        }
+      });
+      added.forEach(c => { if (c.kind === 'unit') orient(c, side, c.members.find(m => people.get(m).origin === fam.id)); });
+      added.forEach(c => visit(c, side, ['down']));
+      if (put(d, side)) {
+        orient(d, side, null);
+        visit(d, side);
+      }
+      added.forEach(c => visit(c, side, ['up']));
+    }
+
+    // the centre: its left partner's family goes left, the right partner's right
+    put(centre, 'R');
+    const cseq = seqOf(centre);
+    const centreUps = () => {
+      const half = (cseq.length - 1) / 2;
+      cseq.forEach((m, i) => {
+        const f = pendingUp(m);
+        if (f) ancestors(f, i < half ? 'L' : 'R', centre, false);
+      });
+      crossPartners(centre).forEach(cp => { if (put(cp.item, 'R')) { orient(cp.item, 'R', cp.partner); visit(cp.item, 'R'); } });
+    };
+    const centreDowns = () => {
+      (famsFrom.get(centre) || []).forEach(f => {
+        const rows = Array.from(f.targets.keys()).sort((a, b) => a - b);
+        const added = [];
+        rows.forEach(r => {
+          const its = childItems(f, r).filter(c => !placed.has(c));
+          const joins = its.filter(c => isJoin(c, f));
+          const first = joins.length ? joins[0] : null;
+          // one child marrying into a drawn family goes at the left end, the
+          // others at the right end
+          const seq = (first ? [first] : []).concat(its.filter(c => !joins.includes(c)), joins.slice(1));
+          seq.forEach(c => { if (put(c, 'R')) added.push({ c, side: c === first ? 'L' : 'R' }); });
+        });
+        added.forEach(({ c, side }) => { if (c.kind === 'unit') orient(c, side, c.members.find(m => people.get(m).origin === f.id)); });
+        added.forEach(({ c, side }) => visit(c, side, ['down']));
+        added.forEach(({ c, side }) => visit(c, side, ['up']));
+      });
+    };
+    if (opts.upFirst) { centreUps(); centreDowns(); } else { centreDowns(); centreUps(); }
+    // anything not reached (should not happen in a connected family) goes on the right
+    R.items.slice().sort((u, v) => (u.r - v.r) || (u.sortKey - v.sortKey)).forEach(it => { if (put(it, 'R')) visit(it, 'R'); });
+    const rows = [];
+    for (let r = 0; r < nRows; r++) rows.push(parts.L[r].slice().reverse().concat(parts.R[r]));
+    return { rows, flips };
+  }
+
+  function optimiseOrder(model, R, cfg) {
+    const { people } = model;
+    const { rows, nRows, fams } = R;
+    // stable tie-break: where things were drawn
+    R.items.forEach(it => {
+      it.x0key = it.kind === 'dummy' ? undefined : Math.min(...it.members.map(m => people.get(m).x0));
+      it.sortKey = it.kind === 'dummy' ? (people.get(it.fam.a).x0 + people.get(it.fam.b).x0) / 2 : it.x0key;
+      it.flipped = false;
+    });
+    const O = makeOrderer(model, R, cfg);
+
+    function snapshot() { return rows.map(r => r.map(it => [it, it.flipped])); }
+    function restore(s) { s.forEach((r, i) => { rows[i] = r.map(([it, f]) => { it.flipped = f; return it; }); }); O.indexAll(); }
+
+    // starting orders: as drawn, a walk down the family tree, and outwards
+    // from each couple that joins two drawn families
+    const starts = [];
+    starts.push({ rows: rows.map(r => r.slice().sort((u, v) => u.sortKey - v.sortKey)) });
+    starts.push({ rows: dfsOrder(model, R) });
+    // couples joining two families with parents drawn, the proband's family first
+    const joins = R.items.filter(it => it.kind === 'unit' && it.members.filter(m => people.get(m).origin && R.famById.has(people.get(m).origin)).length >= 2);
+    const probandFirst = it => it.members.some(m => people.get(m).proband) ? 0 : 1;
+    joins.sort((u, v) => probandFirst(u) - probandFirst(v) || (v.r - u.r)).slice(0, cfg.maxCentres).forEach(it => {
+      starts.push(centreOrder(model, R, it, { upFirst: false }));
+      starts.push(centreOrder(model, R, it, { upFirst: true }));
+    });
+    let best = null, bestCost = Infinity;
+    starts.forEach((st, si) => {
+      if (best && O.work > cfg.orderWork) return;
+      st.rows.forEach((r, i) => { rows[i] = r.slice(); });
+      R.items.forEach(it => { it.flipped = st.flips ? !!st.flips.get(it) : false; });
+      O.indexAll();
+      improve(O, model, R, cfg);
+      const c = O.total();
+      if (c < bestCost - 1e-9) { bestCost = c; best = snapshot(); }
+    });
+    restore(best);
+    R.orderCost = bestCost;
+    return O;
+  }
+
+
+  function improve(O, model, R, cfg) {
+    const { rows, nRows } = R;
+    let cur = O.total();
+    for (let round = 0; round < cfg.rounds; round++) {
+      const before = cur;
+      // barycentric sweeps
+      for (let r = 1; r < nRows; r++) cur = trySort(r, 'down', cur);
+      for (let r = nRows - 2; r >= 0; r--) cur = trySort(r, 'up', cur);
+      // sifting: move each item to its best place in its row, and try flips
+      for (let r = 0; r < nRows; r++) cur = sift(r, cur);
+      if (cur >= before - 1e-9) break;
+      if (O.work > cfg.orderWork) break;
+    }
+    return O.total();
+
+    function trySort(r, dir, cur) {
+      const row = rows[r];
+      if (row.length < 2) return cur;
+      const keys = new Map();
+      row.forEach((it, i) => {
+        const vals = neighbours(it, dir);
+        keys.set(it, vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+      });
+      // items without neighbours keep their place relative to the others
+      const old = row.slice();
+      const withKey = old.filter(it => keys.get(it) !== null);
+      const sorted = withKey.slice().sort((u, v) => (keys.get(u) - keys.get(v)) || (old.indexOf(u) - old.indexOf(v)));
+      let k = 0;
+      const next = old.map(it => keys.get(it) === null ? it : sorted[k++]);
+      const before = O.local(r);
+      rows[r] = next;
+      O.index(r);
+      const c = cur - before + O.local(r);
+      if (c < cur - 1e-9) return c;
+      rows[r] = old;
+      O.index(r);
+      return cur;
+    }
+    function neighbours(it, dir) {
+      const out = [];
+      const P = O.pos;
+      const scaleFrom = rr => Math.max(1, (rows[rr] || []).reduce((n, x) => n + x.members.length, 0));
+      if (dir === 'down') {
+        const rr = it.r - 1;
+        if (rr < 0) return out;
+        const sc = scaleFrom(rr), mine = scaleFrom(it.r);
+        if (it.kind === 'dummy') {
+          const fam = it.fam;
+          const from = fam.dropR === rr ? O.dropPos(fam) : (fam.dummies.has(rr) ? P.get(fam.dummies.get(rr).members[0]) : null);
+          if (from != null) out.push(from / sc * mine);
+          return out;
+        }
+        it.members.forEach(m => {
+          const p = model.people.get(m);
+          if (!p.origin) return;
+          const fam = R.famById.get(p.origin);
+          if (!fam) return;
+          let from = null;
+          if (fam.dropR === rr) from = O.dropPos(fam);
+          else if (fam.dummies.has(rr)) from = P.get(fam.dummies.get(rr).members[0]);
+          if (from != null) out.push(from / sc * mine);
+        });
+      } else {
+        const rr = it.r + 1;
+        if (rr >= nRows) return out;
+        const sc = scaleFrom(rr), mine = scaleFrom(it.r);
+        R.fams.forEach(fam => {
+          let from = false;
+          if (it.kind === 'dummy') from = fam === it.fam;
+          else from = fam.dropR === it.r && (it.members.includes(fam.a) || it.members.includes(fam.b));
+          if (!from) return;
+          (fam.targets.get(rr) || []).forEach(t => out.push(P.get(t) / sc * mine));
+        });
+      }
+      return out;
+    }
+    // move each item to its best place in its row (trying both ways round
+    // for couples). Crossings are counted pairwise between items: whether
+    // two items' lines cross depends only on which of them is on the left,
+    // so the count for every place in the row comes from one table.
+    function sift(r, cur) {
+      if (rows[r].length < 2) return cur;
+      O.index(r);
+      const upBy = new Map(), downBy = new Map();
+      const add = (map, key, e) => { if (!map.has(key)) map.set(key, []); map.get(key).push(e); };
+      O.edgesOf(r - 1).forEach(e => add(upBy, e.toItem, e));
+      O.edgesOf(r).forEach(e => add(downBy, e.fromItem, e));
+      const items = rows[r].slice();
+      const k = items.length;
+      const id = new Map(items.map((it, i) => [it, i]));
+      const C = Array.from({ length: k }, () => new Float64Array(k));
+      for (let i = 0; i < k; i++) {
+        const ui = upBy.get(items[i]), di = downBy.get(items[i]);
+        if (!ui && !di) continue;
+        for (let j = 0; j < k; j++) {
+          if (i === j) continue;
+          const uj = upBy.get(items[j]), dj = downBy.get(items[j]);
+          let c = 0;
+          if (ui && uj) for (const a of ui) for (const b of uj) if (a.from > b.from && !O.sameFam(a, b)) c++;
+          if (di && dj) for (const a of di) for (const b of dj) if (a.to > b.to && !O.sameFam(a, b)) c++;
+          C[i][j] = c;
+        }
+      }
+      // an item's own lines crossing each other (depends on its orientation)
+      function internal(u) {
+        O.index(r);
+        let c = 0;
+        [O.edgesOf(r - 1).filter(e => e.toItem === u), O.edgesOf(r).filter(e => e.fromItem === u)].forEach(list => {
+          for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+            if (O.sameFam(list[i], list[j])) continue;
+            const d1 = list[i].from - list[j].from, d2 = list[i].to - list[j].to;
+            if (d1 * d2 < 0) c++; else if (d1 === 0 && d2 !== 0) c += 0.5;
+          }
+        });
+        return c;
+      }
+      for (const u of items) {
+        const row = rows[r];
+        const base = row.filter(x => x !== u);
+        const ui = id.get(u);
+        const curJ = row.indexOf(u), curFlip = u.flipped;
+        const flips = u.kind === 'unit' && u.members.length > 1 ? [false, true] : [u.flipped];
+        const intern = new Map();
+        flips.forEach(f => { u.flipped = f; intern.set(f, internal(u)); });
+        u.flipped = curFlip;
+        let left = 0, right = 0;
+        for (const v of base) right += C[ui][id.get(v)];
+        let best = null, here = null;
+        for (let j = 0; j <= base.length; j++) {
+          if (j > 0) { const v = id.get(base[j - 1]); left += C[v][ui]; right -= C[ui][v]; }
+          rows[r] = base.slice(0, j).concat([u], base.slice(j));
+          for (const f of flips) {
+            u.flipped = f;
+            O.index(r);
+            const c = cfg.wCross * (left + right + intern.get(f)) + O.rowTerms(r);
+            if (j === curJ && f === curFlip) here = c;
+            if (!best || c < best.c - 1e-9) best = { c, j, f };
+          }
+        }
+        if (best && here !== null && best.c < here - 1e-9) {
+          rows[r] = base.slice(0, best.j).concat([u], base.slice(best.j));
+          u.flipped = best.f;
+          cur += best.c - here;
+        } else {
+          rows[r] = row;
+          u.flipped = curFlip;
+        }
+        O.index(r);
+      }
+      // move whole sibships as blocks
+      R.fams.forEach(fam => {
+        const tg = fam.targets.get(r);
+        if (!tg || tg.length < 2) return;
+        const rowNow = rows[r];
+        const its = rowNow.filter(it => it.members.some(m => tg.includes(m)));
+        const idx = its.map(it => rowNow.indexOf(it)).sort((a, b) => a - b);
+        if (idx[idx.length - 1] - idx[0] !== idx.length - 1) return;   // not contiguous
+        const block = rowNow.slice(idx[0], idx[idx.length - 1] + 1);
+        const base = rowNow.filter(x => !block.includes(x));
+        const bIds = block.map(b => id.get(b));
+        let left = 0, right = 0;
+        base.forEach(v => { const vi = id.get(v); bIds.forEach(b => { right += C[b][vi]; }); });
+        let best = null, here = null;
+        for (let j = 0; j <= base.length; j++) {
+          if (j > 0) { const vi = id.get(base[j - 1]); bIds.forEach(b => { left += C[vi][b]; right -= C[b][vi]; }); }
+          rows[r] = base.slice(0, j).concat(block, base.slice(j));
+          O.index(r);
+          const c = cfg.wCross * (left + right) + O.rowTerms(r);
+          if (j === idx[0]) here = c;
+          if (!best || c < best.c - 1e-9) best = { c, j };
+        }
+        if (best && here !== null && best.c < here - 1e-9) {
+          rows[r] = base.slice(0, best.j).concat(block, base.slice(best.j));
+          cur += best.c - here;
+        } else rows[r] = rowNow;
+        O.index(r);
+      });
+      return cur;
+    }
+  }
+
+  // ── 3. positions ──
+  function solvePositions(model, R, O, cfg) {
+    const { people } = model;
+    const { rows, fams, nRows } = R;
+    const S = cfg.S;
+    // member offsets inside rigid items, and which side each note goes
+    rows.forEach(row => row.forEach(it => {
+      const mem = it.flipped ? it.members.slice().reverse() : it.members;
+      it.seq = mem;
+      const off = unitOffsets(mem, model, cfg);
+      it.width = it.kind === 'dummy' ? 0 : off[off.length - 1] + S;
+      mem.forEach((m, i) => {
+        const p = people.get(m);
+        if (!p) return;
+        p.off = off[i];
+        // the Studio puts a person's notes on the left if a partner is to their right
+        p.textLeft = mem.some((o, j) => j > i && partnerOf(m, o, model));
+      });
+    }));
+    // horizontal extents of each person's notes relative to their symbol
+    function textSpan(p) {
+      if (!p || !p.textW) return null;
+      return p.textLeft ? [22 - p.textW, 22] : [30, 30 + p.textW];
+    }
+    function gapBetween(a, b) {
+      // a: last member of the left item, b: first member of the right item
+      // (ids); returns the minimum distance between their left edges
+      const pa = people.get(a), pb = people.get(b);
+      const H = cfg.H;
+      if (!pa && !pb) return cfg.corridor * 2;
+      if (!pa) { // corridor then person
+        const ts = textSpan(pb);
+        return H + cfg.corridor - Math.min(0, ts ? ts[0] : 0);
+      }
+      if (!pb) { // person then corridor
+        const ts = textSpan(pa);
+        return Math.max(S, ts ? ts[1] : 0) + cfg.corridor - H;
+      }
+      let g = cfg.sibGap;
+      if (pa.origin !== pb.origin || !pa.origin) g += cfg.familyGap;
+      const ta = textSpan(pa), tb = textSpan(pb);
+      if (ta && tb) g = Math.max(g, ta[1] - tb[0] + cfg.textPad);
+      return g;
+    }
+
+    // variables: one per item
+    const items = [];
+    rows.forEach(row => row.forEach(it => { it.v = items.length; items.push(it); }));
+    const n = items.length;
+    // constraints per row: X[k+1] - X[k] >= c
+    const chains = rows.map(row => {
+      const gaps = [];
+      for (let i = 0; i + 1 < row.length; i++) {
+        const L = row[i], Rr = row[i + 1];
+        const a = L.seq[L.seq.length - 1], b = Rr.seq[0];
+        gaps.push((L.width ? L.width - S : 0) + gapBetween(a, b));
+      }
+      return { vars: row.map(it => it.v), gaps };
+    });
+
+    // objective terms: list of {idx:[v...], co:[...], c, w}  value = sum co*X + c
+    const terms = [];
+    const memberX = m => {
+      const p = people.get(m);
+      if (p) {
+        if (p.pinned) return { idx: [], co: [], c: p.x0 };
+        return { idx: [p.item.v], co: [1], c: p.off };
+      }
+      const d = R.dummyFor.get(m);
+      return { idx: [d.v], co: [1], c: 0 };
+    };
+    const lin = (...parts) => {
+      // parts: [coef, expr]
+      const idx = [], co = [];
+      let c = 0;
+      parts.forEach(([k, e]) => {
+        e.idx.forEach((v, i) => {
+          const j = idx.indexOf(v);
+          if (j >= 0) co[j] += k * e.co[i]; else { idx.push(v); co.push(k * e.co[i]); }
+        });
+        c += k * e.c;
+      });
+      return { idx, co, c };
+    };
+    fams.forEach(fam => {
+      const a = people.get(fam.a), b = people.get(fam.b);
+      const m = lin([0.5, memberX(fam.a)], [0.5, memberX(fam.b)]);
+      // the first row of children: centre the sibship (including any corridor)
+      const kidRows = Array.from(fam.targets.keys()).filter(r => fam.targets.get(r).some(t => people.has(t)));
+      const r1 = kidRows.length ? Math.min(...kidRows) : fam.dropR + 1;
+      const tg = (fam.targets.get(r1) || []).slice().sort((u, v) => O.pos.get(u) - O.pos.get(v));
+      if (tg.length) {
+        const first = memberX(tg[0]), last = memberX(tg[tg.length - 1]);
+        const e = lin([0.5, first], [0.5, last], [-1, m]);
+        if (e.idx.length) terms.push({ ...e, w: cfg.wCentre, l1: true });
+      }
+      // corridors sit exactly under the couple
+      fam.dummies.forEach(d => {
+        const e = lin([1, memberX(d.members[0])], [-1, m]);
+        if (e.idx.length) terms.push({ ...e, w: cfg.wCorridor, l1: true });
+      });
+      // children further down: close to the line
+      fam.targets.forEach((tg2, r) => {
+        if (r === r1) return;
+        tg2.forEach(t => {
+          if (!people.has(t)) return;
+          const e = lin([1, memberX(t)], [-1, m]);
+          if (e.idx.length) terms.push({ ...e, w: cfg.wLong, l1: true });
+        });
+      });
+    });
+    // partners who are not side by side in one chain (in different rows, or
+    // one of them with a free position): keep them near each other
+    const liveSet = new Set(R.live);
+    model.couples.forEach(c => {
+      const a = people.get(c.a), b = people.get(c.b);
+      if (!liveSet.has(c.a) && !liveSet.has(c.b)) return;
+      if (!a.item || !b.item || a.item === b.item) return;
+      const e = lin([1, memberX(c.a)], [-1, memberX(c.b)]);
+      if (e.idx.length) terms.push({ ...e, w: cfg.wFarPartner });
+    });
+    // neighbouring sibships: keep each family's line of descent and sibship
+    // line clear of the next family's
+    for (let r = 1; r < nRows; r++) {
+      const list = [];
+      fams.forEach(fam => {
+        const tg = fam.targets.get(r);
+        if (!tg || !tg.length) return;
+        const ord = tg.map(t => O.pos.get(t));
+        const lo = Math.min(...ord), hi = Math.max(...ord);
+        list.push({ fam, lo, hi, first: tg[ord.indexOf(lo)], last: tg[ord.indexOf(hi)] });
+      });
+      list.sort((u, v) => u.lo - v.lo);
+      // where each family's line comes down from, in the order of the row above
+      const fromPos = fam => fam.dropR === r - 1 ? O.dropPos(fam) : (fam.dummies.has(r - 1) ? O.pos.get(fam.dummies.get(r - 1).members[0]) : null);
+      for (let i = 0; i + 1 < list.length; i++) {
+        const F = list[i], G = list[i + 1];
+        if (F.hi >= G.lo) continue;            // interleaved: nothing sensible to ask
+        const fF = fromPos(F.fam), fG = fromPos(G.fam);
+        if (fF == null || fG == null || fF > fG) continue;   // their lines cross anyway
+        const mF = lin([0.5, memberX(F.fam.a)], [0.5, memberX(F.fam.b)]);
+        const mG = lin([0.5, memberX(G.fam.a)], [0.5, memberX(G.fam.b)]);
+        const pairs = [[memberX(G.first), mF], [mG, memberX(F.last)], [mG, mF]];
+        pairs.forEach(([right, left]) => {
+          const e = lin([1, right], [-1, left]);
+          if (e.idx.length) terms.push({ ...e, w: cfg.wBus, hinge: cfg.busGap });
+        });
+      }
+    }
+    // compactness: each row as narrow as the rest allows (a linear pull on
+    // its two ends), and a weak pull on each gap to share out any slack
+    chains.forEach(ch => {
+      const k = ch.vars.length;
+      if (k > 1 && cfg.wWidth) terms.push({ idx: [ch.vars[k - 1], ch.vars[0]], co: [1, -1], c: 0, w: cfg.wWidth, linear: true });
+      for (let i = 0; i + 1 < k; i++) {
+        terms.push({ idx: [ch.vars[i + 1], ch.vars[i]], co: [1, -1], c: -ch.gaps[i], w: cfg.wCompact });
+      }
+    });
+    // a very weak pull to the drawing's starting place (keeps it stable)
+    items.forEach(it => {
+      const x0 = it.kind === 'dummy' || it.pinned ? null : Math.min(...it.members.map(m => people.get(m).x0));
+      if (x0 != null) terms.push({ idx: [it.v], co: [1], c: -x0, w: cfg.wAnchor });
+    });
+    const pinVars = items.filter(it => it.pinned).map(it => [it.v, people.get(it.members[0]).x0]);
+
+    // starting point: packed rows, left aligned
+    const X = new Float64Array(n);
+    chains.forEach(ch => { let x = 0; ch.vars.forEach((v, i) => { X[v] = x; if (i < ch.gaps.length) x += ch.gaps[i]; }); });
+    pinVars.forEach(([v, x0]) => { X[v] = x0; });
+
+    // the terms packed into flat arrays: each has a few (variable,
+    // coefficient) pairs, a constant, a weight and a kind (0 square,
+    // 1 one-sided square below a threshold, 2 linear)
+    let T = null;
+    function pack() {
+      const m = terms.length;
+      let nz = 0;
+      terms.forEach(t => { nz += t.idx.length; });
+      T = { m, start: new Int32Array(m + 1), idx: new Int32Array(nz), co: new Float64Array(nz), c: new Float64Array(m), w: new Float64Array(m), kind: new Uint8Array(m), hinge: new Float64Array(m) };
+      let q = 0;
+      terms.forEach((t, k) => {
+        T.start[k] = q;
+        for (let i = 0; i < t.idx.length; i++, q++) { T.idx[q] = t.idx[i]; T.co[q] = t.co[i]; }
+        T.c[k] = t.c; T.w[k] = t.w;
+        T.kind[k] = t.linear ? 2 : (t.hinge !== undefined ? 1 : 0);
+        T.hinge[k] = t.hinge || 0;
+      });
+      T.start[m] = q;
+    }
+    const grad = new Float64Array(n);
+    function gradient(Y) {
+      grad.fill(0);
+      const { m, start, idx, co, c, w, kind, hinge } = T;
+      for (let k = 0; k < m; k++) {
+        const a = start[k], b = start[k + 1];
+        let v = c[k];
+        for (let q = a; q < b; q++) v += co[q] * Y[idx[q]];
+        let g;
+        const kd = kind[k];
+        if (kd === 2) g = w[k];
+        else if (kd === 1) { if (v >= hinge[k]) continue; g = -2 * w[k] * (hinge[k] - v); }
+        else g = 2 * w[k] * v;
+        for (let q = a; q < b; q++) grad[idx[q]] += g * co[q];
+      }
+    }
+    // nearest point (in the metric D) that keeps every row in order with
+    // its gaps: weighted isotonic regression on x - offset (pool adjacent
+    // violators)
+    const chainOff = chains.map(ch => {
+      const off = new Float64Array(ch.vars.length);
+      for (let i = 1; i < ch.vars.length; i++) off[i] = off[i - 1] + ch.gaps[i - 1];
+      return off;
+    });
+    const pVal = new Float64Array(n + 1), pWt = new Float64Array(n + 1), pLen = new Int32Array(n + 1);
+    function project(Y, D) {
+      for (let h = 0; h < chains.length; h++) {
+        const vars = chains[h].vars, off = chainOff[h], k = vars.length;
+        if (k < 2) continue;
+        let top = 0;
+        for (let i = 0; i < k; i++) {
+          let v = Y[vars[i]] - off[i], w = D[vars[i]], l = 1;
+          while (top > 0 && pVal[top - 1] > v) {
+            top--;
+            v = (pVal[top] * pWt[top] + v * w) / (pWt[top] + w); w += pWt[top]; l += pLen[top];
+          }
+          pVal[top] = v; pWt[top] = w; pLen[top] = l; top++;
+        }
+        let i = 0;
+        for (let b = 0; b < top; b++) for (let j = 0; j < pLen[b]; j++, i++) Y[vars[i]] = pVal[b] + off[i];
+      }
+    }
+    // accelerated projected gradient (FISTA with restarts), each variable
+    // scaled by its own curvature bound so loosely tied parts converge too
+    const D = new Float64Array(n);
+    const Yb = new Float64Array(n), Xn = new Float64Array(n);
+    function solve() {
+      pack();
+      D.fill(0);
+      const { m, start, idx, co, w, kind } = T;
+      for (let k = 0; k < m; k++) {
+        if (kind[k] === 2) continue;
+        let s = 0;
+        for (let q = start[k]; q < start[k + 1]; q++) s += Math.abs(co[q]);
+        for (let q = start[k]; q < start[k + 1]; q++) D[idx[q]] += 2 * w[k] * Math.abs(co[q]) * s;
+      }
+      for (let i = 0; i < n; i++) D[i] = Math.max(D[i], cfg.minCurv);
+      // free-position people do not move: everyone else gives way
+      pinVars.forEach(([v, x0]) => { D[v] = 1e9; X[v] = x0; });
+      project(X, D);
+      Yb.set(X);
+      let tk = 1;
+      const cap = Math.max(60, Math.min(cfg.iterations, Math.floor(cfg.solveWork / Math.max(1, m))));
+      for (let it = 0; it < cap; it++) {
+        gradient(Yb);
+        for (let i = 0; i < n; i++) Xn[i] = Yb[i] - grad[i] / D[i];
+        project(Xn, D);
+        let dot = 0;
+        for (let i = 0; i < n; i++) dot += (Yb[i] - Xn[i]) * (Xn[i] - X[i]) * D[i];
+        if (dot > 0) tk = 1;
+        const tn = (1 + Math.sqrt(1 + 4 * tk * tk)) / 2;
+        let change = 0;
+        for (let i = 0; i < n; i++) {
+          const d = Xn[i] - X[i];
+          if (Math.abs(d) > change) change = Math.abs(d);
+          Yb[i] = Xn[i] + ((tk - 1) / tn) * d;
+          X[i] = Xn[i];
+        }
+        tk = tn;
+        if (change < 0.002 && it > 20) return;
+      }
+    }
+    // straight lines where possible: the alignment terms are re-weighted so
+    // the result approaches a least-absolute-deviation fit, which lines most
+    // children up exactly under their parents rather than nearly
+    const l1 = terms.filter(t => t.l1);
+    l1.forEach(t => { t.w0 = t.w; });
+    function fit() {
+      l1.forEach(t => { t.w = t.w0; });
+      solve();
+      for (let round = 0; round < cfg.l1Rounds; round++) {
+        l1.forEach(t => {
+          let v = t.c;
+          for (let i = 0; i < t.idx.length; i++) v += t.co[i] * X[t.idx[i]];
+          t.w = t.w0 * cfg.l1Scale / (Math.abs(v) + cfg.l1Eps);
+        });
+        solve();
+      }
+    }
+    fit();
+    // a family tangled enough that lining everyone up would spread the
+    // drawing far wider than its rows need: limit the very wide gaps and fit
+    // again
+    const packed = Math.max(...chains.map(ch => ch.gaps.reduce((a, b) => a + b, 0)));
+    const extent = Math.max(...chains.map(ch => ch.vars.length ? X[ch.vars[ch.vars.length - 1]] - X[ch.vars[0]] : 0));
+    if (cfg.wSpread && extent > cfg.spreadRatio * packed + cfg.spreadFree) {
+      chains.forEach(ch => {
+        for (let i = 0; i + 1 < ch.vars.length; i++) terms.push({ idx: [ch.vars[i + 1], ch.vars[i]], co: [-1, 1], c: ch.gaps[i], w: cfg.wSpread, hinge: -cfg.spreadFree });
+      });
+      fit();
+    }
+    pinVars.forEach(([v, x0]) => { X[v] = x0; });
+    items.forEach(it => { it.X = X[it.v]; });
+    R.live.forEach(id => { const p = people.get(id); p.x = p.item.X + p.off; });
+
+    // sibship lines: where two families' lines would run along each other
+    // in one row, the longer line is drawn a step higher (so a family nested
+    // inside another's sibship keeps the lower line)
+    const xOf = p => p.pinned ? p.x0 : p.x;
+    const levels = new Array(nRows).fill(0);
+    R.childOffset = new Map();
+    for (let r = 1; r < nRows; r++) {
+      const buses = [];
+      fams.forEach(fam => {
+        const kids = (fam.targets.get(r) || []).filter(t => people.has(t) && !people.get(t).pinned);
+        if (!kids.length) return;
+        const dropX = (xOf(people.get(fam.a)) + xOf(people.get(fam.b))) / 2;
+        const xs = kids.map(k => people.get(k).x).concat([dropX]);
+        buses.push({ fam, kids, lo: Math.min(...xs), hi: Math.max(...xs), level: 0 });
+      });
+      buses.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo) || (u.lo - v.lo));
+      const laidB = [];
+      buses.forEach(bu => {
+        if (bu.hi - bu.lo > 4) {
+          while (laidB.some(o => o.level === bu.level && o.lo < bu.hi - 4 && bu.lo < o.hi - 4)) bu.level++;
+          laidB.push(bu);
+        }
+        levels[r] = Math.max(levels[r], bu.level);
+        bu.kids.forEach(k => R.childOffset.set(k + '|' + bu.fam.id, bu.level * cfg.busStep));
+      });
+    }
+    // rows: room below each row for the notes under its symbols
+    const rowY = [0];
+    for (let r = 0; r + 1 < nRows; r++) {
+      let h = 0;
+      rows[r].forEach(it => it.seq.forEach(m => {
+        const p = people.get(m);
+        if (p && p.textH) h = Math.max(h, p.textH + (p.proband && p.textLeft ? 18 : 0));
+      }));
+      const need = 56 + h + 12 + SHAPE_HALF + levels[r + 1] * cfg.busStep;
+      rowY.push(rowY[r] + Math.max(cfg.rowGap, need));
+    }
+    R.live.forEach(id => { const p = people.get(id); p.y = rowY[p.r]; });
+    R.rowY = rowY;
+  }
+
+  // where the members of a partner chain sit relative to its first member.
+  // Partners next to each other are one partner gap apart. When a partner
+  // line has to pass over someone (a person with three or more partners),
+  // the far partner moves out until the middle of that line, where the
+  // children's line leaves, is clear of the person in between.
+  function unitOffsets(seq, model, cfg) {
+    const off = seq.map((m, i) => i * cfg.partnerGap);
+    if (seq.length < 3) return off;
+    const S = cfg.S, H = cfg.H, clear = cfg.corridor;
+    const at = new Map(seq.map((m, i) => [m, i]));
+    const skips = [];
+    model.couples.forEach(c => {
+      const i = at.get(c.a), j = at.get(c.b);
+      if (i === undefined || j === undefined || Math.abs(i - j) < 2 || !c.children.length) return;
+      skips.push([Math.min(i, j), Math.max(i, j)]);
+    });
+    const partners = m => seq.filter(o => o !== m && partnerOf(m, o, model)).length;
+    skips.sort((u, v) => (u[1] - u[0]) - (v[1] - v[0]));
+    skips.forEach(([lo, hi]) => {
+      if (partners(seq[lo]) >= partners(seq[hi])) {
+        // the far partner is on the right: their line's middle goes right of
+        // the last person it passes over
+        const need = 2 * (off[hi - 1] + S + clear - H) - off[lo];
+        const d = need - off[hi];
+        if (d > 0) for (let k = hi; k < seq.length; k++) off[k] += d;
+      } else {
+        // on the left: the middle goes left of the first person passed over
+        const need = 2 * (off[lo + 1] - clear - H) - off[hi];
+        const d = off[lo] - need;
+        if (d > 0) for (let k = lo + 1; k < seq.length; k++) off[k] += d;
+      }
+    });
+    return off;
+  }
+
+  function partnerOf(a, b, model) {
+    const pa = model.people.get(a);
+    if (!pa) return false;
+    return pa.couples.some(cid => { const c = model.couples.get(cid); return c && (c.a === b || c.b === b); });
+  }
+
+  // ── 4. putting it together ──
+  const DEFAULTS = {
+    wCross: 10, wInterleave: 12, wStranger: 6, wOrder: 2, wTwin: 8, wStable: 0.05,
+    rounds: 6, maxCentres: 6, orderWork: 4e6, wPinOrder: 1000,
+    wCentre: 1, wCorridor: 30, wBus: 3, wLong: 0.2, wFarPartner: 0.5, wCompact: 0.001, wWidth: 1, wSpread: 0.02, spreadRatio: 1.6, wAnchor: 1e-6,
+    iterations: 3000, solveWork: 6e5, l1Rounds: 4, l1Scale: 20, l1Eps: 0.5, minCurv: 0.05
+  };
+
+  function run(options) {
+    const cfg = Object.assign({}, settings(), DEFAULTS, (options && options.tuning) || {});
+    const model = buildModel();
+    if (!model.people.size) return null;
+    assignRanks(model);
+    const comps = components(model);
+    const laid = [];
+    comps.forEach(ids => {
+      const R = buildRows(model, ids, cfg);
+      if (!R.live.length) return;
+      const O = optimiseOrder(model, R, cfg);
+      solvePositions(model, R, O, cfg);
+      laid.push({ ids, R });
+    });
+    placeComponents(model, laid, cfg);
+    clearPins(model, laid, cfg);
+    separate(model, cfg);
+    return { model, laid };
+  }
+
+  function placeComponents(model, laid, cfg) {
+    const { people } = model;
+    if (!laid.length) return;
+    // where the drawing was: keep its top-left corner
+    const live = Array.from(people.values()).filter(p => !p.pinned);
+    const left0 = Math.min(...live.map(p => p.x0));
+    const top0 = Math.min(...live.map(p => p.y0));
+    // separate families side by side, in the order they were drawn; the
+    // biggest decides the rows and the others snap to them by height
+    const order = laid.slice().sort((a, b) => {
+      const ax = Math.min(...a.ids.map(id => people.get(id).x0)), bx = Math.min(...b.ids.map(id => people.get(id).x0));
+      return ax - bx;
+    });
+    const main = laid.slice().sort((a, b) => b.R.live.length - a.R.live.length)[0];
+    const mainTop = Math.min(...main.R.live.map(id => people.get(id).y0));
+    const right = p => p.x + cfg.S + Math.max(0, p.textW && !p.textLeft ? 30 + p.textW - cfg.S : 0);
+    order.forEach(L => {
+      const ps = L.R.live.map(id => people.get(id));
+      let shiftRows = 0;
+      if (L !== main) {
+        const top = Math.min(...ps.map(p => p.y0));
+        shiftRows = Math.max(0, Math.round((top - mainTop) / cfg.rowGap));
+      }
+      ps.forEach(p => { p.y = p.y + top0 + shiftRows * cfg.rowGap; });
+      // a family with free-position people is already where it belongs
+      L.anchored = L.ids.some(id => people.get(id).pinned);
+    });
+    const box = L => {
+      const ps = L.ids.map(id => people.get(id));
+      const xs = ps.map(p => p.pinned ? p.x0 : p.x), ys = ps.map(p => p.pinned ? p.y0 : p.y);
+      return { x1: Math.min(...xs), x2: Math.max(...ps.map(p => p.pinned ? p.x0 + cfg.S : right(p))), y1: Math.min(...ys), y2: Math.max(...ys) + cfg.S };
+    };
+    const fixed = order.filter(L => L.anchored).map(box);
+    let cursor = left0;
+    order.forEach(L => {
+      if (L.anchored) return;
+      const ps = L.R.live.map(id => people.get(id));
+      const minX = Math.min(...ps.map(p => p.x));
+      const width = Math.max(...ps.map(right)) - minX;
+      const y1 = Math.min(...ps.map(p => p.y)), y2 = Math.max(...ps.map(p => p.y)) + cfg.S;
+      // step past any fixed family in the way
+      for (let moved = true; moved;) {
+        moved = false;
+        fixed.forEach(f => {
+          if (cursor < f.x2 + cfg.componentGap && cursor + width + cfg.componentGap > f.x1 && y1 < f.y2 && f.y1 < y2) {
+            cursor = f.x2 + cfg.componentGap; moved = true;
+          }
+        });
+      }
+      ps.forEach(p => { p.x = p.x - minX + cursor; });
+      cursor += width + cfg.componentGap;
+    });
+  }
+
+  // last resort (free-position people in more than one family can leave
+  // families on top of each other): nobody's symbol on top of anyone else's
+  function separate(model, cfg) {
+    const S = cfg.S, pad = 12;
+    const all = Array.from(model.people.values()).filter(p => p.pinned || p.item);
+    const X = p => p.pinned ? p.x0 : p.x, Y = p => p.pinned ? p.y0 : p.y;
+    for (let pass = 0; pass < 8; pass++) {
+      let moved = false;
+      all.sort((a, b) => X(a) - X(b));
+      for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+        const a = all[i], b = all[j];
+        if (X(b) - X(a) >= S + pad) break;
+        if (Math.abs(Y(a) - Y(b)) >= S || (a.pinned && b.pinned)) continue;
+        const need = S + pad - (X(b) - X(a));
+        if (!b.pinned) {
+          // push b, and everyone to its right in its row, further right
+          all.forEach(q => { if (!q.pinned && Math.abs(Y(q) - Y(b)) < S && X(q) >= X(b) && q !== a) q.x += need; });
+        } else {
+          all.forEach(q => { if (!q.pinned && Math.abs(Y(q) - Y(a)) < S && X(q) <= X(a) && q !== b) q.x -= need; });
+        }
+        moved = true;
+      }
+      if (!moved) break;
+    }
+  }
+
+  // free-position people stay put; anyone overlapping one moves sideways
+  function clearPins(model, laid, cfg) {
+    const pins = Array.from(model.people.values()).filter(p => p.pinned);
+    if (!pins.length) return;
+    const S = cfg.S;
+    laid.forEach(L => {
+      L.R.rows.forEach(row => {
+        const ps = [];
+        row.forEach(it => it.seq.forEach(m => { const p = model.people.get(m); if (p) ps.push(p); }));
+        if (!ps.length) return;
+        pins.forEach(pin => {
+          if (Math.abs(pin.y0 - ps[0].y) >= S + 6) return;
+          const cx = pin.x0 + S / 2;
+          const hit = ps.some(p => Math.abs(p.x - pin.x0) < S + 12);
+          if (!hit) return;
+          const leftSide = ps.filter(p => p.x + S / 2 < cx), rightSide = ps.filter(p => p.x + S / 2 >= cx);
+          const needL = leftSide.length ? Math.max(0, Math.max(...leftSide.map(p => p.x)) + S + 12 - pin.x0) : 0;
+          const needR = rightSide.length ? Math.max(0, pin.x0 + S + 12 - Math.min(...rightSide.map(p => p.x))) : 0;
+          leftSide.forEach(p => { p.x -= needL; });
+          rightSide.forEach(p => { p.x += needR; });
+        });
+      });
+    });
+  }
+
+  return { run, settings, DEFAULTS };
+})();
+
+// whole pixels keep the lines crisp
 function managedSetPersonPos(personData, x, y) {
   if (!personData || !personData.el || !isFinite(x) || !isFinite(y)) return;
-  personData.el.style.left = Math.round(x * 10) / 10 + 'px';
-  personData.el.style.top = Math.round(y * 10) / 10 + 'px';
-  personData.x = Math.round(x * 10) / 10;
-  personData.y = Math.round(y * 10) / 10;
-}
-
-function managedAverage(values) {
-  const clean = (values || []).filter(v => isFinite(v));
-  return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : 0;
-}
-
-function managedMedian(values) {
-  const clean = (values || []).filter(v => isFinite(v)).sort((a, b) => a - b);
-  if (!clean.length) return 0;
-  const mid = Math.floor(clean.length / 2);
-  return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
-}
-
-function syncPersonDataFromDom() {
-  persons.forEach(p => {
-    if (!p || !p.el) return;
-    p.x = managedGetLeft(p);
-    p.y = managedGetTop(p);
-  });
-}
-
-function studioLayoutCenterGap() {
-  return Math.max(SHAPE_SIZE + 34, partnerGap || SHAPE_SIZE * 2);
-}
-
-function studioLayoutBranchGap() {
-  return Math.max(28, Math.min(studioLayoutCenterGap() * 0.45, SHAPE_SIZE * 1.4));
-}
-
-function studioPersonSexClass(p) {
-  const shape = (p && p.shape) || '';
-  if (shape === 'male' || shape === 'adopted-male') return 'male';
-  if (shape === 'female' || shape === 'adopted-female') return 'female';
-  return 'unknown';
-}
-
-function studioSortPeopleByOldPosition(a, b) {
-  return ((a?.oldX ?? a?.x ?? 0) - (b?.oldX ?? b?.x ?? 0)) ||
-         ((a?.oldY ?? a?.y ?? 0) - (b?.oldY ?? b?.y ?? 0)) ||
-         String(a?.id || '').localeCompare(String(b?.id || ''));
-}
-
-function studioOrderedParents(model, fam) {
-  const parents = (fam.parents || []).map(id => model.people.get(id)).filter(Boolean);
-  if (parents.length !== 2) return parents;
-  const a = parents[0], b = parents[1];
-  const sa = studioPersonSexClass(a.data), sb = studioPersonSexClass(b.data);
-  if (sa === 'male' && sb === 'female') return [a, b];
-  if (sa === 'female' && sb === 'male') return [b, a];
-  return parents.slice().sort(studioSortPeopleByOldPosition);
-}
-
-function buildManagedLayoutModel() {
-  const model = { people: new Map(), families: new Map() };
-
-  persons.forEach((p, id) => {
-    const x = managedGetLeft(p), y = managedGetTop(p);
-    model.people.set(id, {
-      id,
-      data: p,
-      oldX: x,
-      oldY: y,
-      x,
-      y,
-      rank: 0,
-      noSnap: !!p.noSnap,
-      partnerFamilies: [],
-      childOfFamilies: []
-    });
-  });
-
-  partnerships.forEach(ps => {
-    if (!model.people.has(ps.fromId) || !model.people.has(ps.toId)) return;
-    const fam = {
-      id: ps.id,
-      partnership: ps,
-      parents: [ps.fromId, ps.toId],
-      children: [],
-      rank: 0,
-      x: managedAverage([model.people.get(ps.fromId).oldX + SHAPE_HALF, model.people.get(ps.toId).oldX + SHAPE_HALF])
-    };
-    model.families.set(ps.id, fam);
-    model.people.get(ps.fromId).partnerFamilies.push(ps.id);
-    model.people.get(ps.toId).partnerFamilies.push(ps.id);
-  });
-
-  childLinks.forEach(cl => {
-    const fam = model.families.get(cl.partnershipId);
-    const child = model.people.get(cl.childId);
-    if (!fam || !child) return;
-    if (!fam.children.includes(cl.childId)) fam.children.push(cl.childId);
-    child.childOfFamilies.push(cl.partnershipId);
-  });
-
-  return model;
-}
-
-function studioMakeDisjointSet(ids) {
-  const parent = new Map(ids.map(id => [id, id]));
-  function find(id) {
-    let p = parent.get(id);
-    if (p === undefined) return id;
-    if (p !== id) { p = find(p); parent.set(id, p); }
-    return p;
-  }
-  function union(a, b) {
-    const ra = find(a), rb = find(b);
-    if (ra !== rb) parent.set(rb, ra);
-  }
-  return { find, union };
-}
-
-function assignManagedRanks(model) {
-  if (studioTryAssignRanks(model, true)) return;
-  if (studioTryAssignRanks(model, false)) return;
-
-  // Last-resort fallback for impossible directed cycles: preserve existing
-  // vertical rows, so the user can still manually resolve the unusual pedigree.
-  const ordered = Array.from(model.people.values()).sort((a, b) => a.oldY - b.oldY || a.oldX - b.oldX);
-  let rank = -1, lastY = null;
-  ordered.forEach(p => {
-    if (lastY === null || Math.abs(p.oldY - lastY) > Math.max(70, SHAPE_SIZE * 1.3)) {
-      rank += 1;
-      lastY = p.oldY;
-    }
-    p.rank = Math.max(0, rank);
-  });
-  model.families.forEach(fam => {
-    fam.rank = Math.max(0, ...fam.parents.map(id => model.people.get(id)?.rank ?? 0));
-  });
-}
-
-function studioTryAssignRanks(model, unionPartners) {
-  const ids = Array.from(model.people.keys());
-  const dsu = studioMakeDisjointSet(ids);
-  if (unionPartners) {
-    const ancestorMemo = new Map();
-    model.families.forEach(fam => {
-      // Protected internal relationship lines (consanguineous, consanguineous-separated,
-      // shared-partner, shared-partner-separated, or an inferred internal kinship link)
-      // are visual/relationship links, not ordinary spouse blocks.  Do not union their
-      // endpoints into one rank group, otherwise a shared partner loop can collapse two
-      // cousin branches into a single synthetic spouse block during Redistribute.
-      if (fam.parents.length === 2 && !studioFamilyIsInternalKinship(model, fam, ancestorMemo)) {
-        dsu.union(fam.parents[0], fam.parents[1]);
-      }
-    });
-  }
-
-  const groups = new Map();
-  ids.forEach(id => {
-    const root = dsu.find(id);
-    if (!groups.has(root)) groups.set(root, { id: root, members: [], rank: 0 });
-    groups.get(root).members.push(id);
-  });
-
-  const edges = new Map(), indegree = new Map();
-  groups.forEach((_, gid) => { edges.set(gid, new Set()); indegree.set(gid, 0); });
-
-  for (const fam of model.families.values()) {
-    for (const parentId of fam.parents) {
-      for (const childId of fam.children) {
-        if (!model.people.has(parentId) || !model.people.has(childId)) continue;
-        const a = dsu.find(parentId), b = dsu.find(childId);
-        if (a === b) return false;
-        if (!edges.get(a).has(b)) {
-          edges.get(a).add(b);
-          indegree.set(b, (indegree.get(b) || 0) + 1);
-        }
-      }
-    }
-  }
-
-  const queue = Array.from(groups.keys())
-    .filter(gid => (indegree.get(gid) || 0) === 0)
-    .sort((a, b) => managedAverage(groups.get(a).members.map(id => model.people.get(id).oldY)) -
-                    managedAverage(groups.get(b).members.map(id => model.people.get(id).oldY)));
-
-  let processed = 0;
-  while (queue.length) {
-    const gid = queue.shift();
-    const group = groups.get(gid);
-    processed += 1;
-    for (const next of edges.get(gid) || []) {
-      const ng = groups.get(next);
-      ng.rank = Math.max(ng.rank, group.rank + 1);
-      indegree.set(next, indegree.get(next) - 1);
-      if (indegree.get(next) === 0) {
-        queue.push(next);
-        queue.sort((a, b) => (groups.get(a).rank - groups.get(b).rank) ||
-                             managedAverage(groups.get(a).members.map(id => model.people.get(id).oldX)) -
-                             managedAverage(groups.get(b).members.map(id => model.people.get(id).oldX)));
-      }
-    }
-  }
-  if (processed !== groups.size) return false;
-
-  groups.forEach(g => g.members.forEach(id => { model.people.get(id).rank = g.rank; }));
-  model.families.forEach(fam => {
-    fam.rank = Math.max(0, ...fam.parents.map(id => model.people.get(id)?.rank ?? 0));
-  });
-  return true;
-}
-
-function studioBuildPersonAdjacency(model) {
-  const adj = new Map();
-  model.people.forEach((_, id) => adj.set(id, new Set()));
-  const ancestorMemo = new Map();
-  model.families.forEach(fam => {
-    const protectedInternal = studioFamilyIsInternalKinship(model, fam, ancestorMemo);
-    // Ordinary partnerships connect the two parents as a spouse block.  Protected
-    // internal links do not: the people are already connected through another path
-    // and the line should not create an extra component/rank/partner constraint.
-    if (!protectedInternal) {
-      fam.parents.forEach(a => fam.parents.forEach(b => { if (a !== b) adj.get(a)?.add(b); }));
-    }
-    // Children still connect to both recorded parents, including children of a
-    // consanguineous/shared-partner family.  This preserves parent-child structure
-    // without turning the protected partner line itself into an ordinary spouse edge.
-    fam.children.forEach(childId => {
-      fam.parents.forEach(parentId => {
-        adj.get(parentId)?.add(childId);
-        adj.get(childId)?.add(parentId);
-      });
-    });
-  });
-  return adj;
-}
-
-function getManagedLayoutComponents(model, seedIds) {
-  const adj = studioBuildPersonAdjacency(model);
-  const wanted = new Set((seedIds || []).filter(id => model.people.has(id)));
-  const starts = wanted.size ? Array.from(wanted) : Array.from(model.people.keys());
-  const seen = new Set();
-  const comps = [];
-
-  starts.forEach(startId => {
-    if (seen.has(startId)) return;
-    const comp = new Set();
-    const queue = [startId];
-    while (queue.length) {
-      const id = queue.shift();
-      if (comp.has(id) || !model.people.has(id)) continue;
-      comp.add(id);
-      const p = model.people.get(id);
-      // Free-position people are fixed visual boundary pins. Include them as
-      // endpoints, but do not traverse through them into another layout island.
-      if (p.noSnap) continue;
-      for (const next of adj.get(id) || []) if (!comp.has(next)) queue.push(next);
-    }
-    comp.forEach(id => seen.add(id));
-    if (comp.size) comps.push(comp);
-  });
-
-  // Also pick up any unseeded disconnected people.
-  model.people.forEach((_, id) => {
-    if (seen.has(id)) return;
-    const comp = new Set([id]);
-    seen.add(id);
-    comps.push(comp);
-  });
-  return comps;
-}
-
-function studioFamiliesInComponent(model, comp) {
-  const out = [];
-  model.families.forEach(fam => {
-    const participants = fam.parents.concat(fam.children);
-    if (!participants.some(id => comp.has(id))) return;
-    if (!participants.some(id => comp.has(id) && !model.people.get(id)?.noSnap)) return;
-    out.push(fam);
-  });
-  return out;
-}
-
-function studioFamilyChildOrder(model, fam) {
-  return (fam.children || [])
-    .map((id, idx) => ({ idx, p: model.people.get(id) }))
-    .filter(item => item.p)
-    .sort((a, b) => (a.p.oldX - b.p.oldX) || (a.idx - b.idx) || a.p.id.localeCompare(b.p.id))
-    .map(item => item.p);
-}
-
-function studioAncestorFamilySet(model, personId, memo, visiting) {
-  memo = memo || new Map();
-  visiting = visiting || new Set();
-  if (memo.has(personId)) return memo.get(personId);
-  if (visiting.has(personId)) return new Set();
-  visiting.add(personId);
-  const out = new Set();
-  const p = model.people.get(personId);
-  (p?.childOfFamilies || []).forEach(fid => {
-    out.add(fid);
-    const fam = model.families.get(fid);
-    (fam?.parents || []).forEach(pid => studioAncestorFamilySet(model, pid, memo, visiting).forEach(x => out.add(x)));
-  });
-  visiting.delete(personId);
-  memo.set(personId, out);
-  return out;
-}
-
-function studioFamilyIsInternalKinship(model, fam, memo) {
-  if (!fam || fam.parents.length < 2) return false;
-  if (fam.partnership && (isProtectedInternalPartnershipType(fam.partnership.type))) return true;
-  memo = memo || new Map();
-  for (let i = 0; i < fam.parents.length; i++) {
-    const a = studioAncestorFamilySet(model, fam.parents[i], memo, new Set());
-    for (let j = i + 1; j < fam.parents.length; j++) {
-      const b = studioAncestorFamilySet(model, fam.parents[j], memo, new Set());
-      for (const fid of a) if (b.has(fid)) return true;
-    }
-  }
-  return false;
-}
-
-function studioComputeBranchWidths(model, comp, families) {
-  const famById = new Map((families || []).map(f => [f.id, f]));
-  const personMemo = new Map();
-  const familyMemo = new Map();
-  const ancestorMemo = new Map();
-  const branchGap = studioLayoutBranchGap();
-  const minPersonWidth = studioLayoutCenterGap();
-
-  function personWidth(id, visitingPeople, visitingFamilies) {
-    if (personMemo.has(id)) return personMemo.get(id);
-    const p = model.people.get(id);
-    if (!p || !comp.has(id)) return minPersonWidth;
-    if (visitingPeople.has(id)) return minPersonWidth;
-    visitingPeople.add(id);
-
-    let width = minPersonWidth;
-    (p.partnerFamilies || []).forEach(fid => {
-      const fam = famById.get(fid);
-      if (!fam || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
-      const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
-      if (!children.length) return;
-      const childWidths = children.map(ch => personWidth(ch.id, visitingPeople, visitingFamilies));
-      const childSpan = childWidths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, childWidths.length - 1);
-      const coupleSpan = fam.parents.filter(pid => comp.has(pid)).length > 1 ? studioLayoutCenterGap() + SHAPE_SIZE : SHAPE_SIZE;
-      width = Math.max(width, childSpan, coupleSpan);
-    });
-
-    visitingPeople.delete(id);
-    personMemo.set(id, width);
-    return width;
-  }
-
-  function familyWidth(fid, visitingPeople, visitingFamilies) {
-    if (familyMemo.has(fid)) return familyMemo.get(fid);
-    const fam = famById.get(fid);
-    if (!fam) return minPersonWidth;
-    if (visitingFamilies.has(fid)) return minPersonWidth;
-    visitingFamilies.add(fid);
-    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
-    const childWidths = children.map(ch => personWidth(ch.id, visitingPeople, visitingFamilies));
-    const childSpan = childWidths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, childWidths.length - 1);
-    const parentSpan = Math.max(SHAPE_SIZE, (fam.parents.filter(pid => comp.has(pid)).length - 1) * studioLayoutCenterGap() + SHAPE_SIZE);
-    const width = Math.max(parentSpan, childSpan || minPersonWidth);
-    visitingFamilies.delete(fid);
-    familyMemo.set(fid, width);
-    return width;
-  }
-
-  comp.forEach(id => personWidth(id, new Set(), new Set()));
-  (families || []).forEach(fam => familyWidth(fam.id, new Set(), new Set()));
-  return { people: personMemo, families: familyMemo };
-}
-
-function studioRowsForComponent(model, comp) {
-  const rows = new Map();
-  comp.forEach(id => {
-    const p = model.people.get(id);
-    if (!p) return;
-    if (!rows.has(p.rank)) rows.set(p.rank, []);
-    rows.get(p.rank).push(p);
-  });
-  rows.forEach(row => row.sort((a, b) => (a.x - b.x) || studioSortPeopleByOldPosition(a, b)));
-  return rows;
-}
-
-function studioMoveDescendantIsland(model, comp, startId, dx, visited, ancestorMemo) {
-  if (!isFinite(dx) || Math.abs(dx) < 0.1) return;
-  visited = visited || new Set();
-  ancestorMemo = ancestorMemo || new Map();
-  if (visited.has(startId)) return;
-  visited.add(startId);
-  const p = model.people.get(startId);
-  if (!p || !comp.has(startId) || p.noSnap) return;
-  p.x += dx;
-
-  (p.partnerFamilies || []).forEach(fid => {
-    const fam = model.families.get(fid);
-    if (!fam || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
-    fam.parents.forEach(pid => {
-      if (pid === startId) return;
-      const partner = model.people.get(pid);
-      if (partner && comp.has(pid) && !partner.noSnap && !visited.has(pid)) {
-        partner.x += dx;
-        visited.add(pid);
-      }
-    });
-    (fam.children || []).forEach(cid => studioMoveDescendantIsland(model, comp, cid, dx, visited, ancestorMemo));
-  });
-}
-
-function studioResolveRowOverlaps(model, comp) {
-  const gap = studioLayoutCenterGap();
-  const rows = studioRowsForComponent(model, comp);
-  let moved = false;
-
-  rows.forEach(row => {
-    // Pairwise relaxation handles fixed noSnap pins better than a one-way cursor.
-    for (let pass = 0; pass < Math.max(18, row.length * 6); pass++) {
-      let passMoved = false;
-      row.sort((a, b) => (a.x - b.x) || a.id.localeCompare(b.id));
-      for (let i = 0; i < row.length - 1; i++) {
-        const a = row[i], b = row[i + 1];
-        const required = a.x + gap;
-        if (b.x >= required - 0.5) continue;
-        const overlap = required - b.x;
-        if (a.noSnap && b.noSnap) continue;
-        if (a.noSnap && !b.noSnap) {
-          b.x += overlap;
-        } else if (!a.noSnap && b.noSnap) {
-          a.x -= overlap;
-        } else {
-          a.x -= overlap / 2;
-          b.x += overlap / 2;
-        }
-        passMoved = true;
-        moved = true;
-      }
-      if (!passMoved) break;
-    }
-  });
-  return moved;
-}
-
-function studioPartnerBlocksForRow(model, row, families) {
-  const rowSet = new Set(row.map(p => p.id));
-  const adjacency = new Map(row.map(p => [p.id, new Set()]));
-  const ancestorMemo = new Map();
-  (families || []).forEach(fam => {
-    if (fam.parents.length !== 2) return;
-    const a = model.people.get(fam.parents[0]), b = model.people.get(fam.parents[1]);
-    if (!a || !b || a.rank !== b.rank || !rowSet.has(a.id) || !rowSet.has(b.id)) return;
-    if (studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
-    adjacency.get(a.id)?.add(b.id);
-    adjacency.get(b.id)?.add(a.id);
-  });
-
-  const used = new Set();
-  const blocks = [];
-  row.forEach(p => {
-    if (used.has(p.id) || !(adjacency.get(p.id)?.size)) return;
-    const ids = [];
-    const q = [p.id];
-    used.add(p.id);
-    while (q.length) {
-      const id = q.shift();
-      ids.push(id);
-      for (const next of adjacency.get(id) || []) {
-        if (!used.has(next)) { used.add(next); q.push(next); }
-      }
-    }
-    const people = ids.map(id => model.people.get(id)).filter(Boolean).sort((a, b) => {
-      const sa = studioPersonSexClass(a.data), sb = studioPersonSexClass(b.data);
-      if (sa === 'male' && sb === 'female') return -1;
-      if (sa === 'female' && sb === 'male') return 1;
-      return studioSortPeopleByOldPosition(a, b);
-    });
-    blocks.push(people);
-  });
-  return blocks;
-}
-
-function studioEnforcePartnerAdjacency(model, comp, families) {
-  const gap = studioLayoutCenterGap();
-  let moved = false;
-  const ancestorMemo = new Map();
-  (families || []).forEach(fam => {
-    if (fam.parents.length !== 2 || studioFamilyIsInternalKinship(model, fam, ancestorMemo)) return;
-    const ordered = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
-    if (ordered.length !== 2) return;
-    const [left, right] = ordered;
-    if (left.rank !== right.rank) return;
-    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
-    const parentCurrentCenter = managedAverage([left.x + SHAPE_HALF, right.x + SHAPE_HALF]);
-    const childCenter = children.length ? managedAverage(children.map(ch => ch.x + SHAPE_HALF)) : parentCurrentCenter;
-    const center = children.length ? (parentCurrentCenter * 0.45 + childCenter * 0.55) : parentCurrentCenter;
-    const targetLeft = center - gap / 2 - SHAPE_HALF;
-    const targetRight = center + gap / 2 - SHAPE_HALF;
-    if (left.noSnap && !right.noSnap) {
-      const nx = left.x + gap;
-      if (Math.abs(right.x - nx) > 0.5) { right.x = nx; moved = true; }
-    } else if (right.noSnap && !left.noSnap) {
-      const nx = right.x - gap;
-      if (Math.abs(left.x - nx) > 0.5) { left.x = nx; moved = true; }
-    } else if (!left.noSnap && !right.noSnap) {
-      if (Math.abs(left.x - targetLeft) > 0.5) { left.x = left.x * 0.35 + targetLeft * 0.65; moved = true; }
-      if (Math.abs(right.x - targetRight) > 0.5) { right.x = right.x * 0.35 + targetRight * 0.65; moved = true; }
-    }
-  });
-  return moved;
-}
-
-function studioComputeBarycentricTargets(model, comp, families, branchWidths) {
-  const targets = new Map();
-  function push(id, x, weight) {
-    if (!isFinite(x) || !model.people.has(id)) return;
-    if (!targets.has(id)) targets.set(id, { total: 0, weight: 0 });
-    const t = targets.get(id);
-    t.total += x * weight;
-    t.weight += weight;
-  }
-
-  const branchGap = studioLayoutBranchGap();
-  const gap = studioLayoutCenterGap();
-  const ancestorMemo = new Map();
-
-  (families || []).forEach(fam => {
-    const parents = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
-    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id));
-    if (!parents.length && !children.length) return;
-
-    let familyCenter = null;
-    if (parents.length) familyCenter = managedAverage(parents.map(p => p.x + SHAPE_HALF));
-    if (familyCenter === null && children.length) familyCenter = managedAverage(children.map(ch => ch.x + SHAPE_HALF));
-    if (!isFinite(familyCenter)) familyCenter = 0;
-
-    if (parents.length === 2 && parents[0].rank === parents[1].rank && !studioFamilyIsInternalKinship(model, fam, ancestorMemo)) {
-      const [left, right] = parents;
-      const childCenter = children.length ? managedAverage(children.map(ch => ch.x + SHAPE_HALF)) : familyCenter;
-      const center = children.length ? (familyCenter * 0.35 + childCenter * 0.65) : familyCenter;
-      push(left.id, center - gap / 2 - SHAPE_HALF, 7);
-      push(right.id, center + gap / 2 - SHAPE_HALF, 7);
-      fam.x = center;
-      familyCenter = center;
-    } else if (parents.length) {
-      fam.x = familyCenter;
-    }
-
-    if (children.length) {
-      const widths = children.map(ch => Math.max(gap, branchWidths.people.get(ch.id) || gap));
-      const totalWidth = widths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, widths.length - 1);
-      let cursor = familyCenter - totalWidth / 2;
-      children.forEach((child, idx) => {
-        const childCenter = cursor + widths[idx] / 2;
-        push(child.id, childCenter - SHAPE_HALF, children.length === 1 ? 12 : 9);
-        cursor += widths[idx] + branchGap;
-      });
-    }
-  });
-
-  return targets;
-}
-
-function studioApplyBarycentricOrdering(model, comp, families, targets) {
-  const rows = studioRowsForComponent(model, comp);
-  let moved = false;
-  rows.forEach(row => {
-    const blocks = studioPartnerBlocksForRow(model, row, families);
-    const blocked = new Set(blocks.flat().map(p => p.id));
-    const items = [];
-    blocks.forEach(block => {
-      const key = managedAverage(block.map(p => {
-        const t = targets.get(p.id);
-        return t && t.weight ? t.total / t.weight : p.x;
-      }));
-      items.push({ people: block, key });
-    });
-    row.forEach(p => {
-      if (blocked.has(p.id)) return;
-      const t = targets.get(p.id);
-      const key = t && t.weight ? t.total / t.weight : p.x;
-      items.push({ people: [p], key });
-    });
-    items.sort((a, b) => (a.key - b.key) || studioSortPeopleByOldPosition(a.people[0], b.people[0]));
-
-    let cursor = Math.min(...row.map(p => p.noSnap ? p.x : p.x));
-    if (!isFinite(cursor)) cursor = 80;
-    items.forEach(item => {
-      const sortedPeople = item.people;
-      sortedPeople.forEach((p, idx) => {
-        if (p.noSnap) {
-          cursor = Math.max(cursor, p.x + studioLayoutCenterGap());
-          return;
-        }
-        const targetX = cursor + idx * studioLayoutCenterGap();
-        if (Math.abs(p.x - targetX) > 0.5) {
-          p.x = p.x * 0.55 + targetX * 0.45;
-          moved = true;
-        }
-      });
-      cursor += sortedPeople.length * studioLayoutCenterGap();
-    });
-  });
-  return moved;
-}
-
-function studioPlaceChildBranches(model, comp, families, branchWidths) {
-  const branchGap = studioLayoutBranchGap();
-  const gap = studioLayoutCenterGap();
-  let moved = false;
-
-  const orderedFamilies = (families || []).slice().sort((a, b) => (a.rank - b.rank) || String(a.id).localeCompare(String(b.id)));
-  orderedFamilies.forEach(fam => {
-    const parents = studioOrderedParents(model, fam).filter(p => comp.has(p.id));
-    const children = studioFamilyChildOrder(model, fam).filter(ch => comp.has(ch.id) && !ch.noSnap);
-    if (!children.length) return;
-
-    const parentCenter = parents.length
-      ? managedAverage(parents.map(p => p.x + SHAPE_HALF))
-      : managedAverage(children.map(ch => ch.x + SHAPE_HALF));
-    const widths = children.map(ch => Math.max(gap, branchWidths.people.get(ch.id) || gap));
-    const total = widths.reduce((a, b) => a + b, 0) + branchGap * Math.max(0, widths.length - 1);
-    let cursor = parentCenter - total / 2;
-
-    children.forEach((child, idx) => {
-      const targetX = cursor + widths[idx] / 2 - SHAPE_HALF;
-      const dx = targetX - child.x;
-      if (Math.abs(dx) > 0.75) {
-        studioMoveDescendantIsland(model, comp, child.id, dx * 0.75, new Set(), new Map());
-        moved = true;
-      }
-      cursor += widths[idx] + branchGap;
-    });
-  });
-  return moved;
-}
-
-function studioInitialiseComponentCoordinates(model, comp, families, options) {
-  const people = Array.from(comp).map(id => model.people.get(id)).filter(Boolean);
-  if (!people.length) return;
-  const fresh = !!(options && (options.fresh || options.fromButton || options.reason === 'manualRedistribute'));
-  const generationGap = Math.max(childHeight || 0, SHAPE_SIZE * 2.45);
-  const minRank = Math.min(...people.map(p => p.rank || 0));
-  const movable = people.filter(p => !p.noSnap);
-  const yAnchors = (movable.length ? movable : people).map(p => p.oldY - ((p.rank || 0) - minRank) * generationGap);
-  const baseY = yAnchors.length
-    ? (fresh ? Math.min(...yAnchors) : managedMedian(yAnchors))
-    : 80;
-
-  people.forEach(p => {
-    p.y = p.noSnap ? p.oldY : baseY + ((p.rank || 0) - minRank) * generationGap;
-    p.x = p.noSnap ? p.oldX : p.oldX;
-  });
-
-  if (fresh) {
-    const rows = studioRowsForComponent(model, comp);
-    const minOldX = Math.min(...people.map(p => p.oldX));
-    rows.forEach(row => {
-      row.sort(studioSortPeopleByOldPosition);
-      let cursor = isFinite(minOldX) ? minOldX : 80;
-      row.forEach(p => {
-        if (p.noSnap) {
-          cursor = Math.max(cursor, p.oldX + studioLayoutCenterGap());
-          return;
-        }
-        p.x = cursor;
-        cursor += studioLayoutCenterGap();
-      });
-    });
-  }
-}
-
-function nudgeManagedComponentToOldCentre(model, comp) {
-  const movable = Array.from(comp).map(id => model.people.get(id)).filter(p => p && !p.noSnap);
-  if (!movable.length) return;
-  const dx = managedMedian(movable.map(p => p.oldX)) - managedMedian(movable.map(p => p.x));
-  const dy = managedMedian(movable.map(p => p.oldY)) - managedMedian(movable.map(p => p.y));
-  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
-  movable.forEach(p => { p.x += dx; p.y += dy; });
-}
-
-function keepManagedComponentInPositiveSpace(model, comp) {
-  const movable = Array.from(comp).map(id => model.people.get(id)).filter(p => p && !p.noSnap);
-  if (!movable.length) return;
-  const minX = Math.min(...movable.map(p => p.x));
-  const minY = Math.min(...movable.map(p => p.y));
-  const dx = minX < 40 ? 40 - minX : 0;
-  const dy = minY < 40 ? 40 - minY : 0;
-  if (dx || dy) movable.forEach(p => { p.x += dx; p.y += dy; });
-}
-
-function layoutManagedComponent(model, comp, options) {
-  const people = Array.from(comp).map(id => model.people.get(id)).filter(Boolean);
-  if (!people.length || people.every(p => p.noSnap)) return;
-
-  const fresh = !!(options && (options.fresh || options.fromButton || options.reason === 'manualRedistribute'));
-  const families = studioFamiliesInComponent(model, comp);
-  studioInitialiseComponentCoordinates(model, comp, families, options || {});
-
-  for (let iter = 0; iter < 24; iter++) {
-    const branchWidths = studioComputeBranchWidths(model, comp, families);
-    const targets = studioComputeBarycentricTargets(model, comp, families, branchWidths);
-
-    targets.forEach((t, id) => {
-      const p = model.people.get(id);
-      if (!p || p.noSnap || !t.weight) return;
-      const targetX = t.total / t.weight;
-      const damping = iter < 5 ? 0.72 : 0.48;
-      p.x = p.x * (1 - damping) + targetX * damping;
-    });
-
-    studioApplyBarycentricOrdering(model, comp, families, targets);
-    studioEnforcePartnerAdjacency(model, comp, families);
-    studioResolveRowOverlaps(model, comp);
-  }
-
-  const finalWidths = studioComputeBranchWidths(model, comp, families);
-  for (let i = 0; i < 4; i++) {
-    studioPlaceChildBranches(model, comp, families, finalWidths);
-    studioEnforcePartnerAdjacency(model, comp, families);
-    studioResolveRowOverlaps(model, comp);
-  }
-
-  if (!fresh) nudgeManagedComponentToOldCentre(model, comp);
-  keepManagedComponentInPositiveSpace(model, comp);
-}
-
-function applyManagedLayoutToPersons(model, comp) {
-  comp.forEach(id => {
-    const lp = model.people.get(id);
-    if (!lp || lp.noSnap) return;
-    managedSetPersonPos(lp.data, lp.x, lp.y);
-    if (lp.data.siblingFixed) lp.data.siblingFixed = false;
-  });
-}
-
-function managedSegmentIntersectsPersonBox(x1, y1, x2, y2, person, pad) {
-  const left = managedGetLeft(person) - pad;
-  const right = managedGetLeft(person) + SHAPE_SIZE + pad;
-  const top = managedGetTop(person) - pad;
-  const bottom = managedGetTop(person) + SHAPE_SIZE + pad;
-  if (Math.max(x1, x2) < left || Math.min(x1, x2) > right || Math.max(y1, y2) < top || Math.min(y1, y2) > bottom) return false;
-  if (Math.abs(y1 - y2) <= Math.max(6, SHAPE_SIZE * 0.2)) {
-    const y = (y1 + y2) / 2;
-    return y >= top && y <= bottom && right > Math.min(x1, x2) + SHAPE_HALF && left < Math.max(x1, x2) - SHAPE_HALF;
-  }
-  function ccw(ax, ay, bx, by, cx, cy) { return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax); }
-  function segHit(ax, ay, bx, by, cx, cy, dx, dy) {
-    return ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
-           ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy);
-  }
-  if (x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) return true;
-  if (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom) return true;
-  return segHit(x1, y1, x2, y2, left, top, right, top) ||
-         segHit(x1, y1, x2, y2, right, top, right, bottom) ||
-         segHit(x1, y1, x2, y2, right, bottom, left, bottom) ||
-         segHit(x1, y1, x2, y2, left, bottom, left, top);
-}
-
-function enforceManagedPartnershipLineClearance() {
-  const rowGap = studioLayoutCenterGap();
-  const pad = Math.max(3, (typeof STROKE_W !== 'undefined' ? STROKE_W : 2) + 2);
-  let moved = false;
-
-  partnerships.forEach(pship => {
-    // Do not push people out of the way for protected internal relationship lines.
-    // These may legitimately span cousin branches or shared-partner loops; treating
-    // them like ordinary spouse corridors reintroduces the large-gap behaviour that
-    // default mode now avoids.
-    if (isProtectedInternalPartnership(pship)) return;
-    const a = persons.get(pship.fromId);
-    const b = persons.get(pship.toId);
-    if (!a || !b) return;
-    const ac = getPersonCenter(a), bc = getPersonCenter(b);
-    const minX = Math.min(ac.x, bc.x), maxX = Math.max(ac.x, bc.x), midX = (ac.x + bc.x) / 2;
-    const blockers = Array.from(persons.values()).filter(p => {
-      if (!p || p.id === a.id || p.id === b.id || p.noSnap) return false;
-      return managedSegmentIntersectsPersonBox(ac.x, ac.y, bc.x, bc.y, p, pad);
-    }).sort((p, q) => managedGetLeft(p) - managedGetLeft(q));
-
-    blockers.forEach(blocker => {
-      const bx = managedGetLeft(blocker) + SHAPE_HALF;
-      const leftTarget = minX - rowGap - SHAPE_HALF;
-      const rightTarget = maxX + rowGap - SHAPE_HALF;
-      const current = managedGetLeft(blocker);
-      const nextX = bx < midX
-        ? (Math.abs(current - leftTarget) <= Math.abs(current - rightTarget) ? leftTarget : rightTarget)
-        : (Math.abs(current - rightTarget) <= Math.abs(current - leftTarget) ? rightTarget : leftTarget);
-      if (Math.abs(current - nextX) > 0.5) {
-        managedSetPersonPos(blocker, nextX, managedGetTop(blocker));
-        moved = true;
-      }
-    });
-  });
-  return moved;
-}
-
-function enforceManagedNoPersonOverlap() {
-  const rowGap = studioLayoutCenterGap();
-  const tolerance = Math.max(14, SHAPE_SIZE * 0.35);
-  const rows = [];
-  Array.from(persons.values()).forEach(p => {
-    const y = managedGetTop(p);
-    let row = rows.find(r => Math.abs(r.y - y) <= tolerance);
-    if (!row) { row = { y, items: [] }; rows.push(row); }
-    row.items.push(p);
-    row.y = managedAverage(row.items.map(item => managedGetTop(item)));
-  });
-
-  let moved = false;
-  rows.forEach(row => {
-    row.items.sort((a, b) => managedGetLeft(a) - managedGetLeft(b));
-    for (let pass = 0; pass < Math.max(16, row.items.length * 6); pass++) {
-      let passMoved = false;
-      row.items.sort((a, b) => managedGetLeft(a) - managedGetLeft(b));
-      for (let i = 0; i < row.items.length - 1; i++) {
-        const a = row.items[i], b = row.items[i + 1];
-        const required = managedGetLeft(a) + rowGap;
-        if (managedGetLeft(b) >= required - 0.5) continue;
-        const overlap = required - managedGetLeft(b);
-        if (a.noSnap && b.noSnap) continue;
-        if (a.noSnap && !b.noSnap) {
-          managedSetPersonPos(b, managedGetLeft(b) + overlap, managedGetTop(b));
-        } else if (!a.noSnap && b.noSnap) {
-          managedSetPersonPos(a, managedGetLeft(a) - overlap, managedGetTop(a));
-        } else {
-          managedSetPersonPos(a, managedGetLeft(a) - overlap / 2, managedGetTop(a));
-          managedSetPersonPos(b, managedGetLeft(b) + overlap / 2, managedGetTop(b));
-        }
-        passMoved = true;
-        moved = true;
-      }
-      if (!passMoved) break;
-    }
-  });
-  return moved;
+  personData.el.style.left = Math.round(x) + 'px';
+  personData.el.style.top = Math.round(y) + 'px';
+  personData.x = Math.round(x);
+  personData.y = Math.round(y);
 }
 
 function runManagedPedigreeLayout(options) {
@@ -8209,56 +9278,24 @@ function runManagedPedigreeLayout(options) {
     updateNumbering();
     return;
   }
-
-  // Ensure v9-v11 protected relationship semantics are available to the
-  // managed layout engine even for older/imported sessions.  In particular,
-  // consanguineous-separated must behave like consanguineous, and shared-partner
-  // variants must behave like protected internal relationship lines.
   if (typeof normalizeRelatedPartnershipTypes === 'function') normalizeRelatedPartnershipTypes();
-
-  syncPersonDataFromDom();
-  const model = buildManagedLayoutModel();
-  assignManagedRanks(model);
-  const components = getManagedLayoutComponents(model, options?.seedIds || []);
-
-  components.forEach(comp => layoutManagedComponent(model, comp, options || {}));
-  components.forEach(comp => applyManagedLayoutToPersons(model, comp));
-
-  for (let i = 0; i < 8; i++) {
-    const movedOverlap = enforceManagedNoPersonOverlap();
-    updateAllConnections();
-    const movedLine = enforceManagedPartnershipLineClearance();
-    if (!movedOverlap && !movedLine) break;
+  const res = PSL.run(options || {});
+  if (res) {
+    res.model.people.forEach(p => {
+      if (p.pinned || !p.item) return;
+      managedSetPersonPos(p.data, p.x, p.y);
+      if (p.data.siblingFixed) p.data.siblingFixed = false;
+    });
+    const offsets = new Map();
+    res.laid.forEach(L => (L.R.childOffset || new Map()).forEach((v, k) => offsets.set(k, v)));
+    childLinks.forEach(cl => { cl.branchYOffset = offsets.get(cl.childId + '|' + cl.partnershipId) || 0; });
   }
-
   updateTextWrapping();
   updateAllConnections();
   updateNumbering();
   expandCanvasIfNeeded();
   scheduleSave();
 }
-
-/*
-Experimental integration changes that should NOT be copied for the button-only product direction:
-
-1. addPartnership() / addChildLink()
-   Earlier experimental builds called runManagedPedigreeLayout() automatically after every structural edit.
-   For the new product decision, keep the original freeform behaviour and call the engine only from
-   redistributePedigreeWithWarning().
-
-2. toggleIndividualMove(), startDrag(), onPointerUp(), getConnectedGroup()
-   Earlier builds experimented with subgraph movement semantics. Do not copy those movement overrides if
-   the goal is to restore the original Studio feel.
-
-3. computeChildLinkD(), updateChildLinkPos(), saveAsImage(), saveAsSVG()
-   Earlier builds experimented with forced-straight only-child lines. The agreed final direction was that
-   straight placement should be an insertion/layout convenience only, not a permanent rendering rule.
-   The button-only redistribution engine can use the original connection-rendering functions.
-
-4. Unsafe-partner fallback helpers are retained above for reference, but a button-only redistribution feature
-   does not need to intercept partner creation. If the developer wants warnings during manual editing, implement
-   that as a separate product choice, not as part of automatic redistribution.
-*/
 
 // ── Init ──
 applyCanvasSize();

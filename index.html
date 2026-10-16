@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pedigree Studio</title>
+<meta name="description" content="Draw clinical pedigrees with the standard symbols. Pedigree Studio runs in your browser and sends nothing anywhere.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a2332'/%3E%3Crect x='4' y='7' width='7' height='7' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cpath d='M11 10.5h6.9M14.5 10.5v7.5M8 18h13M8 18v4M21 18v4' stroke='%23fff' stroke-width='2' fill='none'/%3E%3Ccircle cx='21.5' cy='10.5' r='3.6' fill='%232a9fb3'/%3E%3C/svg%3E">
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,220 +14,150 @@
     --bg: #f5f6f8;
     --panel: #ffffff;
     --text: #1a2332;
-    --text-muted: #6b7a8d;
+    --text-muted: #5f6d80;
     --accent: #2a7d8c;
     --accent-hover: #1f6470;
     --accent-light: rgba(42,125,140,0.08);
+    --accent-soft: #eff7f8;
+    --accent-edge: #b9dbe0;
     --border: #dde1e6;
     --border-light: #eaecf0;
     --canvas-dot: #d6dae0;
     --danger: #c0392b;
   }
 
+  html, body { height: 100%; }
   body {
-    font-family: -apple-system, 'Segoe UI', system-ui, Helvetica, sans-serif;
+    font-family: -apple-system, 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+    font-size: 13px;
     background: var(--bg);
     color: var(--text);
     height: 100vh; height: 100dvh;
     overflow: hidden;
-    display: flex;
-    touch-action: none;
-  }
-
-  /* ── Side Panel ── */
-  .side-panel {
-    width: 296px; min-width: 296px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
     display: flex; flex-direction: column;
-    height: 100vh; height: 100dvh;
-    z-index: 200;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    touch-action: none;
+    -webkit-font-smoothing: antialiased;
   }
-  .panel-header {
-    padding: 20px 18px 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
+  button, input, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  kbd {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85em;
+    border: 1px solid #cbd3de; border-bottom-width: 2px; border-radius: 4px;
+    padding: 0 0.35em; background: #fff; white-space: nowrap;
   }
-  .panel-header h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 400; letter-spacing: -0.3px; }
-  .panel-header h1 span { color: var(--accent); }
-  .panel-header p { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
-  .panel-close-btn {
-    display: none; width: 36px; height: 36px;
-    border: 1px solid var(--border); border-radius: 8px;
-    background: var(--bg); color: var(--text); font-size: 20px;
-    cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .panel-section { padding: 14px 18px; border-bottom: 1px solid var(--border-light); }
-  .panel-section h3 {
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 10px;
-  }
-  .config-group {
-    padding-bottom: 10px; margin-bottom: 10px;
-    border-bottom: 1px solid var(--border-light);
-  }
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 10px 14px; border: none; border-radius: 6px;
-    font-family: inherit; font-size: 13px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
-  }
-  .btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 8px; }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-primary:active { transform: scale(0.98); }
-  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); width: 100%; margin-top: 6px; }
-  .btn-secondary:hover { background: var(--border-light); }
-  .btn-secondary.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .btn-danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; width: 100%; margin-top: 6px; }
-  .btn-danger:hover { background: #fee2e2; }
-
-  /* ── Shape picker ── */
-  .shape-picker { display: flex; gap: 8px; margin-top: 6px; }
-  .shape-option {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 10px 6px; border: 1.5px solid var(--border); border-radius: 8px;
-    cursor: pointer; background: #fff; transition: all 0.15s;
-  }
-  .shape-option:hover { border-color: var(--accent); background: var(--accent-light); }
-  .shape-option.active { border-color: var(--accent); background: var(--accent-light); }
-  .shape-option svg { width: 32px; height: 32px; }
-  .shape-option span { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
   /* ── Toolbar ── */
-  .toolbar { display: flex; gap: 3px; padding: 12px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-  .tool-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
-    font-family: inherit; font-size: 11.5px; font-weight: 500;
-    cursor: pointer; background: #fff; color: var(--text);
-    transition: all 0.15s; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  .st-bar {
+    flex: none; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    min-height: 52px; padding: 6px 10px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    position: relative; z-index: 300;
   }
-  .tool-btn:hover { background: var(--bg); }
-  .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .tool-btn svg { width: 13px; height: 13px; }
+  .st-brand {
+    font-family: Georgia, 'Times New Roman', serif; font-size: 19px; font-weight: 400;
+    letter-spacing: -0.3px; white-space: nowrap; margin: 0 12px 0 4px;
+  }
+  .st-brand span { color: var(--accent); }
+  .st-group { display: flex; align-items: center; gap: 2px; padding-right: 6px; margin-right: 2px; border-right: 1px solid var(--border-light); }
+  .st-right { border-right: 0; padding-right: 0; margin-right: 0; }
+  .st-spacer { flex: 1; }
+  .st-glabel { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 0 4px 0 2px; }
+  .st-btn {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    min-width: 40px; height: 40px; padding: 2px 6px;
+    border: 1px solid transparent; border-radius: 7px; background: none; cursor: pointer;
+    color: var(--text); font-size: 10.5px; font-weight: 600; line-height: 1.1; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .st-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .st-btn:hover { background: var(--bg); border-color: var(--border); }
+  .st-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .st-btn.active, .st-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .st-btn:disabled { opacity: 0.35; cursor: default; background: none; border-color: transparent; }
+  .add-btn svg { stroke-width: 2.1; }
+  .add-btn:active { transform: scale(0.96); }
+
+  /* narrower windows: lose the name, then the group names, then tighten,
+     and only drop the button names when there is really no room */
+  @media (max-width: 1100px) { .st-brand { display: none; } }
+  @media (max-width: 960px) { .st-glabel { display: none; } }
+  @media (max-width: 820px) {
+    .st-bar { gap: 2px; padding: 5px 6px; }
+    .st-group { padding-right: 4px; }
+    .st-btn { min-width: 34px; padding: 2px 4px; font-size: 10px; }
+  }
+  @media (max-width: 699px) {
+    .st-btn span { display: none; }
+    .st-bar { gap: 1px; padding: 4px; min-height: 46px; }
+    .st-group { padding-right: 3px; margin-right: 0; }
+    .st-btn { min-width: 34px; height: 36px; padding: 2px 3px; }
+  }
+
+  /* ── Pop-up menus ── */
+  .st-pop {
+    position: fixed; z-index: 400; background: #fff; border: 1px solid #cbd3de; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(16,24,40,0.18); padding: 5px; min-width: 220px; max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 70px); max-height: calc(100dvh - 70px); overflow: auto; touch-action: pan-y;
+  }
+  .st-pop > button {
+    display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left;
+    padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  .st-pop > button:hover, .st-pop > button:focus-visible { background: var(--bg); outline: none; }
+  .st-pop > button svg { width: 34px; height: 20px; flex: none; fill: none; stroke: var(--text); stroke-width: 1.8; }
+  .st-pop hr { border: 0; border-top: 1px solid var(--border-light); margin: 4px 0; }
+  .st-pop-wide { width: 320px; padding: 4px 12px 10px; }
+  .pop-sec { padding: 9px 0; border-bottom: 1px solid var(--border-light); }
+  .pop-sec:last-child { border-bottom: 0; }
+  .pop-h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 6px; }
+  .pop-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .pop-row .pbtn { flex: 1; }
+
+  /* buttons and controls in menus and panels */
+  .pbtn {
+    border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 6px 9px; cursor: pointer;
+    font-size: 12px; font-weight: 550; line-height: 1.25; color: var(--text);
+  }
+  .pbtn:hover { background: var(--bg); }
+  .pbtn:focus-visible, .qa-btn:focus-visible, .ct-btn:focus-visible, .sh-btn:focus-visible, .fill-mode-btn:focus-visible, .shading-option-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pbtn.danger { color: var(--danger); border-color: #f2c9c6; background: #fdf3f2; }
+  .pbtn.danger:hover { background: #fbe4e2; }
+  .pbtn.wide { display: block; width: 100%; margin-top: 12px; }
+  .pop-sec .pbtn.wide { margin-top: 0; }
+  .seg2, .seg3, .seg5 { display: grid; gap: 4px; }
+  .seg2 { grid-template-columns: 1fr 1fr; }
+  .seg3 { grid-template-columns: repeat(3, 1fr); }
+  .seg5 { grid-template-columns: repeat(5, 1fr); }
+  .seg2 .pbtn, .seg3 .pbtn, .seg5 .pbtn { padding: 5px 4px; font-size: 11.5px; }
+  .slider-l { display: block; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .slider-l span { color: var(--text); font-weight: 600; }
+  .slider-l input { display: block; width: 100%; accent-color: var(--accent); margin-top: 2px; touch-action: pan-x; }
+  .size-row { display: flex; align-items: center; gap: 8px; }
+  .size-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .size-btn:hover { background: var(--bg); }
+  #labelSizeDisplay { min-width: 38px; text-align: center; font-weight: 600; }
 
   /* ── Toggle ── */
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; }
-  .toggle-row label { font-size: 13px; color: var(--text); cursor: pointer; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+  .toggle-row label { font-size: 13px; cursor: pointer; }
   .toggle-switch {
-    position: relative; width: 40px; height: 22px;
-    background: var(--border); border-radius: 11px; cursor: pointer;
+    position: relative; width: 38px; height: 21px; flex: none;
+    background: #cdd3db; border-radius: 11px; cursor: pointer;
     transition: background 0.2s; border: none;
   }
   .toggle-switch.on { background: var(--accent); }
+  .toggle-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .toggle-switch::after {
     content: ''; position: absolute; top: 2px; left: 2px;
-    width: 18px; height: 18px; background: #fff; border-radius: 50%;
+    width: 17px; height: 17px; background: #fff; border-radius: 50%;
     transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   }
-  .toggle-switch.on::after { transform: translateX(18px); }
-
-  /* ── Props panel ── */
-  .props-panel { display: none; }
-  .props-panel.visible { display: block; }
-
-  /* ── Multi-selection panels ── */
-  #multiSelectPanel { display: none; }
-  #multiSelectPanel.visible { display: block; }
-  #multiPartnershipPanel { display: none; }
-  #multiPartnershipPanel.visible { display: block; }
-  #multiChildLinkPanel { display: none; }
-  #multiChildLinkPanel.visible { display: block; }
-  .multi-select-count {
-    font-size: 12px; color: var(--accent); font-weight: 600;
-    margin-left: 4px;
-  }
-  .props-panel textarea {
-    width: 100%; height: 54px;
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 8px 10px; font-family: inherit; font-size: 13px; line-height: 1.5;
-    resize: none; color: var(--text); background: var(--bg); outline: none;
-    transition: border-color 0.2s; touch-action: auto;
-  }
-  .props-panel textarea:focus { border-color: var(--accent); }
-
-  /* ── Fill mode controls ── */
-  .fill-mode-row { display: flex; gap: 4px; margin-bottom: 8px; }
-  .fill-mode-btn {
-    flex: 1; padding: 6px 4px; border: 1px solid var(--border); border-radius: 5px;
-    background: #fff; font-family: inherit; font-size: 11px; font-weight: 500;
-    cursor: pointer; text-align: center; transition: all 0.15s;
-  }
-  .fill-mode-btn:hover { background: var(--bg); }
-  .fill-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-  .fill-colors { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
-  .fill-swatch {
-    width: 26px; height: 26px; border-radius: 4px;
-    border: 2px solid transparent; cursor: pointer; transition: all 0.15s;
-  }
-  .fill-swatch:hover { transform: scale(1.15); }
-  .fill-swatch.active { border-color: var(--text); }
-  .fill-swatch.clear-swatch {
-    background: #fff !important;
-    position: relative;
-  }
-  .fill-swatch.clear-swatch::after {
-    content: ''; position: absolute; top: 2px; left: 50%; width: 1.5px; height: calc(100% - 4px);
-    background: var(--danger); transform: rotate(45deg); transform-origin: center;
-  }
-  .color-hex-input {
-    width: 68px; height: 26px; border: 1.5px solid var(--border); border-radius: 4px;
-    padding: 0 4px 0 8px; font-family: monospace; font-size: 11px; color: var(--text);
-    background: var(--bg); outline: none; transition: border-color 0.2s;
-    flex-shrink: 0; touch-action: auto; border-left-width: 5px;
-  }
-  .color-hex-input:focus { border-color: var(--accent); }
-  .color-hex-input::placeholder { color: var(--text-muted); font-size: 10px; }
-
-  /* ── Quarter selector ── */
-  .quarter-grid {
-    display: inline-grid; grid-template-columns: 1fr 1fr;
-    gap: 2px; margin: 6px 0; border: 1.5px solid var(--border); border-radius: 4px;
-    overflow: hidden; width: 60px; height: 60px;
-  }
-  .quarter-cell {
-    cursor: pointer; transition: all 0.15s; position: relative;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8px; color: var(--text-muted); font-weight: 600;
-  }
-  .quarter-cell:hover { filter: brightness(0.9); }
-  .quarter-cell.active-quarter { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
-  .quarter-label { font-size: 11px; color: var(--text-muted); margin-left: 10px; vertical-align: top; }
-
-  /* ── Half selector ── */
-  .half-grid {
-    display: inline-grid; grid-template-columns: 1fr 1fr;
-    gap: 2px; margin: 6px 0; border: 1.5px solid var(--border); border-radius: 4px;
-    overflow: hidden; width: 60px; height: 60px;
-  }
-  .half-cell {
-    cursor: pointer; transition: all 0.15s; position: relative;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8px; color: var(--text-muted); font-weight: 600;
-  }
-  .half-cell:hover { filter: brightness(0.9); }
-  .half-cell.active-half { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
-
-  /* ── Shading selector ── */
-  .shading-option-row { display: flex; gap: 4px; margin-bottom: 8px; }
-  .shading-option-btn {
-    flex: 1; padding: 6px 4px; border: 1px solid var(--border); border-radius: 5px;
-    background: #fff; font-family: inherit; font-size: 11px; font-weight: 500;
-    cursor: pointer; text-align: center; transition: all 0.15s;
-  }
-  .shading-option-btn:hover { background: var(--bg); }
-  .shading-option-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .shading-preview {
-    display: inline-block; width: 32px; height: 32px; border: 1.5px solid var(--border);
-    border-radius: 4px; vertical-align: middle; margin-right: 6px; overflow: hidden;
-  }
+  .toggle-switch.on::after { transform: translateX(17px); }
 
   /* ── Canvas ── */
   .canvas-area {
-    flex: 1; position: relative; overflow: hidden;
+    flex: 1; min-height: 0; position: relative; overflow: hidden;
     background-color: var(--bg);
     background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
     background-size: 24px 24px;
@@ -250,10 +182,10 @@
   #canvas.eraser-active #draw-layer { pointer-events: auto; }
   #canvas.eraser-active #draw-layer path { pointer-events: stroke; cursor: pointer; }
   #canvas.eraser-active #draw-layer path:hover { opacity: 0.4; filter: drop-shadow(0 0 4px var(--danger)); }
-  .draw-settings-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .draw-settings-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .draw-color-btn {
-    width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border);
-    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+    cursor: pointer; flex-shrink: 0;
   }
   .draw-color-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
 
@@ -279,7 +211,10 @@
     font-size: 13px; line-height: 1; cursor: pointer;
     display: none; align-items: center; justify-content: center; z-index: 20;
   }
-  .person:hover .delete-btn, .person.selected .delete-btn { display: flex; }
+  .person.selected .delete-btn { display: flex; }
+  @media (hover: hover) { .person:hover .delete-btn { display: flex; } }
+  .person.hl-flash .person-shape { animation: hlflash 1.2s ease 2; }
+  @keyframes hlflash { 0%, 100% { filter: none; } 50% { filter: drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 3px var(--accent)); } }
   .person-number {
     position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
     font-size: 9px; font-weight: 700; color: var(--text-muted);
@@ -291,7 +226,7 @@
   }
   .person-number.editable:focus {
     outline: none; cursor: text;
-    background: rgba(42,125,140,0.08); border-radius: 2px;
+    background: var(--accent-light); border-radius: 2px;
     border-bottom: 1px solid var(--accent);
   }
   .person-number.shifted-left { left: -2px; transform: translateX(-100%); }
@@ -308,10 +243,16 @@
   .person-text.text-left {
     left: auto; right: 30px; text-align: right;
   }
+  .person-text.text-left.proband-left { top: 74px; }
   .miscarriage-sex {
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
     font-size: 9px; font-weight: 600; color: var(--text-muted);
     white-space: nowrap; pointer-events: none; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  /* proband arrow, below left of the symbol */
+  .proband-arrow {
+    position: absolute; top: 54px; left: -18px;
+    width: 18px; height: 18px; pointer-events: none;
   }
 
   /* ── Free-text labels ── */
@@ -333,7 +274,7 @@
   }
   .label:hover .delete-btn, .label.selected .delete-btn { display: flex; }
   .label-text { outline: none; min-height: 1em; cursor: grab; white-space: pre-wrap; }
-  .label-text[contenteditable="true"] { cursor: text; background: rgba(42,125,140,0.06); border-radius: 3px; }
+  .label-text[contenteditable="true"] { cursor: text; background: var(--accent-light); border-radius: 3px; }
   .label.bordered .label-text { border: 1.5px solid #6b7a8d; padding: 4px 8px; border-radius: 4px; }
 
   /* ── Connection hit areas ── */
@@ -351,43 +292,8 @@
     transform: translate(-50%, -50%);
   }
   .link-delete-btn:hover { background: #a93226; }
-  #partnershipPropsPanel { display: none; }
-  #partnershipPropsPanel.visible { display: block; }
-  #childLinkPropsPanel { display: none; }
-  #childLinkPropsPanel.visible { display: block; }
-  .person-text.text-left.proband-left { top: 74px; }
 
-  /* ── Status bar ── */
-  .status-bar {
-    padding: 8px 18px; font-size: 11px; color: var(--text-muted);
-    border-top: 1px solid var(--border-light); margin-top: auto; flex-shrink: 0; line-height: 1.4;
-  }
-
-  /* ── Zoom controls ── */
-  .zoom-controls { position: absolute; bottom: 16px; right: 16px; display: flex; gap: 4px; z-index: 100; }
-  .zoom-btn {
-    width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--panel); color: var(--text); font-size: 18px; font-weight: 500;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.15s;
-  }
-  .zoom-btn:hover { background: var(--bg); }
-  .zoom-label {
-    padding: 0 10px; height: 36px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--panel); color: var(--text-muted); font-size: 12px; font-weight: 600;
-    display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
-
-  /* ── Mode banner ── */
-  .mode-banner {
-    display: none; position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-    background: var(--accent); color: #fff; padding: 8px 20px; border-radius: 8px;
-    font-size: 12px; font-weight: 600; z-index: 160;
-    box-shadow: 0 4px 16px rgba(42,125,140,0.3); cursor: pointer;
-  }
-  .mode-banner.visible { display: block; }
-
-  /* ── Legend/Key box (on canvas, draggable) ── */
+  /* ── Colour key (on the canvas, draggable) ── */
   .legend-box {
     position: absolute; z-index: 15;
     background: #fff; border: 1.5px solid var(--border); border-radius: 8px;
@@ -402,628 +308,671 @@
     letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 8px;
     pointer-events: none;
   }
-  .legend-row {
-    display: flex; align-items: center; gap: 8px; padding: 3px 0;
-    pointer-events: auto;
-  }
-  .legend-swatch {
-    width: 18px; height: 18px; border-radius: 3px;
-    border: 1px solid var(--border); flex-shrink: 0;
-  }
+  .legend-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; pointer-events: auto; }
+  .legend-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0; }
   .legend-input {
     flex: 1; border: 1px solid var(--border); border-radius: 4px;
-    padding: 4px 6px; font-family: inherit; font-size: 11px;
-    outline: none; color: var(--text); background: var(--bg);
-    min-width: 0;
+    padding: 4px 6px; font-size: 11px;
+    outline: none; background: var(--bg); min-width: 0;
   }
   .legend-input:focus { border-color: var(--accent); }
   .legend-empty { font-size: 11px; color: var(--text-muted); font-style: italic; pointer-events: none; }
 
-  /* ── Proband arrow (below-left of symbol) ── */
-  .proband-arrow {
-    position: absolute; top: 54px; left: -18px;
-    width: 18px; height: 18px; pointer-events: none;
+  /* ── On the canvas: banner, empty hint, status and zoom ── */
+  .mode-banner {
+    display: none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    max-width: calc(100% - 20px);
+    background: var(--accent); color: #fff; padding: 7px 16px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; z-index: 160; text-align: center;
+    box-shadow: 0 4px 16px rgba(42,125,140,0.3); cursor: pointer;
   }
-
-  /* ── Label size control ── */
-  .size-control { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-  .size-control span { font-size: 13px; color: var(--text); min-width: 38px; text-align: center; font-weight: 500; }
-  .size-btn {
-    width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 6px;
-    background: #fff; color: var(--text); font-size: 18px; font-weight: 600;
+  .mode-banner.visible { display: block; }
+  @media (min-width: 621px) {
+    /* keep the banner clear of the selection panel */
+    .canvas-area.insp-open .mode-banner { left: calc(50% - 150px); max-width: calc(100% - 330px); }
+  }
+  .empty-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; z-index: 5; padding: 20px; }
+  .empty-hint svg { width: 120px; height: 70px; fill: none; stroke: #b9c3cf; stroke-width: 2; margin-bottom: 10px; }
+  .empty-hint p { color: var(--text-muted); font-size: 13.5px; line-height: 1.5; max-width: 340px; margin: 0 auto; }
+  .empty-hint b { color: var(--text); }
+  .empty-hint .empty-sub { font-size: 12px; margin-top: 4px; }
+  .empty-hint .pbtn { pointer-events: auto; margin-top: 14px; }
+  .status-bar {
+    position: absolute; left: 10px; bottom: 12px; z-index: 90;
+    font-size: 11px; color: var(--text-muted); background: rgba(245,246,248,0.92);
+    padding: 3px 8px; border-radius: 6px; max-width: calc(100% - 210px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  }
+  .zoom-controls { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 4px; z-index: 100; }
+  .zoom-btn {
+    width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); color: var(--text); font-size: 18px; font-weight: 500;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
-  .size-btn:hover { background: var(--bg); }
-
-  /* ── Mobile ── */
-  .fab-open {
-    display: none; position: fixed; top: 12px; left: 12px;
-    width: 44px; height: 44px; border-radius: 12px;
-    background: var(--panel); border: 1px solid var(--border);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.12); color: var(--text);
-    font-size: 22px; cursor: pointer; z-index: 150;
-    align-items: center; justify-content: center;
-  }
-  .mobile-toolbar {
-    display: none; position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--panel); border-top: 1px solid var(--border);
-    padding: 8px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom));
-    z-index: 150; gap: 4px; justify-content: center; flex-wrap: wrap;
-  }
-  .mobile-toolbar .tool-btn { flex: 1; min-width: 0; justify-content: center; padding: 10px 6px; font-size: 11px; }
-  .panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 190; }
-
-  @media (max-width: 768px) {
-    .side-panel {
-      position: fixed; top: 0; left: 0; bottom: 0;
-      width: 85vw; max-width: 310px;
-      transform: translateX(-100%); transition: transform 0.3s ease;
-      box-shadow: 4px 0 20px rgba(0,0,0,0.15);
-    }
-    .side-panel.open { transform: translateX(0); }
-    .panel-overlay.open { display: block; }
-    .panel-close-btn { display: flex; }
-    .fab-open { display: flex; }
-    .mobile-toolbar { display: flex; }
-    .side-panel .toolbar { display: none; }
+  .zoom-btn:hover { background: var(--bg); }
+  .zoom-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .zoom-label {
+    padding: 0 8px; height: 34px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
 
-  /* ── Splash ── */
-  .splash-overlay {
-    position: fixed; inset: 0; background: rgba(26,35,50,0.5);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;
+  /* ── Selection panel ── */
+  .inspector {
+    position: absolute; top: 10px; right: 10px; z-index: 200; width: 280px;
+    max-height: calc(100% - 64px); overflow: auto; overscroll-behavior: contain; touch-action: pan-y;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(16,24,40,0.16);
+    padding: 10px 12px 12px; display: none;
   }
-  .splash-overlay.hidden { display: none; }
-  .splash-card {
-    background: var(--panel); border-radius: 14px;
-    max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2); padding: 32px 28px 24px;
+  .inspector.show { display: block; }
+  .inspector > .panel-section { display: none; }
+  .inspector > .panel-section.visible { display: block; }
+  .inspector > .panel-section.visible ~ .panel-section.visible { border-top: 1px solid var(--border-light); margin-top: 12px; padding-top: 10px; }
+  .insp-close {
+    position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; border-radius: 6px;
+    background: none; font-size: 20px; line-height: 1; color: var(--text-muted); cursor: pointer; z-index: 2;
   }
-  .splash-card h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; margin-bottom: 4px; }
-  .splash-card h1 span { color: var(--accent); }
-  .splash-card .splash-subtitle { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px; }
-  .splash-card .splash-privacy {
-    background: #f0f7f8; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
-    padding: 12px 14px; margin-bottom: 18px; font-size: 12.5px; line-height: 1.55;
+  .insp-close:hover { background: var(--bg); color: var(--text); }
+  .insp-h { font-size: 13px; font-weight: 700; margin: 0 28px 8px 0; display: flex; align-items: baseline; gap: 6px; }
+  .insp-num { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .multi-select-count { font-size: 12px; color: var(--accent); font-weight: 700; }
+  .lbl { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 12px 0 5px; }
+  .insp-h + .qa > .lbl { margin-top: 2px; }
+  .qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .qa-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    border: 1px solid var(--accent-edge); background: var(--accent-soft); color: var(--accent-hover);
+    border-radius: 7px; padding: 4px 2px 5px; cursor: pointer; font-size: 11px; font-weight: 650;
   }
-  .splash-card .splash-privacy strong { display: block; margin-bottom: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); }
-  .splash-card h3 { font-size: 13px; font-weight: 700; margin: 16px 0 8px; }
-  .splash-card .splash-steps { list-style: none; padding: 0; }
-  .splash-card .splash-steps li { position: relative; padding: 5px 0 5px 30px; font-size: 12.5px; line-height: 1.5; color: #4a5568; }
-  .splash-card .splash-steps li .step-num {
-    position: absolute; left: 0; top: 5px; width: 20px; height: 20px;
-    background: var(--accent); color: #fff; border-radius: 50%;
-    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  .qa-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+  .qa-btn:hover { background: #e2f0f2; border-color: var(--accent); }
+  .qa-btn:active { transform: scale(0.97); }
+  .sib-move { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+  .sib-move span { font-size: 11px; color: var(--text-muted); flex: 1 1 auto; }
+  .sib-move .pbtn { flex: none; padding: 3px 8px; font-size: 11px; }
+  #personText {
+    width: 100%; height: 58px; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; font-size: 12.5px; line-height: 1.45; resize: vertical;
+    background: var(--bg); outline: none; touch-action: auto;
   }
-  .splash-card .btn-start {
-    display: block; width: 100%; padding: 13px; margin-top: 18px;
-    background: var(--accent); color: #fff; border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  #personText:focus { border-color: var(--accent); background: #fff; }
+  .fill-mode-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-bottom: 6px; }
+  .fill-mode-btn { padding: 5px 2px; border: 1px solid var(--border); border-radius: 5px; background: #fff; font-size: 11px; font-weight: 550; cursor: pointer; }
+  .fill-mode-btn:hover { background: var(--bg); }
+  .fill-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .fill-colors { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; align-items: center; }
+  .fill-swatch { width: 23px; height: 23px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
+  .fill-swatch:hover { transform: scale(1.12); }
+  .fill-swatch.active { border-color: var(--text); }
+  .fill-swatch.clear-swatch { background: #fff !important; position: relative; }
+  .fill-swatch.clear-swatch::after {
+    content: ''; position: absolute; top: 2px; left: 50%; width: 1.5px; height: calc(100% - 4px);
+    background: var(--danger); transform: rotate(45deg); transform-origin: center;
   }
-  .splash-card .btn-start:hover { background: var(--accent-hover); }
-  @media (max-width: 500px) { .splash-card { padding: 24px 18px 20px; } .splash-card h1 { font-size: 22px; } }
+  .color-hex-input {
+    width: 82px; height: 23px; border: 1.5px solid var(--border); border-radius: 4px;
+    padding: 0 4px 0 7px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
+    background: var(--bg); outline: none; border-left-width: 5px; touch-action: auto; flex-shrink: 0;
+  }
+  .color-hex-input:focus { border-color: var(--accent); }
+  .color-hex-input::placeholder { color: var(--text-muted); font-size: 10px; }
+  .grid-row { display: flex; align-items: flex-start; margin-bottom: 4px; }
+  .quarter-grid, .half-grid {
+    display: inline-grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: none;
+    border: 1.5px solid var(--border); border-radius: 4px; overflow: hidden; width: 52px; height: 52px;
+  }
+  .quarter-cell, .half-cell {
+    cursor: pointer; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--text-muted); font-weight: 600;
+  }
+  .quarter-cell:hover, .half-cell:hover { filter: brightness(0.92); }
+  .quarter-cell.active-quarter, .half-cell.active-half { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+  .quarter-label { font-size: 11px; color: var(--text-muted); margin-left: 10px; }
+  .shading-option-row { display: flex; gap: 4px; margin-bottom: 5px; }
+  .shading-option-btn { flex: 1; padding: 5px 3px; border: 1px solid var(--border); border-radius: 5px; background: #fff; font-size: 11px; font-weight: 550; cursor: pointer; }
+  .shading-option-btn:hover { background: var(--bg); }
+  .shading-option-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .ct-row { display: flex; flex-wrap: wrap; gap: 3px; }
+  .ct-btn { border: 1px solid var(--border); background: #fff; border-radius: 5px; padding: 4px 7px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+  .ct-btn:hover { background: var(--bg); }
+  .ct-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ct-num { display: inline-flex; }
+  .ct-num input {
+    width: 32px; border: 1px solid var(--border); border-right: 0; border-radius: 5px 0 0 5px;
+    padding: 3px 4px; text-align: center; font-size: 12px; font-weight: 700; touch-action: auto;
+  }
+  .ct-num .ct-btn { border-radius: 0 5px 5px 0; }
+  .shape-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .sh-btn { display: flex; align-items: center; justify-content: center; height: 28px; border: 1px solid var(--border); background: #fff; border-radius: 5px; cursor: pointer; }
+  .sh-btn svg { width: 22px; height: 22px; fill: none; stroke: var(--text); stroke-width: 1.6; }
+  .sh-btn:hover { background: var(--bg); border-color: var(--accent); }
+  .insp-more { margin-top: 10px; border-top: 1px solid var(--border-light); padding-top: 6px; }
+  .insp-more summary { cursor: pointer; font-size: 11.5px; font-weight: 650; color: var(--text-muted); padding: 2px 0; }
+
+  /* phones: the selection panel becomes a sheet at the bottom */
+  @media (max-width: 620px) {
+    .inspector { top: auto; left: 6px; right: 6px; bottom: 52px; width: auto; max-height: 52%; }
+    .status-bar { display: none; }
+  }
+
+  /* ── Help ── */
+  .help-back { position: fixed; inset: 0; z-index: 900; background: rgba(15,23,32,0.45); display: grid; place-items: center; padding: 16px; }
+  .help-card {
+    position: relative; background: #fff; border-radius: 12px; width: min(780px, 100%);
+    height: min(820px, calc(100vh - 32px)); height: min(820px, calc(100dvh - 32px));
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25); touch-action: pan-y;
+  }
+  .help-head { flex: none; padding: 16px 20px 0; border-bottom: 1px solid var(--border-light); }
+  .help-head h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 400; margin: 0 34px 8px 0; }
+  .help-head h2 span { color: var(--accent); }
+  .help-tabs { display: flex; gap: 2px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; }
+  .help-tab {
+    border: 0; background: none; padding: 8px 12px 9px; font-size: 13px; font-weight: 600; color: var(--text-muted);
+    border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
+  }
+  .help-tab:hover { color: var(--text); }
+  .help-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .help-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .help-card .insp-close { top: 12px; right: 12px; }
+  .help-body { overflow: auto; overscroll-behavior: contain; padding: 14px 20px 22px; font-size: 13px; line-height: 1.55; color: #384355; }
+  .help-body h3 { font-size: 14px; color: var(--text); margin: 18px 0 6px; }
+  .help-body h3:first-child { margin-top: 2px; }
+  .help-body p { margin-bottom: 8px; }
+  .help-body a { color: var(--accent); }
+  .help-body b { color: var(--text); }
+  .help-steps { padding-left: 22px; display: grid; gap: 8px; }
+  .help-keys { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .help-keys td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border-light); vertical-align: top; }
+  .help-keys td:first-child { white-space: nowrap; width: 1%; padding-right: 18px; }
+  .sym-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  .sym-table th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); }
+  .sym-table td { vertical-align: top; padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border-light); }
+  .sym-table td.sym { width: 1%; padding-right: 16px; }
+  .sym-table td.sym svg { display: block; }
+  .sym-table .sym-name { display: block; color: var(--text); font-weight: 700; margin-bottom: 1px; }
+  .sym-table .sym-how { display: block; margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+  .sym-table tr.sym-group td { padding-top: 16px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .help-refs { padding-left: 20px; display: grid; gap: 8px; }
+  .help-refs li { padding-left: 2px; }
+  .help-note { font-size: 12px; color: var(--text-muted); }
+  @media (max-width: 620px) {
+    .help-back { padding: 0; }
+    .help-card { width: 100%; height: 100%; border-radius: 0; }
+    .help-head { padding: 12px 14px 0; }
+    .help-body { padding: 12px 14px 20px; }
+    .sym-table td.sym { padding-right: 10px; }
+    .sym-table td.sym svg { max-width: 96px; height: auto; }
+  }
 </style>
 </head>
 <body>
 
-<!-- ── Splash ── -->
-<div class="splash-overlay" id="splashOverlay">
-  <div class="splash-card">
-    <h1>Pedigree <span>Studio</span></h1>
-    <div class="splash-subtitle">Fully Offline · No Data Leaves This Device</div>
-    <div class="splash-privacy">
-      <strong>Designed for privacy-sensitive clinical settings</strong>
-      This tool runs entirely in your browser with no internet connection required. No data is transmitted or stored remotely. Suitable for clinical genetics environments where patient data cannot be entered into online tools.
-    </div>
-    <h3>How It Works</h3>
-    <ol class="splash-steps">
-      <li><span class="step-num">1</span>Choose a shape (male, female, unknown) and click <strong>Add Person</strong>.</li>
-      <li><span class="step-num">2</span><strong>Drag</strong> people to arrange them. Select a person to set annotation text, mark deceased/proband, or assign fill colours (solid, half, quartered, or shading patterns).</li>
-      <li><span class="step-num">3</span>Use <strong>Partner</strong> mode to connect two people with a partnership line.</li>
-      <li><span class="step-num">4</span>Use <strong>Child</strong> mode — click a partnership line, then a person — to draw a descent line.</li>
-      <li><span class="step-num">5</span>Use <strong>Draw</strong> mode to sketch freely on the canvas — great for quick drafts on mobile. Drawings don't interfere with shapes.</li>
-      <li><span class="step-num">6</span>Use <strong>Add Label</strong> in the side panel to place free-text annotations anywhere on the canvas. Adjust label size with +/−.</li>
-      <li><span class="step-num">7</span>Connected people move as a unit. Toggle <strong>Individual Move</strong> for independent positioning. Use the <strong>Key</strong> button to generate a colour legend.</li>
-      <li><span class="step-num">8</span>People are auto-numbered by generation and position. <strong>Export PNG</strong> for a raster image or <strong>Export SVG</strong> for a scalable vector file.</li>
-    </ol>
-    <button class="btn-start" onclick="dismissSplash()">Get Started</button>
+<!-- ── Toolbar ── -->
+<header class="st-bar" role="toolbar" aria-label="Pedigree tools">
+  <div class="st-brand">Pedigree <span>Studio</span></div>
+
+  <div class="st-group" role="group" aria-label="Add a person">
+    <span class="st-glabel">Add</span>
+    <button class="st-btn add-btn" type="button" data-add="male" title="Male"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg><span>Male</span></button>
+    <button class="st-btn add-btn" type="button" data-add="female" title="Female"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></svg><span>Female</span></button>
+    <button class="st-btn add-btn" type="button" data-add="unknown" title="Sex unknown"><svg viewBox="0 0 24 24"><path d="M12 2.5L21.5 12 12 21.5 2.5 12z"/></svg><span>Unknown</span></button>
+    <button class="st-btn add-btn" type="button" data-add="miscarriage" title="Pregnancy loss"><svg viewBox="0 0 24 24"><path d="M12 5l8.5 14h-17z"/></svg><span>Loss</span></button>
+    <button class="st-btn" type="button" id="moreAddBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu" title="More symbols"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg><span>More</span></button>
   </div>
+
+  <div class="st-group" role="group" aria-label="Connect people">
+    <span class="st-glabel">Connect</span>
+    <button class="st-btn tool-btn" type="button" id="tool-partner" onclick="setTool('partner')" title="Partners"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="7" height="8"/><circle cx="18.5" cy="12" r="4"/><path d="M9 12h5.5"/></svg><span>Partners</span></button>
+    <button class="st-btn tool-btn" type="button" id="tool-child" onclick="setTool('child')" title="Child"><svg viewBox="0 0 24 24"><path d="M12 3v8M5 11h14M5 11v6M19 11v6"/><rect x="2.5" y="17" width="5" height="5"/><circle cx="19" cy="19.5" r="2.6"/></svg><span>Child</span></button>
+    <button class="st-btn tool-btn" type="button" id="tool-twin" onclick="setTool('twin')" title="Twins"><svg viewBox="0 0 24 24"><path d="M12 3v6M12 9l-6 9M12 9l6 9M8.6 14h6.8"/></svg><span>Twins</span></button>
+  </div>
+
+  <div class="st-group" role="group" aria-label="Pointer">
+    <button class="st-btn tool-btn active" type="button" id="tool-move" onclick="setTool('move')" title="Select (Esc)"><svg viewBox="0 0 24 24"><path d="M5 3l12 8-5.5 1.2L15 19l-2.6 1.4-3.6-6.9L5 17z"/></svg><span>Select</span></button>
+    <button class="st-btn tool-btn" type="button" id="tool-draw" onclick="setTool('draw')" title="Draw"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg><span>Draw</span></button>
+  </div>
+
+  <div class="st-group" role="group" aria-label="Undo and redo">
+    <button class="st-btn undo-btn" type="button" onclick="undo()" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><path d="M7 14l-4-4 4-4"/></svg></button>
+    <button class="st-btn redo-btn" type="button" onclick="redo()" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><svg viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><path d="M17 14l4-4-4-4"/></svg></button>
+  </div>
+
+  <div class="st-spacer"></div>
+
+  <div class="st-group st-right" role="group" aria-label="View and file">
+    <button class="st-btn" type="button" id="keyBtn" title="Colour key" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="4"/><rect x="3" y="10" width="5" height="4"/><rect x="3" y="16" width="5" height="4"/><path d="M11 6h10M11 12h10M11 18h10"/></svg><span>Key</span></button>
+    <button class="st-btn" type="button" id="tidyBtn" title="Tidy the layout"><svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg><span>Tidy</span></button>
+    <button class="st-btn" type="button" id="fileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu" title="File and settings"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg><span>File</span></button>
+    <button class="st-btn" type="button" id="helpBtn" title="Help" aria-label="Help"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 17.5h.01"/></svg></button>
+  </div>
+</header>
+
+<!-- More symbols -->
+<div class="st-pop" id="moreMenu" hidden role="menu" aria-label="More symbols">
+  <button type="button" role="menuitem" data-add="no-offspring"><svg viewBox="0 0 40 24"><path d="M20 2v12M8 14h24"/></svg>No children</button>
+  <button type="button" role="menuitem" data-add="infertile"><svg viewBox="0 0 40 24"><path d="M20 2v10M8 12h24M8 18h24"/></svg>Infertility</button>
+  <button type="button" role="menuitem" data-add="adopted-male"><svg viewBox="0 0 40 24"><path d="M10 3H6v18h4M30 3h4v18h-4"/><rect x="13" y="6" width="14" height="12"/></svg>Adopted male</button>
+  <button type="button" role="menuitem" data-add="adopted-female"><svg viewBox="0 0 40 24"><path d="M10 3H6v18h4M30 3h4v18h-4"/><circle cx="20" cy="12" r="6.5"/></svg>Adopted female</button>
+  <button type="button" role="menuitem" data-add="adopted-unknown"><svg viewBox="0 0 40 24"><path d="M10 3H6v18h4M30 3h4v18h-4"/><path d="M20 5l7 7-7 7-7-7z"/></svg>Adopted, sex unknown</button>
+  <hr>
+  <button type="button" role="menuitem" data-add="label"><svg viewBox="0 0 40 24"><path d="M12 6V4h16v2M17 20h6M20 4v16"/></svg>Text label</button>
 </div>
 
-<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
-<button class="fab-open" id="fabOpen" onclick="openPanel()">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-</button>
-
-<div class="side-panel" id="sidePanel">
-  <div class="panel-header">
-    <div><h1>Pedigree <span>Studio</span></h1><p>Clinical genetics pedigree drawing</p></div>
-    <button class="panel-close-btn" onclick="closePanel()">×</button>
+<!-- File and settings -->
+<div class="st-pop st-pop-wide" id="fileMenu" hidden aria-label="File and settings">
+  <div class="pop-sec" data-closes>
+    <div class="pop-h">Export</div>
+    <div class="pop-row">
+      <button class="pbtn" type="button" onclick="saveAsImage()">Picture (PNG)</button>
+      <button class="pbtn" type="button" onclick="saveAsSVG()">Vector (SVG)</button>
+    </div>
   </div>
-
-  <div class="toolbar">
-    <button class="tool-btn active" id="tool-move" onclick="setTool('move')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
-      Move
-    </button>
-    <button class="tool-btn" id="tool-partner" onclick="setTool('partner')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><rect x="2" y="8" width="6" height="8" rx="0"/><circle cx="19" cy="12" r="4"/></svg>
-      Partner
-    </button>
-    <button class="tool-btn" id="tool-child" onclick="setTool('child')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
-      Child
-    </button>
-    <button class="tool-btn" id="tool-draw" onclick="setTool('draw')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-      Draw
-    </button>
-    <span style="width:1px;height:24px;background:var(--border);margin:0 2px;"></span>
-    <button class="tool-btn undo-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled style="opacity:0.35;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="7 14 3 10 7 6"/></svg>
-    </button>
-    <button class="tool-btn redo-btn" onclick="redo()" title="Redo (Ctrl+Y)" disabled style="opacity:0.35;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><polyline points="17 14 21 10 17 6"/></svg>
-    </button>
+  <div class="pop-sec" data-closes>
+    <div class="pop-h">Pedigree file</div>
+    <div class="pop-row">
+      <button class="pbtn" type="button" onclick="exportJSON()">Save</button>
+      <button class="pbtn" type="button" onclick="document.getElementById('importFile').click()">Open</button>
+    </div>
   </div>
-
-  <div class="panel-section">
-    <h3>Add Person</h3>
-    <div class="shape-picker">
-      <div class="shape-option active" data-shape="male" onclick="selectShape('male')">
-        <svg viewBox="0 0 40 40"><rect x="4" y="4" width="32" height="32" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>Male</span>
-      </div>
-      <div class="shape-option" data-shape="female" onclick="selectShape('female')">
-        <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>Female</span>
-      </div>
-      <div class="shape-option" data-shape="unknown" onclick="selectShape('unknown')">
-        <svg viewBox="0 0 40 40"><polygon points="20,2 38,20 20,38 2,20" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>Unknown</span>
-      </div>
-      <div class="shape-option" data-shape="miscarriage" onclick="selectShape('miscarriage')">
-        <svg viewBox="0 0 40 40"><polygon points="20,10 34,32 6,32" fill="none" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>SAb</span>
-      </div>
+  <div class="pop-sec">
+    <div class="pop-h">Numbering</div>
+    <div class="seg5">
+      <button class="pbtn active" type="button" data-nm="numbers" onclick="setNumberingMode('numbers')" title="Generation and number">I-1</button>
+      <button class="pbtn" type="button" data-nm="letters" onclick="setNumberingMode('letters')" title="Generation and letter">I-A</button>
+      <button class="pbtn" type="button" data-nm="lettersonly" onclick="setNumberingMode('lettersonly')" title="Letters">A, B</button>
+      <button class="pbtn" type="button" data-nm="freetext" onclick="setNumberingMode('freetext')" title="Your own labels">Own</button>
+      <button class="pbtn" type="button" data-nm="off" onclick="setNumberingMode('off')" title="No numbers">Off</button>
     </div>
-    <div style="text-align:center;margin-top:6px;">
-      <button class="btn btn-secondary" id="extraShapesToggle" style="width:100%;margin:0;padding:4px;font-size:11px;" onclick="toggleExtraShapes()">▼ Show further symbols</button>
-    </div>
-    <div class="shape-picker" id="extraShapes" style="display:none;margin-top:6px;flex-wrap:wrap;">
-      <div class="shape-option" data-shape="no-offspring" onclick="selectShape('no-offspring')">
-        <svg viewBox="0 0 40 40"><line x1="6" y1="6" x2="34" y2="6" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>No offspr.</span>
-      </div>
-      <div class="shape-option" data-shape="infertile" onclick="selectShape('infertile')">
-        <svg viewBox="0 0 40 40"><line x1="6" y1="6" x2="34" y2="6" stroke="#1a2332" stroke-width="2"/><line x1="6" y1="14" x2="34" y2="14" stroke="#1a2332" stroke-width="2"/></svg>
-        <span>Infertile</span>
-      </div>
-      <div class="shape-option" data-shape="adopted-male" onclick="selectShape('adopted-male')">
-        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><rect x="10" y="8" width="20" height="24" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
-        <span>Ad. Male</span>
-      </div>
-      <div class="shape-option" data-shape="adopted-female" onclick="selectShape('adopted-female')">
-        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><circle cx="20" cy="20" r="10" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
-        <span>Ad. Female</span>
-      </div>
-      <div class="shape-option" data-shape="adopted-unknown" onclick="selectShape('adopted-unknown')">
-        <svg viewBox="0 0 40 40"><path d="M 9 3 L 3 3 L 3 37 L 9 37" fill="none" stroke="#1a2332" stroke-width="2"/><path d="M 31 3 L 37 3 L 37 37 L 31 37" fill="none" stroke="#1a2332" stroke-width="2"/><polygon points="20,6 34,20 20,34 6,20" fill="none" stroke="#1a2332" stroke-width="1.5"/></svg>
-        <span>Ad. Unkn.</span>
-      </div>
-    </div>
-    <button class="btn btn-primary" onclick="addPerson()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Person
-    </button>
   </div>
-
-  <!-- Properties Panel (shown when person selected) -->
-  <div class="panel-section props-panel" id="propsPanel">
-    <h3>Selected Person</h3>
-    <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Annotation (shown below-right)</label>
-    <textarea id="personText" placeholder="e.g. Breast Ca dx 42&#10;BRCA1+" oninput="updatePersonText()" onfocus="pushUndo()"></textarea>
-
-    <div class="toggle-row" style="margin-top:8px;">
-      <label onclick="toggleDeceased()">Deceased</label>
-      <button class="toggle-switch" id="deceasedToggle" onclick="toggleDeceased()"></button>
-    </div>
+  <div class="pop-sec">
+    <div class="pop-h">Moving</div>
     <div class="toggle-row">
-      <label onclick="toggleProband()">Proband</label>
-      <button class="toggle-switch" id="probandToggle" onclick="toggleProband()"></button>
+      <label for="individualMoveToggle">Move one person at a time</label>
+      <button class="toggle-switch" type="button" id="individualMoveToggle" onclick="toggleIndividualMove()" aria-label="Move one person at a time"></button>
     </div>
-    <div class="toggle-row">
-      <label onclick="toggleNoSnap()">Free position (no snap)</label>
-      <button class="toggle-switch" id="noSnapToggle" onclick="toggleNoSnap()"></button>
-    </div>
+  </div>
+  <div class="pop-sec">
+    <div class="pop-h">Spacing</div>
+    <label class="slider-l">Gap between partners <span id="partnerGapLabel">2×</span>
+      <input type="range" min="1" max="5" step="0.5" value="2" id="partnerGapSlider" oninput="setPartnerGap(this.value)"></label>
+    <label class="slider-l">Height of a generation <span id="childHeightLabel">2.5×</span>
+      <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)"></label>
+  </div>
+  <div class="pop-sec" data-closes>
+    <button class="pbtn danger wide" type="button" onclick="clearAll()">Clear the canvas</button>
+  </div>
+</div>
+<input type="file" id="importFile" accept=".json,application/json" hidden onchange="importJSON(event)">
 
-    <div style="margin-top:10px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Change shape</label>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('male')">♂ Male</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('female')">♀ Female</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('unknown')">◇ Unk</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:11px;" onclick="changeShape('miscarriage')">△ SAb</button>
-      </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('no-offspring')">— No offspr.</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('infertile')">═ Infertile</button>
-      </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-male')">[♂] Ad.M</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-female')">[♀] Ad.F</button>
-        <button class="btn btn-secondary" style="flex:1;margin:0;padding:6px;font-size:10px;" onclick="changeShape('adopted-unknown')">[◇] Ad.U</button>
-      </div>
-    </div>
+<!-- ── Canvas ── -->
+<main class="canvas-area" id="canvasArea" aria-label="Pedigree">
+  <div id="canvas">
+    <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="draw-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="mode-banner" id="modeBanner" onclick="this.classList.remove('visible')"></div>
+  <div class="empty-hint" id="emptyHint"><div>
+    <svg viewBox="0 0 120 70" aria-hidden="true"><rect x="10" y="8" width="22" height="22"/><circle cx="98" cy="19" r="11"/><path d="M32 19h55M60 19v20M30 39h60M30 39v8M90 39v8"/><rect x="19" y="47" width="22" height="22"/><circle cx="90" cy="58" r="11"/></svg>
+    <p>Add the first person with <b>Male</b>, <b>Female</b> or <b>Unknown</b> above.</p>
+    <p class="empty-sub">Pedigree Studio runs in your browser. Nothing you draw leaves this device.</p>
+    <button class="pbtn" type="button" id="emptyHelpBtn">How to use Pedigree Studio</button>
+  </div></div>
+  <div class="status-bar" id="statusBar" role="status" aria-live="polite">Ready</div>
+  <div class="zoom-controls">
+    <button class="zoom-btn" type="button" onclick="doZoom(-0.1)" title="Zoom out" aria-label="Zoom out">−</button>
+    <div class="zoom-label" id="zoomLabel">100%</div>
+    <button class="zoom-btn" type="button" onclick="doZoom(0.1)" title="Zoom in" aria-label="Zoom in">+</button>
+    <button class="zoom-btn" type="button" onclick="fitToView()" title="Fit to window" aria-label="Fit to window"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+  </div>
 
-    <div style="margin-top:8px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Centre symbol</label>
-      <div style="display:flex;gap:4px;">
-        <button class="btn btn-secondary" data-ct="" onclick="setCenterText('')" style="flex:1;margin:0;padding:5px;font-size:10px;">None</button>
-        <button class="btn btn-secondary" data-ct="S" onclick="setCenterText('S')" style="flex:1;margin:0;padding:5px;font-size:10px;">S (multiple)</button>
-        <button class="btn btn-secondary" data-ct="P" onclick="setCenterText('P')" style="flex:1;margin:0;padding:5px;font-size:10px;">P (pregnancy)</button>
-        <button class="btn btn-secondary" data-ct="D" onclick="setCenterText('D')" style="flex:1;margin:0;padding:5px;font-size:10px;">D (donor)</button>
-        <button class="btn btn-secondary" data-ct="dot" onclick="setCenterText('dot')" style="flex:1;margin:0;padding:5px;font-size:10px;">● (carrier)</button>
-      </div>
-    </div>
-    <div id="miscarriageSexUI" style="display:none;margin-top:8px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Miscarriage sex</label>
-      <div style="display:flex;gap:4px;">
-        <button class="btn btn-secondary" data-ms="unknown" onclick="setMiscarriageSex('unknown')" style="flex:1;margin:0;padding:5px;font-size:10px;">Unknown</button>
-        <button class="btn btn-secondary" data-ms="male" onclick="setMiscarriageSex('male')" style="flex:1;margin:0;padding:5px;font-size:10px;">Male</button>
-        <button class="btn btn-secondary" data-ms="female" onclick="setMiscarriageSex('female')" style="flex:1;margin:0;padding:5px;font-size:10px;">Female</button>
-      </div>
-    </div>
+  <!-- ── Selection panel ── -->
+  <aside class="inspector" id="inspector" aria-label="Selection">
+    <button class="insp-close" type="button" id="inspClose" title="Close (Esc)" aria-label="Close">×</button>
 
-    <!-- Fill mode -->
-    <div style="margin-top:12px;">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Fill</label>
+    <!-- Person -->
+    <section class="panel-section props-panel" id="propsPanel">
+      <h3 class="insp-h">Person <span class="insp-num" id="inspNum"></span></h3>
+      <div class="qa">
+        <div class="lbl">Add a relative</div>
+        <div class="qa-grid">
+          <button class="qa-btn" type="button" data-qa="partner"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="7" height="8"/><circle cx="18.5" cy="12" r="4"/><path d="M9 12h5.5"/></svg>Partner</button>
+          <button class="qa-btn" type="button" data-qa="son"><svg viewBox="0 0 24 24"><path d="M12 2v7"/><rect x="7" y="10" width="10" height="10"/></svg>Son</button>
+          <button class="qa-btn" type="button" data-qa="daughter"><svg viewBox="0 0 24 24"><path d="M12 2v7"/><circle cx="12" cy="15" r="5.5"/></svg>Daughter</button>
+          <button class="qa-btn" type="button" data-qa="parents"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="6" height="6"/><circle cx="19" cy="5" r="3.2"/><path d="M8 5h7.8M12 5v9"/><rect x="9" y="15" width="6" height="6"/></svg>Parents</button>
+          <button class="qa-btn" type="button" data-qa="brother"><svg viewBox="0 0 24 24"><path d="M6 6V3h12v3"/><rect x="2" y="7" width="8" height="8"/><rect x="14" y="7" width="8" height="8"/></svg>Brother</button>
+          <button class="qa-btn" type="button" data-qa="sister"><svg viewBox="0 0 24 24"><path d="M6 6V3h12v3"/><rect x="2" y="7" width="8" height="8"/><circle cx="18" cy="11" r="4"/></svg>Sister</button>
+        </div>
+        <div class="sib-move" id="sibMove" hidden>
+          <span>Birth order</span>
+          <button class="pbtn" type="button" data-mv="-1" title="Move left">◀ Older</button>
+          <button class="pbtn" type="button" data-mv="1" title="Move right">Younger ▶</button>
+        </div>
+      </div>
+
+      <label class="lbl" for="personText">Notes</label>
+      <textarea id="personText" placeholder="Name, age, diagnoses" oninput="updatePersonText()" onfocus="pushUndo()"></textarea>
+
+      <div class="toggle-row">
+        <label for="deceasedToggle">Deceased</label>
+        <button class="toggle-switch" type="button" id="deceasedToggle" onclick="toggleDeceased()" aria-label="Deceased"></button>
+      </div>
+      <div class="toggle-row">
+        <label for="probandToggle">Proband</label>
+        <button class="toggle-switch" type="button" id="probandToggle" onclick="toggleProband()" aria-label="Proband"></button>
+      </div>
+
+      <div class="lbl">Shading</div>
       <div class="fill-mode-row">
-        <button class="fill-mode-btn active" data-mode="none" onclick="setFillMode('none')">None</button>
-        <button class="fill-mode-btn" data-mode="solid" onclick="setFillMode('solid')">Solid</button>
-        <button class="fill-mode-btn" data-mode="half" onclick="setFillMode('half')">Half</button>
-        <button class="fill-mode-btn" data-mode="quartered" onclick="setFillMode('quartered')">Quartered</button>
-        <button class="fill-mode-btn" data-mode="shading" onclick="setFillMode('shading')">Shading</button>
+        <button class="fill-mode-btn active" type="button" data-mode="none" onclick="setFillMode('none')">None</button>
+        <button class="fill-mode-btn" type="button" data-mode="solid" onclick="setFillMode('solid')">Full</button>
+        <button class="fill-mode-btn" type="button" data-mode="half" onclick="setFillMode('half')">Half</button>
+        <button class="fill-mode-btn" type="button" data-mode="quartered" onclick="setFillMode('quartered')">Quarters</button>
+        <button class="fill-mode-btn" type="button" data-mode="shading" onclick="setFillMode('shading')">Pattern</button>
       </div>
-
       <div id="solidFillUI" style="display:none;">
         <div class="fill-colors" id="solidColorPicker"></div>
       </div>
-
       <div id="halfFillUI" style="display:none;">
-        <div style="display:flex;align-items:flex-start;">
+        <div class="grid-row">
           <div class="half-grid" id="halfGrid">
             <div class="half-cell" data-h="0" onclick="selectHalf(0)" style="background:#fff;">L</div>
             <div class="half-cell" data-h="1" onclick="selectHalf(1)" style="background:#fff;">R</div>
           </div>
           <span class="quarter-label" id="halfLabel">Click a half, then pick a colour</span>
         </div>
-        <div class="fill-colors" id="halfColorPicker" style="margin-top:6px;"></div>
+        <div class="fill-colors" id="halfColorPicker"></div>
       </div>
-
       <div id="quarteredFillUI" style="display:none;">
-        <div style="display:flex;align-items:flex-start;">
+        <div class="grid-row">
           <div class="quarter-grid" id="quarterGrid">
             <div class="quarter-cell" data-q="3" onclick="selectQuarter(3)" style="background:#fff;">TL</div>
             <div class="quarter-cell" data-q="0" onclick="selectQuarter(0)" style="background:#fff;">TR</div>
             <div class="quarter-cell" data-q="2" onclick="selectQuarter(2)" style="background:#fff;">BL</div>
             <div class="quarter-cell" data-q="1" onclick="selectQuarter(1)" style="background:#fff;">BR</div>
           </div>
-          <span class="quarter-label" id="quarterLabel">Click a quadrant, then pick a colour</span>
+          <span class="quarter-label" id="quarterLabel">Click a quarter, then pick a colour</span>
         </div>
-        <div class="fill-colors" id="quarterColorPicker" style="margin-top:6px;"></div>
+        <div class="fill-colors" id="quarterColorPicker"></div>
       </div>
-
       <div id="shadingFillUI" style="display:none;">
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Pattern</label>
         <div class="shading-option-row">
-          <button class="shading-option-btn active" data-spattern="stripes" onclick="setShadingPattern('stripes')">Stripes</button>
-          <button class="shading-option-btn" data-spattern="dots" onclick="setShadingPattern('dots')">Dots</button>
+          <button class="shading-option-btn active" type="button" data-spattern="stripes" onclick="setShadingPattern('stripes')">Stripes</button>
+          <button class="shading-option-btn" type="button" data-spattern="dots" onclick="setShadingPattern('dots')">Dots</button>
         </div>
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Coverage</label>
         <div class="shading-option-row">
-          <button class="shading-option-btn active" data-scoverage="full" onclick="setShadingCoverage('full')">Full</button>
-          <button class="shading-option-btn" data-scoverage="half-left" onclick="setShadingCoverage('half-left')">Left Half</button>
-          <button class="shading-option-btn" data-scoverage="half-right" onclick="setShadingCoverage('half-right')">Right Half</button>
+          <button class="shading-option-btn active" type="button" data-scoverage="full" onclick="setShadingCoverage('full')">Whole</button>
+          <button class="shading-option-btn" type="button" data-scoverage="half-left" onclick="setShadingCoverage('half-left')">Left half</button>
+          <button class="shading-option-btn" type="button" data-scoverage="half-right" onclick="setShadingCoverage('half-right')">Right half</button>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Partnership Properties Panel (shown when partnership selected) -->
-  <div class="panel-section" id="partnershipPropsPanel">
-    <h3>Selected Partnership</h3>
-    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-secondary active" data-pt="normal" onclick="setPartnershipType('normal')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Normal</button>
-      <button class="btn btn-secondary" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang.</button>
-      <button class="btn btn-secondary" data-pt="separated" onclick="setPartnershipType('separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Separated</button>
-      <button class="btn btn-secondary" data-pt="consanguineous-separated" onclick="setPartnershipType('consanguineous-separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang. Sep.</button>
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change the type of the selected partnership.</p>
-    <button class="btn btn-danger" onclick="deleteSelectedPartnership()" style="margin-top:8px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Delete Partnership
-    </button>
-  </div>
+      <div class="lbl">Inside the symbol</div>
+      <div class="ct-row">
+        <button class="ct-btn" type="button" data-ct="" onclick="setCenterText('')">None</button>
+        <button class="ct-btn" type="button" data-ct="dot" onclick="setCenterText('dot')">● Carrier</button>
+        <button class="ct-btn" type="button" data-ct="line" onclick="setCenterText('line')">│ Presymptomatic</button>
+        <button class="ct-btn" type="button" data-ct="P" onclick="setCenterText('P')" title="Pregnancy">P</button>
+        <button class="ct-btn" type="button" data-ct="D" onclick="setCenterText('D')" title="Donor">D</button>
+        <button class="ct-btn" type="button" data-ct="S" onclick="setCenterText('S')" title="Surrogate">S</button>
+        <span class="ct-num"><input type="text" id="ctNumber" maxlength="2" placeholder="3" inputmode="text" autocomplete="off" aria-label="How many people"><button class="ct-btn" type="button" id="ctNumberBtn" title="Number of people">Number</button></span>
+      </div>
 
-  <!-- Child Link Properties Panel (shown when child link selected) -->
-  <div class="panel-section" id="childLinkPropsPanel">
-    <h3>Selected Child Link</h3>
-    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
-    <div style="display:flex;gap:4px;">
-      <button class="btn btn-secondary active" data-cls="solid" onclick="setChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
-      <button class="btn btn-secondary" data-cls="dashed" onclick="setChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change the style of the selected child connection.</p>
-    <button class="btn btn-danger" onclick="deleteSelectedChildLink()" style="margin-top:8px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Delete Child Link
-    </button>
-  </div>
+      <div class="lbl">Change symbol</div>
+      <div class="shape-row">
+        <button class="sh-btn" type="button" onclick="changeShape('male')" title="Male" aria-label="Male"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('female')" title="Female" aria-label="Female"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('unknown')" title="Sex unknown" aria-label="Sex unknown"><svg viewBox="0 0 24 24"><path d="M12 2.5L21.5 12 12 21.5 2.5 12z"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('miscarriage')" title="Pregnancy loss" aria-label="Pregnancy loss"><svg viewBox="0 0 24 24"><path d="M12 5l8.5 14h-17z"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('adopted-male')" title="Adopted male" aria-label="Adopted male"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><rect x="7" y="7" width="10" height="10"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('adopted-female')" title="Adopted female" aria-label="Adopted female"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><circle cx="12" cy="12" r="5.5"/></svg></button>
+        <button class="sh-btn" type="button" onclick="changeShape('adopted-unknown')" title="Adopted, sex unknown" aria-label="Adopted, sex unknown"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><path d="M12 5.5l6.5 6.5-6.5 6.5-6.5-6.5z"/></svg></button>
+      </div>
 
-  <!-- Multi-Selection Panel (shown when multiple persons selected) -->
-  <div class="panel-section" id="multiSelectPanel">
-    <h3>Multiple Selected <span class="multi-select-count" id="multiSelectCount"></span></h3>
-    <p style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">Fill changes apply to all selected individuals.</p>
+      <div id="miscarriageSexUI" style="display:none;">
+        <div class="lbl">Sex, if known</div>
+        <div class="seg3">
+          <button class="pbtn" type="button" data-ms="unknown" onclick="setMiscarriageSex('unknown')">Unknown</button>
+          <button class="pbtn" type="button" data-ms="male" onclick="setMiscarriageSex('male')">Male</button>
+          <button class="pbtn" type="button" data-ms="female" onclick="setMiscarriageSex('female')">Female</button>
+        </div>
+      </div>
 
-    <!-- Fill mode -->
-    <div>
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Fill</label>
+      <details class="insp-more">
+        <summary>More</summary>
+        <div class="toggle-row">
+          <label for="noSnapToggle">Free position</label>
+          <button class="toggle-switch" type="button" id="noSnapToggle" onclick="toggleNoSnap()" aria-label="Free position"></button>
+        </div>
+      </details>
+      <button class="pbtn danger wide" type="button" id="deletePersonBtn">Delete this person</button>
+    </section>
+
+    <!-- Relationship line -->
+    <section class="panel-section" id="partnershipPropsPanel">
+      <h3 class="insp-h">Relationship line</h3>
+      <div class="seg2">
+        <button class="pbtn active" type="button" data-pt="normal" onclick="setPartnershipType('normal')">Partners</button>
+        <button class="pbtn" type="button" data-pt="consanguineous" onclick="setPartnershipType('consanguineous')">Consanguineous</button>
+        <button class="pbtn" type="button" data-pt="separated" onclick="setPartnershipType('separated')">Separated</button>
+        <button class="pbtn" type="button" data-pt="consanguineous-separated" onclick="setPartnershipType('consanguineous-separated')">Consanguineous, separated</button>
+      </div>
+      <div class="qa">
+        <div class="lbl">Add a child</div>
+        <div class="qa-grid">
+          <button class="qa-btn" type="button" data-qp="male"><svg viewBox="0 0 24 24"><path d="M12 2v7"/><rect x="7" y="10" width="10" height="10"/></svg>Son</button>
+          <button class="qa-btn" type="button" data-qp="female"><svg viewBox="0 0 24 24"><path d="M12 2v7"/><circle cx="12" cy="15" r="5.5"/></svg>Daughter</button>
+          <button class="qa-btn" type="button" data-qp="unknown"><svg viewBox="0 0 24 24"><path d="M12 2v6"/><path d="M12 9l6 6-6 6-6-6z"/></svg>Unknown</button>
+          <button class="qa-btn" type="button" data-qp="miscarriage"><svg viewBox="0 0 24 24"><path d="M12 2v8"/><path d="M12 11l6 9H6z"/></svg>Loss</button>
+          <button class="qa-btn" type="button" data-qp="no-offspring"><svg viewBox="0 0 24 24"><path d="M12 2v11M5 13h14"/></svg>No children</button>
+          <button class="qa-btn" type="button" data-qp="infertile"><svg viewBox="0 0 24 24"><path d="M12 2v9M5 11h14M5 16h14"/></svg>Infertility</button>
+        </div>
+      </div>
+      <button class="pbtn danger wide" type="button" onclick="deleteSelectedPartnership()">Delete this line</button>
+    </section>
+
+    <!-- Line of descent -->
+    <section class="panel-section" id="childLinkPropsPanel">
+      <h3 class="insp-h">Line of descent</h3>
+      <div class="seg2">
+        <button class="pbtn active" type="button" data-cls="solid" onclick="setChildLineStyle('solid')">Solid</button>
+        <button class="pbtn" type="button" data-cls="dashed" onclick="setChildLineStyle('dashed')">Dashed (adopted)</button>
+      </div>
+      <button class="pbtn danger wide" type="button" onclick="deleteSelectedChildLink()">Delete this line</button>
+    </section>
+
+    <!-- Several people -->
+    <section class="panel-section" id="multiSelectPanel">
+      <h3 class="insp-h">People <span class="multi-select-count" id="multiSelectCount"></span></h3>
+      <div class="lbl">Shading</div>
       <div class="fill-mode-row">
-        <button class="fill-mode-btn" data-mmode="none" onclick="multiSetFillMode('none')">None</button>
-        <button class="fill-mode-btn" data-mmode="solid" onclick="multiSetFillMode('solid')">Solid</button>
-        <button class="fill-mode-btn" data-mmode="half" onclick="multiSetFillMode('half')">Half</button>
-        <button class="fill-mode-btn" data-mmode="quartered" onclick="multiSetFillMode('quartered')">Quartered</button>
-        <button class="fill-mode-btn" data-mmode="shading" onclick="multiSetFillMode('shading')">Shading</button>
+        <button class="fill-mode-btn" type="button" data-mmode="none" onclick="multiSetFillMode('none')">None</button>
+        <button class="fill-mode-btn" type="button" data-mmode="solid" onclick="multiSetFillMode('solid')">Full</button>
+        <button class="fill-mode-btn" type="button" data-mmode="half" onclick="multiSetFillMode('half')">Half</button>
+        <button class="fill-mode-btn" type="button" data-mmode="quartered" onclick="multiSetFillMode('quartered')">Quarters</button>
+        <button class="fill-mode-btn" type="button" data-mmode="shading" onclick="multiSetFillMode('shading')">Pattern</button>
       </div>
-
-      <div id="multiSolidFillUI" style="display:none;">
-        <div class="fill-colors" id="multiSolidColorPicker"></div>
-      </div>
-
+      <div id="multiSolidFillUI" style="display:none;"><div class="fill-colors" id="multiSolidColorPicker"></div></div>
       <div id="multiHalfFillUI" style="display:none;">
-        <div style="display:flex;align-items:flex-start;">
+        <div class="grid-row">
           <div class="half-grid" id="multiHalfGrid">
             <div class="half-cell" data-mh="0" onclick="multiSelectHalf(0)" style="background:#fff;">L</div>
             <div class="half-cell" data-mh="1" onclick="multiSelectHalf(1)" style="background:#fff;">R</div>
           </div>
           <span class="quarter-label" id="multiHalfLabel">Click a half, then pick a colour</span>
         </div>
-        <div class="fill-colors" id="multiHalfColorPicker" style="margin-top:6px;"></div>
+        <div class="fill-colors" id="multiHalfColorPicker"></div>
       </div>
-
       <div id="multiQuarteredFillUI" style="display:none;">
-        <div style="display:flex;align-items:flex-start;">
+        <div class="grid-row">
           <div class="quarter-grid" id="multiQuarterGrid">
             <div class="quarter-cell" data-mq="3" onclick="multiSelectQuarter(3)" style="background:#fff;">TL</div>
             <div class="quarter-cell" data-mq="0" onclick="multiSelectQuarter(0)" style="background:#fff;">TR</div>
             <div class="quarter-cell" data-mq="2" onclick="multiSelectQuarter(2)" style="background:#fff;">BL</div>
             <div class="quarter-cell" data-mq="1" onclick="multiSelectQuarter(1)" style="background:#fff;">BR</div>
           </div>
-          <span class="quarter-label" id="multiQuarterLabel">Click a quadrant, then pick a colour</span>
+          <span class="quarter-label" id="multiQuarterLabel">Click a quarter, then pick a colour</span>
         </div>
-        <div class="fill-colors" id="multiQuarterColorPicker" style="margin-top:6px;"></div>
+        <div class="fill-colors" id="multiQuarterColorPicker"></div>
       </div>
-
       <div id="multiShadingFillUI" style="display:none;">
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Pattern</label>
         <div class="shading-option-row">
-          <button class="shading-option-btn" data-mspattern="stripes" onclick="multiSetShadingPattern('stripes')">Stripes</button>
-          <button class="shading-option-btn" data-mspattern="dots" onclick="multiSetShadingPattern('dots')">Dots</button>
+          <button class="shading-option-btn" type="button" data-mspattern="stripes" onclick="multiSetShadingPattern('stripes')">Stripes</button>
+          <button class="shading-option-btn" type="button" data-mspattern="dots" onclick="multiSetShadingPattern('dots')">Dots</button>
         </div>
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Coverage</label>
         <div class="shading-option-row">
-          <button class="shading-option-btn" data-mscoverage="full" onclick="multiSetShadingCoverage('full')">Full</button>
-          <button class="shading-option-btn" data-mscoverage="half-left" onclick="multiSetShadingCoverage('half-left')">Left Half</button>
-          <button class="shading-option-btn" data-mscoverage="half-right" onclick="multiSetShadingCoverage('half-right')">Right Half</button>
+          <button class="shading-option-btn" type="button" data-mscoverage="full" onclick="multiSetShadingCoverage('full')">Whole</button>
+          <button class="shading-option-btn" type="button" data-mscoverage="half-left" onclick="multiSetShadingCoverage('half-left')">Left half</button>
+          <button class="shading-option-btn" type="button" data-mscoverage="half-right" onclick="multiSetShadingCoverage('half-right')">Right half</button>
         </div>
       </div>
-    </div>
+      <button class="pbtn danger wide" type="button" onclick="deleteMultiSelected()">Delete these people</button>
+    </section>
 
-    <button class="btn btn-danger" onclick="deleteMultiSelected()" style="margin-top:10px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Delete Selected
-    </button>
-  </div>
-
-  <!-- Multi-Partnership Panel (shown when multiple partnerships selected) -->
-  <div class="panel-section" id="multiPartnershipPanel">
-    <h3>Partnerships Selected <span class="multi-select-count" id="multiPartnershipCount"></span></h3>
-    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Partnership Type</label>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;">
-      <button class="btn btn-secondary" data-mpt="normal" onclick="multiSetPartnershipType('normal')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Normal</button>
-      <button class="btn btn-secondary" data-mpt="consanguineous" onclick="multiSetPartnershipType('consanguineous')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang.</button>
-      <button class="btn btn-secondary" data-mpt="separated" onclick="multiSetPartnershipType('separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Separated</button>
-      <button class="btn btn-secondary" data-mpt="consanguineous-separated" onclick="multiSetPartnershipType('consanguineous-separated')" style="flex:1 1 45%;margin:0;padding:5px;font-size:10px;">Consang. Sep.</button>
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change type for all selected partnerships.</p>
-    <button class="btn btn-danger" onclick="deleteMultiSelectedPartnerships()" style="margin-top:8px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Delete Selected Partnerships
-    </button>
-  </div>
-
-  <!-- Multi-Child-Link Panel (shown when multiple child links selected) -->
-  <div class="panel-section" id="multiChildLinkPanel">
-    <h3>Child Links Selected <span class="multi-select-count" id="multiChildLinkCount"></span></h3>
-    <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Child Line Style</label>
-    <div style="display:flex;gap:4px;">
-      <button class="btn btn-secondary" data-mcls="solid" onclick="multiSetChildLineStyle('solid')" style="flex:1;margin:0;padding:5px;font-size:10px;">Solid</button>
-      <button class="btn btn-secondary" data-mcls="dashed" onclick="multiSetChildLineStyle('dashed')" style="flex:1;margin:0;padding:5px;font-size:10px;">Dashed (adoption)</button>
-    </div>
-    <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Change style for all selected child connections.</p>
-    <button class="btn btn-danger" onclick="deleteMultiSelectedChildLinks()" style="margin-top:8px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Delete Selected Child Links
-    </button>
-  </div>
-
-  <!-- Draw Settings (shown when draw tool active) -->
-  <div class="panel-section" id="drawPanel" style="display:none;">
-    <h3>Draw Settings</h3>
-    <div style="display:flex;gap:4px;margin-bottom:10px;">
-      <button class="btn btn-secondary active" id="drawModePen" onclick="setDrawMode('pen')" style="flex:1;margin:0;padding:6px;font-size:11px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-        Pen
-      </button>
-      <button class="btn btn-secondary" id="drawModeEraser" onclick="setDrawMode('eraser')" style="flex:1;margin:0;padding:6px;font-size:11px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
-        Eraser
-      </button>
-    </div>
-    <div id="drawPenSettings">
-      <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Colour</label>
-      <div class="draw-settings-row" id="drawColorPicker" style="flex-wrap:wrap;margin-top:0;"></div>
-      <div style="margin-top:10px;">
-        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Line width: <span id="drawWidthLabel">2px</span></label>
-        <input type="range" min="1" max="12" step="1" value="2" id="drawWidthSlider" oninput="setDrawWidth(this.value)" style="width:100%;accent-color:var(--accent);">
+    <section class="panel-section" id="multiPartnershipPanel">
+      <h3 class="insp-h">Relationship lines <span class="multi-select-count" id="multiPartnershipCount"></span></h3>
+      <div class="seg2">
+        <button class="pbtn" type="button" data-mpt="normal" onclick="multiSetPartnershipType('normal')">Partners</button>
+        <button class="pbtn" type="button" data-mpt="consanguineous" onclick="multiSetPartnershipType('consanguineous')">Consanguineous</button>
+        <button class="pbtn" type="button" data-mpt="separated" onclick="multiSetPartnershipType('separated')">Separated</button>
+        <button class="pbtn" type="button" data-mpt="consanguineous-separated" onclick="multiSetPartnershipType('consanguineous-separated')">Consanguineous, separated</button>
       </div>
-    </div>
-    <div id="drawEraserSettings" style="display:none;">
-      <p style="font-size:11px;color:var(--text-muted);line-height:1.4;">Tap or click on a drawing stroke to remove it. Only drawings are affected — shapes and lines are safe.</p>
-    </div>
-    <button class="btn btn-secondary" onclick="clearDrawings()" style="margin-top:10px;font-size:11px;padding:5px 10px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      Clear All Drawings
-    </button>
-  </div>
+      <button class="pbtn danger wide" type="button" onclick="deleteMultiSelectedPartnerships()">Delete these lines</button>
+    </section>
 
-  <div class="panel-section">
-    <button class="btn btn-secondary" id="configToggle" style="width:100%;margin:0;padding:6px;font-size:11px;" onclick="toggleConfigSection()">▼ Configuration</button>
-    <div id="configSection" style="display:none;margin-top:10px;">
-      <div class="config-group">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Twin</label>
-        <button class="btn btn-primary" id="tool-twin" onclick="setTool('twin')" style="margin:0 0 8px 0;padding:7px 10px;font-size:12px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="10"/><line x1="12" y1="10" x2="6" y2="20"/><line x1="12" y1="10" x2="18" y2="20"/></svg>
-          Twin Tool — click two children
-        </button>
-        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:4px;">Type for new twin links:</label>
-        <div style="display:flex;gap:4px;">
-          <button class="btn btn-secondary active" data-tt="identical" onclick="setTwinType('identical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Identical</button>
-          <button class="btn btn-secondary" data-tt="nonidentical" onclick="setTwinType('nonidentical')" style="flex:1;margin:0;padding:5px;font-size:10px;">Non-identical</button>
-        </div>
+    <section class="panel-section" id="multiChildLinkPanel">
+      <h3 class="insp-h">Lines of descent <span class="multi-select-count" id="multiChildLinkCount"></span></h3>
+      <div class="seg2">
+        <button class="pbtn" type="button" data-mcls="solid" onclick="multiSetChildLineStyle('solid')">Solid</button>
+        <button class="pbtn" type="button" data-mcls="dashed" onclick="multiSetChildLineStyle('dashed')">Dashed (adopted)</button>
       </div>
-      <div class="config-group">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Pedigree Labelling</label>
-        <div style="display:flex;gap:4px;">
-          <button class="btn btn-secondary active" data-nm="numbers" onclick="setNumberingMode('numbers')" style="flex:1;margin:0;padding:5px;font-size:10px;">Numbers</button>
-          <button class="btn btn-secondary" data-nm="letters" onclick="setNumberingMode('letters')" style="flex:1;margin:0;padding:5px;font-size:10px;">Gen-Letters</button>
-          <button class="btn btn-secondary" data-nm="lettersonly" onclick="setNumberingMode('lettersonly')" style="flex:1;margin:0;padding:5px;font-size:10px;">Letters</button>
-          <button class="btn btn-secondary" data-nm="freetext" onclick="setNumberingMode('freetext')" style="flex:1;margin:0;padding:5px;font-size:10px;">Free Text</button>
-          <button class="btn btn-secondary" data-nm="off" onclick="setNumberingMode('off')" style="flex:1;margin:0;padding:5px;font-size:10px;">Off</button>
-        </div>
+      <button class="pbtn danger wide" type="button" onclick="deleteMultiSelectedChildLinks()">Delete these lines</button>
+    </section>
+
+    <!-- Text label -->
+    <section class="panel-section" id="labelPanel">
+      <h3 class="insp-h">Text label</h3>
+      <div class="toggle-row">
+        <span>Size</span>
+        <span class="size-row">
+          <button class="size-btn" type="button" onclick="changeLabelSize(-2)" aria-label="Smaller">−</button>
+          <span id="labelSizeDisplay">14px</span>
+          <button class="size-btn" type="button" onclick="changeLabelSize(2)" aria-label="Larger">+</button>
+        </span>
       </div>
-      <div class="config-group" style="margin-bottom:0;">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Spacing</label>
-        <div>
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Partnership width: <span id="partnerGapLabel">2×</span></label>
-          <input type="range" min="1" max="5" step="0.5" value="2" id="partnerGapSlider" oninput="setPartnerGap(this.value)" style="width:100%;accent-color:var(--accent);">
-        </div>
-        <div style="margin-top:8px;">
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Child line height: <span id="childHeightLabel">2.5×</span></label>
-          <input type="range" min="2" max="6" step="0.5" value="2.5" id="childHeightSlider" oninput="setChildHeight(this.value)" style="width:100%;accent-color:var(--accent);">
-        </div>
-        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Multiples of shape size. Applied when individual move is off.</p>
+      <div class="toggle-row">
+        <label for="labelBorderToggle">Border</label>
+        <button class="toggle-switch" type="button" id="labelBorderToggle" onclick="toggleLabelBorder()" aria-label="Border"></button>
       </div>
-      <div class="config-group" style="margin-top:12px;margin-bottom:0;">
-        <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:block;margin-bottom:6px;">Layout</label>
-        <button class="btn btn-secondary" style="width:100%;margin:0;padding:7px 10px;font-size:12px;" onclick="redistributePedigreeWithWarning()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/><path d="M10 7h4M7 10v4M17 10v4M10 17h4"/></svg>
-          Redistribute Pedigree
-        </button>
-        <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">Automatically rearrange to reduce overlaps and line crossings. Use Undo if you don't like the result.</p>
+      <button class="pbtn danger wide" type="button" id="deleteLabelBtn">Delete this label</button>
+    </section>
+
+    <!-- Twins (while the Twins tool is on) -->
+    <section class="panel-section" id="twinPanel">
+      <h3 class="insp-h">Twins</h3>
+      <div class="seg2">
+        <button class="pbtn active" type="button" data-tt="identical" onclick="setTwinType('identical')">Identical (MZ)</button>
+        <button class="pbtn" type="button" data-tt="nonidentical" onclick="setTwinType('nonidentical')">Non-identical (DZ)</button>
       </div>
+    </section>
+
+    <!-- Draw (while the Draw tool is on) -->
+    <section class="panel-section" id="drawPanel">
+      <h3 class="insp-h">Draw</h3>
+      <div class="seg2">
+        <button class="pbtn active" type="button" id="drawModePen" onclick="setDrawMode('pen')">Pen</button>
+        <button class="pbtn" type="button" id="drawModeEraser" onclick="setDrawMode('eraser')">Eraser</button>
+      </div>
+      <div id="drawPenSettings">
+        <div class="lbl">Colour</div>
+        <div class="draw-settings-row" id="drawColorPicker"></div>
+        <label class="slider-l">Line width <span id="drawWidthLabel">2px</span>
+          <input type="range" min="1" max="12" step="1" value="2" id="drawWidthSlider" oninput="setDrawWidth(this.value)"></label>
+      </div>
+      <div id="drawEraserSettings" style="display:none;"></div>
+      <button class="pbtn wide" type="button" onclick="clearDrawings()">Clear all drawing</button>
+    </section>
+  </aside>
+</main>
+
+<!-- ── Help ── -->
+<div class="help-back" id="helpOverlay" hidden>
+  <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-head">
+      <h2 id="helpTitle">Pedigree <span>Studio</span></h2>
+      <div class="help-tabs" role="tablist" aria-label="Help">
+        <button class="help-tab" type="button" role="tab" id="helpTab-start" aria-controls="helpPane-start" aria-selected="true" data-help="start">Getting started</button>
+        <button class="help-tab" type="button" role="tab" id="helpTab-symbols" aria-controls="helpPane-symbols" aria-selected="false" tabindex="-1" data-help="symbols">Symbols</button>
+        <button class="help-tab" type="button" role="tab" id="helpTab-keys" aria-controls="helpPane-keys" aria-selected="false" tabindex="-1" data-help="keys">Shortcuts</button>
+        <button class="help-tab" type="button" role="tab" id="helpTab-about" aria-controls="helpPane-about" aria-selected="false" tabindex="-1" data-help="about">About</button>
+      </div>
+      <button class="insp-close" type="button" id="helpClose" aria-label="Close help">×</button>
     </div>
-  </div>
+    <div class="help-body" id="helpBody">
 
-  <!-- Free Text Labels section -->
-  <div class="panel-section" id="labelSection">
-    <h3>Free Text Labels</h3>
-    <button class="btn btn-primary" onclick="activateLabelTool()" style="margin-top:0;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5l4 4L7 21l-4 1 1-4L16.5 3.5z"/></svg>
-      Add Label to Canvas
-    </button>
-    <label style="font-size:12px;color:var(--text-muted);display:block;margin-top:8px;margin-bottom:4px;">Label text size</label>
-    <div class="size-control">
-      <button class="size-btn" onclick="changeLabelSize(-2)">−</button>
-      <span id="labelSizeDisplay">14px</span>
-      <button class="size-btn" onclick="changeLabelSize(2)">+</button>
+      <section class="help-pane" id="helpPane-start" role="tabpanel" aria-labelledby="helpTab-start">
+        <ol class="help-steps">
+          <li><b>Add the first person</b> with <b>Male</b>, <b>Female</b> or <b>Unknown</b> on the toolbar. This is usually the person the pedigree is for, so switch on <b>Proband</b> in the panel that opens.</li>
+          <li><b>Build out from them.</b> With someone selected, <b>Add a relative</b> puts in a partner, son, daughter, parents, brother or sister, already joined up. <b>Older</b> and <b>Younger</b> move a person along their row of brothers and sisters, which runs from the oldest on the left.</li>
+          <li><b>Join people yourself</b> with the tools under <b>Connect</b>. <b>Partners</b>: click two people. <b>Child</b>: click a relationship line, then the child. <b>Twins</b>: choose identical or non-identical, then click two children of the same couple.</li>
+          <li><b>Describe each person</b> in the panel: notes under the symbol (name, age, diagnoses and the age at diagnosis), deceased, shading for anyone affected, and a mark inside the symbol for carriers, pregnancies, donors, surrogates or a number of people.</li>
+          <li><b>Click a line to change it.</b> A relationship line can be marked consanguineous or separated, and you can add the couple's children from there. A line of descent can be dashed for adoption.</li>
+          <li><b>Tidy</b> lays the whole pedigree out again: generations in rows, couples side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. <b>Undo</b> puts your own layout back.</li>
+          <li><b>Save and export</b> from <b>File</b>: a picture (PNG, or SVG for documents and posters) or a pedigree file (.json) that you can open again later. The pedigree you are working on is also kept in this browser until you clear it.</li>
+        </ol>
+        <h3>Moving around</h3>
+        <p>Drag a person to move them. Dragging moves their whole connected family unless <b>Move one person at a time</b> is switched on under <b>File</b>. Drag the background to move the view, scroll or pinch to zoom, and use the button at the bottom right to fit everything in.</p>
+        <h3>Colours and the key</h3>
+        <p>Use a different shading colour, or halves and quarters, for each condition. <b>Key</b> adds a box listing the colours in use; type what each one means into it. The key is included when you export.</p>
+      </section>
+
+      <section class="help-pane" id="helpPane-symbols" role="tabpanel" aria-labelledby="helpTab-symbols" hidden>
+        <p>These are the symbols of the standard pedigree nomenclature (Bennett et al., 2008 and 2022), drawn as Pedigree Studio draws them. Write ages, diagnoses and test results under the symbol with <b>Notes</b>.</p>
+        <table class="sym-table" id="symbolTable"></table>
+      </section>
+
+      <section class="help-pane" id="helpPane-keys" role="tabpanel" aria-labelledby="helpTab-keys" hidden>
+        <table class="help-keys">
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd> or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></td><td>Redo</td></tr>
+          <tr><td><kbd>Delete</kbd> or <kbd>Backspace</kbd></td><td>Delete what is selected</td></tr>
+          <tr><td><kbd>Shift</kbd> + click</td><td>Select several people, or several lines</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>A</kbd></td><td>Select everyone</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Back to Select, and clear the selection</td></tr>
+          <tr><td>Arrow keys</td><td>Nudge the selection by 1 pixel, or 10 with <kbd>Shift</kbd>, when <b>Move one person at a time</b> is on</td></tr>
+          <tr><td>Double-click a text label</td><td>Edit its text</td></tr>
+          <tr><td>Double-click the label above a symbol</td><td>Type your own label, when numbering is set to <b>Own</b></td></tr>
+          <tr><td>Drag the background</td><td>Move the view</td></tr>
+          <tr><td>Scroll, or pinch</td><td>Zoom</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Open this help</td></tr>
+        </table>
+        <p class="help-note" style="margin-top:10px">On a Mac, use <kbd>⌘</kbd> in place of <kbd>Ctrl</kbd>.</p>
+      </section>
+
+      <section class="help-pane" id="helpPane-about" role="tabpanel" aria-labelledby="helpTab-about" hidden>
+        <h3>Your data</h3>
+        <p>Pedigree Studio runs entirely in your browser and makes no network requests: nothing you draw is sent anywhere. The pedigree you are working on is kept in this browser's own storage so that it is still here next time; <b>Clear the canvas</b> under <b>File</b> removes it. Exported pictures and pedigree files are made on this device.</p>
+        <h3>Citing Pedigree Studio</h3>
+        <p>Hearn TJ. PedigreeStudio [software]. Zenodo. <a href="https://doi.org/10.5281/zenodo.20209376" target="_blank" rel="noopener">doi:10.5281/zenodo.20209376</a>. Source code and issues: <a href="https://github.com/comparativechrono/PedigreeStudio" target="_blank" rel="noopener">github.com/comparativechrono/PedigreeStudio</a> (MIT licence).</p>
+        <h3>Pedigree nomenclature</h3>
+        <ol class="help-refs">
+          <li>Bennett RL, Steinhaus KA, Uhrich SB, O'Sullivan CK, Resta RG, Lochner-Doyle D, Markel DS, Vincent V, Hamanishi J. Recommendations for standardized human pedigree nomenclature. <i>Am J Hum Genet</i>. 1995;56(3):745–752. <a href="https://pubmed.ncbi.nlm.nih.gov/7887430/" target="_blank" rel="noopener">PMID 7887430</a>.</li>
+          <li>Bennett RL, French KS, Resta RG, Doyle DL. Standardized human pedigree nomenclature: update and assessment of the recommendations of the National Society of Genetic Counselors. <i>J Genet Couns</i>. 2008;17(5):424–433. <a href="https://doi.org/10.1007/s10897-008-9169-9" target="_blank" rel="noopener">doi:10.1007/s10897-008-9169-9</a>.</li>
+          <li>Bennett RL, French KS, Resta RG, Austin J. Practice resource-focused revision: Standardized pedigree nomenclature update centered on sex and gender inclusivity: a practice resource of the National Society of Genetic Counselors. <i>J Genet Couns</i>. 2022;31(6):1238–1248. <a href="https://doi.org/10.1002/jgc4.1621" target="_blank" rel="noopener">doi:10.1002/jgc4.1621</a>.</li>
+          <li>Resta RG, French KS, Bennett RL, Austin J. Both sides now: changing a long-standing pedigree tradition of men on the left and women on the right. <i>J Genet Couns</i>. 2023;32(3):530–531. <a href="https://doi.org/10.1002/jgc4.1662" target="_blank" rel="noopener">doi:10.1002/jgc4.1662</a>.</li>
+        </ol>
+        <h3>How Tidy works</h3>
+        <p>Tidy treats the pedigree as a layered drawing. It puts each person in a generation by the network simplex method of Gansner et al. (1993), orders each row to keep families together with as few crossing lines as possible, and then finds the positions that centre children under their parents and keep lines straight, by solving a small optimisation problem with FISTA (Beck and Teboulle, 2009).</p>
+        <ol class="help-refs" start="5">
+          <li>Gansner ER, Koutsofios E, North SC, Vo KP. A technique for drawing directed graphs. <i>IEEE Trans Softw Eng</i>. 1993;19(3):214–230. <a href="https://doi.org/10.1109/32.221135" target="_blank" rel="noopener">doi:10.1109/32.221135</a>.</li>
+          <li>Beck A, Teboulle M. A fast iterative shrinkage-thresholding algorithm for linear inverse problems. <i>SIAM J Imaging Sci</i>. 2009;2(1):183–202. <a href="https://doi.org/10.1137/080716542" target="_blank" rel="noopener">doi:10.1137/080716542</a>.</li>
+        </ol>
+      </section>
+
     </div>
-    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Applies to selected or next new label. Double-tap a label to edit.</p>
-    <button class="btn btn-secondary" id="labelBorderToggle" onclick="toggleLabelBorder()" style="margin-top:8px;font-size:11px;padding:5px 10px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-      Border Box: Off
-    </button>
-  </div>
-
-  <div class="panel-section">
-    <h3>Movement</h3>
-    <div class="toggle-row">
-      <label onclick="toggleIndividualMove()">Individual move mode</label>
-      <button class="toggle-switch" id="individualMoveToggle" onclick="toggleIndividualMove()"></button>
-    </div>
-    <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">Off = drag moves connected family. On = drag moves one person.</p>
-  </div>
-
-  <div class="panel-section" style="display:flex; flex-direction:column; gap:4px;">
-    <h3>File</h3>
-    <div style="display:flex; gap:4px;">
-      <button class="btn btn-primary" onclick="saveAsImage()" style="margin-top:0; flex:1;">Export PNG</button>
-      <button class="btn btn-primary" onclick="saveAsSVG()" style="margin-top:0; flex:1;">Export SVG</button>
-    </div>
-    <button class="btn btn-secondary" onclick="toggleLegend()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Colour Key / Legend
-    </button>
-    <button class="btn btn-secondary" onclick="exportJSON()">Save Session (JSON)</button>
-    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Load Session (JSON)</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-    <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
-    <button class="btn btn-secondary" onclick="document.getElementById('splashOverlay').classList.remove('hidden')">Help &amp; Info</button>
-  </div>
-
-  <div class="status-bar" id="statusBar">Ready — add people to start building a pedigree</div>
-</div>
-
-<div class="mobile-toolbar" id="mobileToolbar">
-  <button class="tool-btn active" id="m-tool-move" onclick="setTool('move')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3"/><path d="M9 5l3-3 3 3"/><path d="M15 19l-3 3-3-3"/><path d="M19 9l3 3-3 3"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
-    Move
-  </button>
-  <button class="tool-btn" id="m-tool-partner" onclick="setTool('partner')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><rect x="2" y="8" width="6" height="8" rx="0"/><circle cx="19" cy="12" r="4"/></svg>
-    Partner
-  </button>
-  <button class="tool-btn" id="m-tool-child" onclick="setTool('child')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="4" x2="12" y2="14"/><line x1="6" y1="14" x2="18" y2="14"/><line x1="6" y1="14" x2="6" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/></svg>
-    Child
-  </button>
-  <button class="tool-btn" id="m-tool-draw" onclick="setTool('draw')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-    Draw
-  </button>
-  <button class="tool-btn undo-btn" onclick="undo()" title="Undo" disabled style="opacity:0.35;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H9"/><polyline points="7 14 3 10 7 6"/></svg>
-  </button>
-  <button class="tool-btn redo-btn" onclick="redo()" title="Redo" disabled style="opacity:0.35;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h4"/><polyline points="17 14 21 10 17 6"/></svg>
-  </button>
-</div>
-
-<div class="mode-banner" id="modeBanner" onclick="this.classList.remove('visible')"></div>
-
-<div class="canvas-area" id="canvasArea">
-  <div id="canvas">
-    <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
-    <svg id="draw-layer" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
-  <div class="zoom-controls">
-    <button class="zoom-btn" onclick="doZoom(-0.1)">−</button>
-    <div class="zoom-label" id="zoomLabel">100%</div>
-    <button class="zoom-btn" onclick="doZoom(0.1)">+</button>
-    <button class="zoom-btn" onclick="fitToView()" title="Fit to view" style="font-size:14px;">⊞</button>
   </div>
 </div>
 
@@ -1134,6 +1083,7 @@ function applyCanvasSize() {
 // ── Auto-save ──
 let saveTimer = null;
 function scheduleSave() {
+  refreshChrome();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem('pedigree-studio-session', JSON.stringify(buildSessionData())); } catch(e) {}
@@ -1199,45 +1149,9 @@ function updateUndoRedoUI() {
   document.querySelectorAll('.redo-btn').forEach(b => { b.disabled = redoStack.length === 0; b.style.opacity = redoStack.length === 0 ? '0.35' : '1'; });
 }
 
-// ── Mobile panel ──
-function openPanel() { document.getElementById('sidePanel').classList.add('open'); document.getElementById('panelOverlay').classList.add('open'); }
-function closePanel() { document.getElementById('sidePanel').classList.remove('open'); document.getElementById('panelOverlay').classList.remove('open'); }
-function dismissSplash() { document.getElementById('splashOverlay').classList.add('hidden'); }
-
 // ── Shape selection ──
 function selectShape(shape) {
   currentShape = shape;
-  document.querySelectorAll('.shape-option').forEach(el => el.classList.remove('active'));
-  document.querySelector(`.shape-option[data-shape="${shape}"]`)?.classList.add('active');
-  // Auto-show extra shapes panel if an extra shape was selected programmatically
-  if (['no-offspring','infertile','adopted-male','adopted-female','adopted-unknown'].includes(shape)) {
-    const panel = document.getElementById('extraShapes');
-    if (panel.style.display === 'none') toggleExtraShapes();
-  }
-}
-
-function toggleExtraShapes() {
-  const panel = document.getElementById('extraShapes');
-  const btn = document.getElementById('extraShapesToggle');
-  if (panel.style.display === 'none') {
-    panel.style.display = 'flex';
-    btn.textContent = '▲ Hide further symbols';
-  } else {
-    panel.style.display = 'none';
-    btn.textContent = '▼ Show further symbols';
-  }
-}
-
-function toggleConfigSection() {
-  const panel = document.getElementById('configSection');
-  const btn = document.getElementById('configToggle');
-  if (panel.style.display === 'none') {
-    panel.style.display = 'block';
-    btn.textContent = '▲ Configuration';
-  } else {
-    panel.style.display = 'none';
-    btn.textContent = '▼ Configuration';
-  }
 }
 
 // ══════════════════════
@@ -1439,24 +1353,23 @@ function protectedPartnershipStatus(finalType, requestedType) {
 }
 
 function setPartnershipType(t) {
-  currentPartnershipType = t;
-  document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
-  // If a partnership is selected, change its type. Some relationship lines are
+  // With a line selected, change that line. Some relationship lines are
   // protected internal links: true blood relationships are canonicalised to
   // consanguineous; shared-partner/affinal loops are stored as shared-partner variants
   // but rendered as normal-looking single or separated lines. In both cases, default layout must not
   // treat the link as an ordinary adjacent spouse block.
-  if (selectedPartnershipId) {
-    const ps = partnerships.find(p => p.id === selectedPartnershipId);
-    if (ps) {
-      const finalType = canonicalPartnershipType(ps.fromId, ps.toId, t, ps.id);
-      pushUndo();
-      setPartnershipVisualType(ps, finalType);
-      document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === visiblePartnershipButtonType(finalType)));
-      scheduleSave();
-      document.getElementById('statusBar').textContent = protectedPartnershipStatus(finalType, t);
-    }
+  const ps = selectedPartnershipId && partnerships.find(p => p.id === selectedPartnershipId);
+  if (!ps) {
+    currentPartnershipType = t;
+    document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === t));
+    return;
   }
+  const finalType = canonicalPartnershipType(ps.fromId, ps.toId, t, ps.id);
+  pushUndo();
+  setPartnershipVisualType(ps, finalType);
+  document.querySelectorAll('[data-pt]').forEach(b => b.classList.toggle('active', b.dataset.pt === visiblePartnershipButtonType(finalType)));
+  scheduleSave();
+  document.getElementById('statusBar').textContent = protectedPartnershipStatus(finalType, t);
 }
 function setTwinType(t) {
   currentTwinType = t;
@@ -1484,7 +1397,7 @@ function setCenterText(ct) {
   if (!selectedPerson) return; pushUndo(); const p = persons.get(selectedPerson); if (!p) return;
   p.centerText = ct;
   document.querySelectorAll('[data-ct]').forEach(b => b.classList.toggle('active', b.dataset.ct === (ct || '')));
-  refreshPersonShape(p); scheduleSave();
+  refreshPersonShape(p); refreshPersonPanel(p); scheduleSave();
 }
 function setMiscarriageSex(s) {
   if (!selectedPerson) return; pushUndo(); const p = persons.get(selectedPerson); if (!p) return;
@@ -1553,6 +1466,7 @@ function initColorPickers() {
 
 // ── Tools ──
 function setTool(tool) {
+  if (tool !== 'move') deselectAll();
   currentTool = tool;
   connectSource = null;
   childPartnershipSource = null;
@@ -1575,12 +1489,11 @@ function setTool(tool) {
   const hitWidth = tool === 'child' ? '72' : '28';
   partnerships.forEach(ps => { if (ps.hitEl) ps.hitEl.setAttribute('stroke-width', hitWidth); });
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-  ['tool-','m-tool-'].forEach(prefix => {
-    const btn = document.getElementById(prefix + tool);
-    if (btn) btn.classList.add('active');
-  });
-  // Show/hide draw settings panel
-  document.getElementById('drawPanel').style.display = tool === 'draw' ? '' : 'none';
+  const toolBtn = document.getElementById('tool-' + tool);
+  if (toolBtn) toolBtn.classList.add('active');
+  // the draw and twin settings show in the selection panel
+  document.getElementById('drawPanel').classList.toggle('visible', tool === 'draw');
+  document.getElementById('twinPanel').classList.toggle('visible', tool === 'twin');
   // Set canvas cursor for draw mode
   document.getElementById('canvasArea').style.cursor = tool === 'draw' ? (drawEraser ? 'pointer' : 'crosshair') : '';
   // Toggle draw-active class on canvas so persons/labels don't intercept draw events
@@ -1601,11 +1514,11 @@ function setTool(tool) {
 function updateBanner() {
   const banner = document.getElementById('modeBanner');
   const msgs = {
-    partner: 'Partner mode — click two people to connect them',
-    child: 'Child mode — click a partnership line, then click a child',
-    twin: 'Twin mode — click two children of the same partnership',
-    label: 'Label mode — click on the canvas to place a text label',
-    draw: drawEraser ? 'Eraser mode — tap a drawing stroke to remove it' : 'Draw mode — sketch freely on the canvas'
+    partner: 'Partners: click two people to join them',
+    child: 'Child: click a relationship line, then the child',
+    twin: 'Twins: click two children of the same couple',
+    label: 'Text label: click where it should go',
+    draw: drawEraser ? 'Eraser: tap a drawn line to remove it' : 'Draw: sketch on the canvas'
   };
   if (msgs[currentTool]) { banner.textContent = msgs[currentTool]; banner.classList.add('visible'); }
   else { banner.classList.remove('visible'); }
@@ -1614,12 +1527,12 @@ function updateBanner() {
 function updateStatus() {
   const s = document.getElementById('statusBar');
   const map = {
-    move: 'Move — drag to reposition' + (individualMoveMode ? ' (individual)' : ' (group)'),
-    partner: 'Partner — click two people to draw a partnership line',
-    child: 'Child — click a partnership line, then click a person',
-    twin: 'Twin — click two children of same partnership to link',
-    label: 'Label — click on the canvas to add a text label',
-    draw: drawEraser ? 'Eraser — tap a stroke to remove it' : 'Draw — sketch on the canvas'
+    move: individualMoveMode ? 'Dragging moves one person' : 'Dragging moves a whole family',
+    partner: 'Partners: click two people to join them',
+    child: 'Child: click a relationship line, then the child',
+    twin: 'Twins: click two children of the same couple',
+    label: 'Text label: click where it should go',
+    draw: drawEraser ? 'Eraser: tap a drawn line to remove it' : 'Draw: sketch on the canvas'
   };
   s.textContent = map[currentTool] || 'Ready';
 }
@@ -1977,6 +1890,9 @@ function makeShapeSVG(shape, deceased, fillMode, fillColor, quarters, centerText
     const cy = centerTextY(shape);
     if (centerText === 'dot') {
       extra = `<circle cx="26" cy="${cy}" r="5" fill="${tc}"/>`;
+    } else if (centerText === 'line') {
+      const dl = halfDividerCoords(shape);
+      extra = `<line x1="${dl.x1}" y1="${dl.y1}" x2="${dl.x2}" y2="${dl.y2}" stroke="${tc}" stroke-width="${STROKE_W}"/>`;
     } else {
       extra = `<text x="26" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="-apple-system,sans-serif">${centerText}</text>`;
     }
@@ -2175,7 +2091,6 @@ function addPerson(customId, customX, customY, customShape, customText, customDe
   scheduleSave();
   if (!customId) {
     document.getElementById('statusBar').textContent = `Added ${shape}`;
-    closePanel();
   }
   return personData;
 }
@@ -2279,6 +2194,7 @@ function deselectAll() {
 
   // Remove floating link delete button
   removeLinkDeleteBtn();
+  hideLabelProps();
 }
 
 function toggleMultiSelect(id) {
@@ -2351,6 +2267,7 @@ function showProps(p) {
   }
   activeQuarter = -1;
   activeHalf = -1;
+  refreshPersonPanel(p);
 }
 
 function hideProps() {
@@ -3065,12 +2982,7 @@ function createLabel(x, y, customId, customText, customSize, customBordered) {
     deselectAll();
     label.classList.add('selected');
     selectedLabel = id;
-    
-    document.getElementById('labelSizeDisplay').textContent = parseInt(label.style.fontSize) + 'px';
-    const lData = labels.get(id);
-    document.getElementById('labelBorderToggle').innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Border Box: ' +
-      (lData && lData.bordered ? 'On' : 'Off');
+    showLabelProps(id);
     startLabelDrag(label, e);
   };
   label.addEventListener('mousedown', onDown);
@@ -3091,13 +3003,12 @@ function removeLabel(id) {
   if (!l) return;
   l.el.remove();
   labels.delete(id);
-  if (selectedLabel === id) { selectedLabel = null; }
+  if (selectedLabel === id) { selectedLabel = null; hideLabelProps(); }
   scheduleSave();
 }
 
 function activateLabelTool() {
   setTool('label');
-  closePanel();
 }
 
 function enterEditMode(textEl) {
@@ -3145,9 +3056,7 @@ function toggleLabelBorder() {
     if (l) {
       l.bordered = !l.bordered;
       l.el.classList.toggle('bordered', l.bordered);
-      document.getElementById('labelBorderToggle').innerHTML =
-        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Border Box: ' +
-        (l.bordered ? 'On' : 'Off');
+      document.getElementById('labelBorderToggle').classList.toggle('on', l.bordered);
       scheduleSave();
     }
   } else {
@@ -5874,7 +5783,12 @@ function onCanvasDown(e) {
     const pos = getPointerPos(e);
     const canvas = document.getElementById('canvas');
     const r = canvas.getBoundingClientRect();
-    createLabel((pos.clientX - r.left) / zoomLevel, (pos.clientY - r.top) / zoomLevel);
+    const label = createLabel((pos.clientX - r.left) / zoomLevel, (pos.clientY - r.top) / zoomLevel);
+    // one label at a time: back to Select, with the new label selected
+    setTool('move');
+    label.classList.add('selected');
+    selectedLabel = label.id;
+    showLabelProps(label.id);
     return;
   }
 
@@ -5892,7 +5806,7 @@ document.getElementById('canvasArea').addEventListener('touchstart', onCanvasDow
 // ══════════════════════
 
 function doZoom(delta) {
-  zoomLevel = Math.max(0.2, Math.min(3, zoomLevel + delta));
+  zoomLevel = Math.max(0.1, Math.min(3, zoomLevel + delta));
   document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
   applyTransform();
 }
@@ -5901,13 +5815,14 @@ function applyTransform() {
 }
 
 document.getElementById('canvasArea').addEventListener('wheel', (e) => {
+  if (e.target.closest && e.target.closest('.inspector')) return; // let the panel scroll
   e.preventDefault();
   const delta = e.deltaY > 0 ? -0.08 : 0.08;
   const area = document.getElementById('canvasArea');
   const rect = area.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   const oldZoom = zoomLevel;
-  zoomLevel = Math.max(0.2, Math.min(3, zoomLevel + delta));
+  zoomLevel = Math.max(0.1, Math.min(3, zoomLevel + delta));
   panX = mx - (mx - panX) * (zoomLevel / oldZoom);
   panY = my - (my - panY) * (zoomLevel / oldZoom);
   document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
@@ -5922,7 +5837,7 @@ document.getElementById('canvasArea').addEventListener('touchmove', (e) => {
   if (e.touches.length === 2 && lastPinchDist !== null) {
     if (e.cancelable) e.preventDefault();
     const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-    zoomLevel = Math.max(0.2, Math.min(3, zoomLevel * (dist / lastPinchDist)));
+    zoomLevel = Math.max(0.1, Math.min(3, zoomLevel * (dist / lastPinchDist)));
     lastPinchDist = dist;
     document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
     applyTransform();
@@ -5930,27 +5845,51 @@ document.getElementById('canvasArea').addEventListener('touchmove', (e) => {
 }, { passive: false });
 document.getElementById('canvasArea').addEventListener('touchend', () => { lastPinchDist = null; });
 
-function fitToView() {
-  if (persons.size === 0 && drawStrokes.length === 0) return;
-  const area = document.getElementById('canvasArea');
-  const areaRect = area.getBoundingClientRect();
+// The area the drawing covers, in canvas pixels: the symbols with their
+// numbers and notes, text labels, the colour key and freehand drawing.
+function contentBounds(withoutKey) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   persons.forEach(p => {
     const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
-    minX = Math.min(minX, x - 20); minY = Math.min(minY, y - 20);
-    maxX = Math.max(maxX, x + SHAPE_SIZE + 130); maxY = Math.max(maxY, y + SHAPE_SIZE + 80);
+    const t = p.el.querySelector('.person-text');
+    const tw = t && p.text ? t.offsetWidth : 0, th = t && p.text ? t.offsetHeight : 0;
+    const textLeft = !!t && t.classList.contains('text-left');
+    minX = Math.min(minX, x - 24, textLeft ? x + 22 - tw : Infinity);
+    maxX = Math.max(maxX, x + SHAPE_SIZE + 10, textLeft ? -Infinity : x + 30 + tw);
+    minY = Math.min(minY, y - 24);
+    maxY = Math.max(maxY, y + 58 + th + (p.proband ? 18 : 0));
   });
+  labels.forEach(l => {
+    const x = parseFloat(l.el.style.left), y = parseFloat(l.el.style.top);
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + (l.el.offsetWidth || 120)); maxY = Math.max(maxY, y + (l.el.offsetHeight || 30));
+  });
+  const lb = !withoutKey && document.getElementById('legend-box');
+  if (lb) {
+    const x = parseFloat(lb.style.left), y = parseFloat(lb.style.top);
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + lb.offsetWidth); maxY = Math.max(maxY, y + lb.offsetHeight);
+  }
   drawStrokes.forEach(s => {
     s.points.forEach(pt => {
       minX = Math.min(minX, pt.x - s.width); minY = Math.min(minY, pt.y - s.width);
       maxX = Math.max(maxX, pt.x + s.width); maxY = Math.max(maxY, pt.y + s.width);
     });
   });
-  const pad = 80;
-  const contentW = maxX - minX + pad * 2, contentH = maxY - minY + pad * 2;
-  zoomLevel = Math.min(1.5, Math.min(areaRect.width / contentW, areaRect.height / contentH));
-  panX = (areaRect.width - contentW * zoomLevel) / 2 - minX * zoomLevel + pad * zoomLevel;
-  panY = (areaRect.height - contentH * zoomLevel) / 2 - minY * zoomLevel + pad * zoomLevel;
+  return isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+}
+
+function fitToView() {
+  const c = contentBounds();
+  if (!c) return;
+  // fit into the part of the canvas that the selection panel leaves free
+  const open = openCanvasRect();
+  const pad = 30;
+  const contentW = c.maxX - c.minX + pad * 2, contentH = c.maxY - c.minY + pad * 2;
+  const w = open.right - open.left, h = open.bottom - open.top;
+  zoomLevel = Math.max(0.1, Math.min(1.4, w / contentW, h / contentH));
+  panX = open.left + (w - contentW * zoomLevel) / 2 - (c.minX - pad) * zoomLevel;
+  panY = open.top + (h - contentH * zoomLevel) / 2 - (c.minY - pad) * zoomLevel;
   document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
   applyTransform();
 }
@@ -6431,6 +6370,7 @@ function clearAll() {
   document.getElementById('multiChildLinkPanel').classList.remove('visible');
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
   document.getElementById('statusBar').textContent = 'Canvas cleared';
+  refreshChrome();
 }
 
 // ══════════════════════
@@ -6608,7 +6548,7 @@ function importJSON(event) {
       restoreSession(data);
       isRestoring = false;
       document.getElementById('statusBar').textContent = 'Session loaded!';
-      document.getElementById('splashOverlay').classList.add('hidden');
+      fitToView();
     } catch (err) { alert('Could not read session file: ' + err.message); }
   };
   reader.readAsText(file);
@@ -6920,6 +6860,10 @@ function saveAsImage() {
       ctx.fillStyle = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : STROKE_COLOR;
       if (p.centerText === 'dot') {
         ctx.beginPath(); ctx.arc(cx, y + centerTextY(p.shape), 5, 0, Math.PI * 2); ctx.fill();
+      } else if (p.centerText === 'line') {
+        const dl = halfDividerCoords(p.shape);
+        ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = STROKE_W;
+        ctx.beginPath(); ctx.moveTo(x + dl.x1, y + dl.y1); ctx.lineTo(x + dl.x2, y + dl.y2); ctx.stroke();
       } else {
         ctx.font = 'bold 16px -apple-system, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -7309,6 +7253,9 @@ function saveAsSVG() {
       const tc = (p.fillMode === 'solid' && p.fillColor && !isLight(p.fillColor)) ? '#fff' : STROKE_COLOR;
       if (p.centerText === 'dot') {
         g.push(`<circle cx="${cx}" cy="${y + centerTextY(p.shape)}" r="5" fill="${tc}"/>`);
+      } else if (p.centerText === 'line') {
+        const dl = halfDividerCoords(p.shape);
+        g.push(svgLine(x + dl.x1, y + dl.y1, x + dl.x2, y + dl.y2, tc, STROKE_W));
       } else {
         g.push(`<text x="${cx}" y="${y + centerTextY(p.shape)}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="${tc}" font-family="${FONT}">${esc(p.centerText)}</text>`);
       }
@@ -7464,8 +7411,7 @@ function tryAutoRestore() {
     if (saved) {
       const data = JSON.parse(saved);
       restoreSession(data);
-      document.getElementById('splashOverlay').classList.add('hidden');
-      document.getElementById('statusBar').textContent = 'Previous session restored';
+      document.getElementById('statusBar').textContent = 'Previous pedigree restored';
       return true;
     }
   } catch(e) { console.error('Auto-restore failed:', e); }
@@ -9297,14 +9243,647 @@ function runManagedPedigreeLayout(options) {
   scheduleSave();
 }
 
+// ══════════════════════════════════════════════════════
+// INTERFACE
+// The toolbar and its menus, the selection panel (with Add a relative and
+// birth order) and the help.
+// ══════════════════════════════════════════════════════
+
+function setStatus(msg) {
+  const s = document.getElementById('statusBar');
+  if (s) s.textContent = msg;
+}
+
+function isTyping() {
+  const ae = document.activeElement;
+  return !!ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable);
+}
+
+function sexOfShape(shape) {
+  if (shape === 'male' || shape === 'adopted-male') return 'M';
+  if (shape === 'female' || shape === 'adopted-female') return 'F';
+  return 'U';
+}
+
+function parentPartnershipOf(id) {
+  const pid = getParentPartnershipForChild(id);
+  return pid ? partnerships.find(p => p.id === pid) || null : null;
+}
+
+function partnershipsOf(id) {
+  return partnerships.filter(p => p.fromId === id || p.toId === id);
+}
+
+// Run several changes as one step for Undo, then redraw once.
+function asOneStep(fn) {
+  pushUndo();
+  undoGroupActive = true;
+  let out;
+  try { out = fn(); } finally { undoGroupActive = false; }
+  keepOnCanvas();
+  updateAllConnections();
+  updateNumbering();
+  updateTextWrapping();
+  expandCanvasIfNeeded();
+  scheduleSave();
+  return out;
+}
+
+// Keep everyone at positive coordinates (adding parents above the top row
+// could put people above the canvas), and move the view to match so that
+// nothing appears to jump.
+function keepOnCanvas() {
+  let minX = Infinity, minY = Infinity;
+  persons.forEach(p => { minX = Math.min(minX, getPersonX(p.id)); minY = Math.min(minY, getPersonY(p.id)); });
+  if (!isFinite(minX)) return;
+  const dx = minX < 40 ? 200 - minX : 0;
+  const dy = minY < 40 ? 200 - minY : 0;
+  if (!dx && !dy) return;
+  persons.forEach(p => setPersonPos(p.id, getPersonX(p.id) + dx, getPersonY(p.id) + dy));
+  labels.forEach(l => {
+    l.el.style.left = (parseFloat(l.el.style.left) + dx) + 'px';
+    l.el.style.top = (parseFloat(l.el.style.top) + dy) + 'px';
+  });
+  drawStrokes.forEach(s => {
+    s.points.forEach(pt => { pt.x += dx; pt.y += dy; });
+    if (s.el) s.el.setAttribute('d', buildStrokePathD(s.points));
+  });
+  legendX += dx; legendY += dy;
+  const lb = document.getElementById('legend-box');
+  if (lb) { lb.style.left = legendX + 'px'; lb.style.top = legendY + 'px'; }
+  panX -= dx * zoomLevel;
+  panY -= dy * zoomLevel;
+  applyTransform();
+}
+
+// The part of the canvas that the selection panel does not cover, in
+// pixels from the canvas area's top left.
+function openCanvasRect() {
+  const area = document.getElementById('canvasArea').getBoundingClientRect();
+  const r = { left: 0, top: 0, right: area.width, bottom: area.height - 50 };
+  const insp = document.getElementById('inspector');
+  if (insp.classList.contains('show')) {
+    if (area.width > 620) r.right = Math.max(160, area.width - insp.offsetWidth - 20);
+    else r.bottom = Math.max(120, area.height - insp.offsetHeight - 60);
+  }
+  return r;
+}
+
+// Move the view, if need be, so that this part of the canvas can be seen.
+function revealRect(minX, minY, maxX, maxY) {
+  syncInspector();
+  const r = openCanvasRect();
+  const sx1 = minX * zoomLevel + panX, sx2 = maxX * zoomLevel + panX;
+  const sy1 = minY * zoomLevel + panY, sy2 = maxY * zoomLevel + panY;
+  let dx = 0, dy = 0;
+  if (sx1 < r.left) dx = r.left - sx1; else if (sx2 > r.right) dx = Math.max(r.left - sx1, r.right - sx2);
+  if (sy1 < r.top) dy = r.top - sy1; else if (sy2 > r.bottom) dy = Math.max(r.top - sy1, r.bottom - sy2);
+  if (dx || dy) { panX += dx; panY += dy; applyTransform(); }
+}
+
+function revealPeople(ids) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  ids.forEach(id => {
+    if (!persons.has(id)) return;
+    const x = getPersonX(id), y = getPersonY(id);
+    minX = Math.min(minX, x - 24); minY = Math.min(minY, y - 24);
+    maxX = Math.max(maxX, x + SHAPE_SIZE + 24); maxY = Math.max(maxY, y + SHAPE_SIZE + 30);
+  });
+  if (isFinite(minX)) revealRect(minX, minY, maxX, maxY);
+}
+
+// Show or hide the colour key. A key that would appear out of sight goes
+// beside the pedigree instead.
+function toggleKey() {
+  toggleLegend();
+  refreshChrome();
+  const lb = document.getElementById('legend-box');
+  if (!lb) return;
+  const r = openCanvasRect();
+  const sx = legendX * zoomLevel + panX, sy = legendY * zoomLevel + panY;
+  const inView = sx >= r.left && sy >= r.top &&
+    sx + lb.offsetWidth * zoomLevel <= r.right && sy + lb.offsetHeight * zoomLevel <= r.bottom;
+  if (!inView) {
+    const c = contentBounds(true);
+    if (c) { legendX = Math.round(c.maxX + 40); legendY = Math.round(c.minY + 24); }
+    else { legendX = Math.round((r.left + 40 - panX) / zoomLevel); legendY = Math.round((r.top + 40 - panY) / zoomLevel); }
+    lb.style.left = legendX + 'px';
+    lb.style.top = legendY + 'px';
+    scheduleSave();
+  }
+  revealRect(legendX - 10, legendY - 10, legendX + lb.offsetWidth + 10, legendY + lb.offsetHeight + 10);
+}
+
+function flashPeople(ids) {
+  ids.forEach(id => {
+    const p = persons.get(id);
+    if (!p) return;
+    p.el.classList.remove('hl-flash');
+    void p.el.offsetWidth;
+    p.el.classList.add('hl-flash');
+    setTimeout(() => p.el.classList.remove('hl-flash'), 2600);
+  });
+}
+
+// ── Add a relative ──
+
+function newPersonId() { return 'person-' + (++personIdCounter); }
+
+function addPartnerCore(id) {
+  const p = persons.get(id);
+  if (!p) return null;
+  const sex = sexOfShape(p.shape);
+  const shape = sex === 'M' ? 'female' : sex === 'F' ? 'male' : 'unknown';
+  // The man on the left where there is a choice; inside a row of brothers
+  // and sisters, the side with fewer of them to move; a second partner on
+  // the other side from the first.
+  let side = sexOfShape(shape) === 'M' ? 'left' : 'right';
+  const parents = parentPartnershipOf(id);
+  if (parents && getPartnershipChildIds(parents.id).length > 1) side = chooseSideForPartner(id);
+  const existing = partnershipsOf(id);
+  if (existing.length) {
+    const other = existing[0];
+    const oid = other.fromId === id ? other.toId : other.fromId;
+    side = getPersonX(oid) > getPersonX(id) ? 'left' : 'right';
+  }
+  const nid = newPersonId();
+  addPerson(nid, getPersonX(id) + (side === 'left' ? -partnerGap : partnerGap), getPersonY(id), shape);
+  const pship = addPartnership(id, nid, undefined, 'normal');
+  return { id: nid, pship };
+}
+
+function addChildCore(pship, shape) {
+  if (!pship) return null;
+  const kids = getPartnershipChildIds(pship.id);
+  let x = (getPersonX(pship.fromId) + getPersonX(pship.toId)) / 2;
+  let y = Math.min(getPersonY(pship.fromId), getPersonY(pship.toId)) + childHeight;
+  if (kids.length) {
+    // after the youngest
+    x = Math.max(...kids.map(k => getPersonX(k))) + SHAPE_SIZE * 2;
+    y = getPersonY(kids[0]);
+  }
+  const nid = newPersonId();
+  addPerson(nid, x, y, shape);
+  addChildLink(pship.id, nid);
+  return nid;
+}
+
+function addParentsCore(id) {
+  const existing = parentPartnershipOf(id);
+  if (existing) return existing;
+  const x = getPersonX(id), y = getPersonY(id);
+  const fid = newPersonId();
+  addPerson(fid, x - partnerGap / 2, y - childHeight, 'male');
+  const mid = newPersonId();
+  addPerson(mid, x + partnerGap / 2, y - childHeight, 'female');
+  const pship = addPartnership(fid, mid, undefined, 'normal');
+  if (pship) addChildLink(pship.id, id);
+  return pship;
+}
+
+const RELATIVE_SHAPES = { son: 'male', daughter: 'female', brother: 'male', sister: 'female' };
+
+function addRelative(kind, id) {
+  id = id || selectedPerson;
+  const p = persons.get(id);
+  if (!p) { setStatus('Select a person first'); return []; }
+  if (isLineShape(p.shape) || p.shape === 'miscarriage') {
+    setStatus(p.shape === 'miscarriage' ? 'A pregnancy loss cannot have relatives added' : 'Select a person, not a line symbol');
+    return [];
+  }
+  const added = [];
+  let msg = '';
+  asOneStep(() => {
+    if (kind === 'partner') {
+      const r = addPartnerCore(id);
+      if (r) { added.push(r.id); msg = 'Partner added'; }
+    } else if (kind === 'son' || kind === 'daughter') {
+      const own = partnershipsOf(id);
+      let pship = own[own.length - 1];
+      if (!pship) {
+        const r = addPartnerCore(id);
+        pship = r && r.pship;
+        if (r) added.push(r.id);
+      }
+      const k = addChildCore(pship, RELATIVE_SHAPES[kind]);
+      if (k) added.push(k);
+      msg = (kind === 'son' ? 'Son' : 'Daughter') + ' added' +
+        (own.length === 0 ? ', with a partner as the other parent' : own.length > 1 ? ' with the most recent partner' : '');
+    } else if (kind === 'parents') {
+      if (parentPartnershipOf(id)) { msg = 'Their parents are already in the pedigree'; return; }
+      const pship = addParentsCore(id);
+      if (pship) { added.push(pship.fromId, pship.toId); msg = 'Parents added'; }
+    } else if (kind === 'brother' || kind === 'sister') {
+      const had = !!parentPartnershipOf(id);
+      const pship = addParentsCore(id);
+      if (!had && pship) added.push(pship.fromId, pship.toId);
+      const k = addChildCore(pship, RELATIVE_SHAPES[kind]);
+      if (k) added.push(k);
+      msg = (kind === 'brother' ? 'Brother' : 'Sister') + ' added' + (had ? '' : ', with parents');
+    }
+  });
+  if (persons.has(id)) selectPerson(id);
+  flashPeople(added);
+  revealPeople([id].concat(added));
+  setStatus(msg || 'Nothing added');
+  return added;
+}
+
+function addChildToSelectedCouple(shape) {
+  const pship = partnerships.find(x => x.id === selectedPartnershipId);
+  if (!pship) return null;
+  let k = null;
+  asOneStep(() => { k = addChildCore(pship, shape); });
+  if (k) { flashPeople([k]); revealPeople([k]); }
+  const names = { male: 'Son', female: 'Daughter', unknown: 'Child', miscarriage: 'Pregnancy loss', 'no-offspring': 'No children', infertile: 'Infertility' };
+  setStatus(k ? (names[shape] || 'Child') + ' added' : 'Could not add a child here');
+  return k;
+}
+
+// Swap a person (with their partners and descendants) with the brother or
+// sister next to them.
+function moveInBirthOrder(dir, id) {
+  id = id || selectedPerson;
+  const pship = parentPartnershipOf(id);
+  if (!pship) { setStatus('No brothers or sisters in the pedigree'); return; }
+  const sibs = getPartnershipChildIds(pship.id).sort((a, b) => getPersonX(a) - getPersonX(b));
+  const i = sibs.indexOf(id);
+  const j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= sibs.length) { setStatus(dir < 0 ? 'Already the oldest' : 'Already the youngest'); return; }
+  const leftId = dir < 0 ? sibs[j] : id;
+  const rightId = dir < 0 ? id : sibs[j];
+  asOneStep(() => {
+    let A = getDefaultChildBlock(leftId, pship.id);
+    let B = getDefaultChildBlock(rightId, pship.id);
+    if (setsIntersect(A, B)) { A = new Set([leftId]); B = new Set([rightId]); }
+    const a = getIdsBounds(A), b = getIdsBounds(B);
+    if (!a || !b) return;
+    const gap = Math.max(DEFAULT_SNAP_GAP, b.left - a.right);
+    moveDefaultIds(B, a.left - b.left, 0);
+    moveDefaultIds(A, (b.right - b.left) + gap, 0);
+    alignConnectedPersons();
+  });
+  selectPerson(id);
+  setStatus('Birth order changed');
+}
+
+// ── Toolbar ──
+
+function addFromToolbar(shape) {
+  closeMenus();
+  if (shape === 'label') { activateLabelTool(); return; }
+  if (currentTool !== 'move') setTool('move');
+  selectShape(shape);
+  const p = addPerson();
+  if (!p) return;
+  if (isLineShape(shape)) {
+    deselectAll();
+    setStatus('Drag it under the couple, then join it to them with Child');
+  } else {
+    selectPerson(p.id);
+  }
+  flashPeople([p.id]);
+  revealPeople([p.id]);
+}
+
+function closeMenus(returnFocus) {
+  document.querySelectorAll('.st-pop').forEach(m => {
+    if (m.hidden) return;
+    m.hidden = true;
+    const opener = document.querySelector('[aria-controls="' + m.id + '"]');
+    if (opener) {
+      opener.setAttribute('aria-expanded', 'false');
+      if (returnFocus) opener.focus();
+    }
+  });
+}
+
+function toggleMenu(id, anchor) {
+  const menu = document.getElementById(id);
+  const wasOpen = !menu.hidden;
+  closeMenus();
+  if (wasOpen) return;
+  menu.hidden = false;
+  anchor.setAttribute('aria-expanded', 'true');
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left)) + 'px';
+  menu.style.top = (r.bottom + 4) + 'px';
+}
+
+function refreshChrome() {
+  const empty = persons.size === 0 && labels.size === 0 && drawStrokes.length === 0;
+  document.getElementById('emptyHint').hidden = !empty;
+  const key = document.getElementById('keyBtn');
+  key.classList.toggle('on', !!legendVisible);
+  key.setAttribute('aria-pressed', legendVisible ? 'true' : 'false');
+  const p = selectedPerson && persons.get(selectedPerson);
+  if (p) {
+    const num = p.el.querySelector('.person-number');
+    document.getElementById('inspNum').textContent = num ? num.textContent : '';
+  }
+}
+
+// ── Selection panel ──
+
+function syncInspector() {
+  const insp = document.getElementById('inspector');
+  const any = !!insp.querySelector(':scope > .panel-section.visible');
+  insp.classList.toggle('show', any);
+  document.getElementById('canvasArea').classList.toggle('insp-open', any);
+}
+
+function refreshPersonPanel(p) {
+  if (!p) return;
+  const num = p.el.querySelector('.person-number');
+  document.getElementById('inspNum').textContent = num ? num.textContent : '';
+  const ct = p.centerText || '';
+  const isNumber = /^(\d{1,2}|n)$/.test(ct);
+  document.getElementById('ctNumber').value = isNumber ? ct : '';
+  document.getElementById('ctNumberBtn').classList.toggle('active', isNumber);
+  const parents = parentPartnershipOf(p.id);
+  document.getElementById('sibMove').hidden = !(parents && getPartnershipChildIds(parents.id).length > 1);
+}
+
+function applyNumberInside() {
+  const input = document.getElementById('ctNumber');
+  const v = input.value.trim();
+  if (!/^(\d{1,2}|n)$/i.test(v)) {
+    setStatus('Type a number, or n if the number is not known');
+    input.focus();
+    return;
+  }
+  setCenterText(/^n$/i.test(v) ? 'n' : String(parseInt(v, 10)));
+}
+
+function showLabelProps(id) {
+  const l = labels.get(id);
+  if (!l) return;
+  currentLabelSize = parseInt(l.el.style.fontSize) || l.size || currentLabelSize;
+  document.getElementById('labelSizeDisplay').textContent = currentLabelSize + 'px';
+  document.getElementById('labelBorderToggle').classList.toggle('on', !!l.bordered);
+  document.getElementById('labelPanel').classList.add('visible');
+}
+
+function hideLabelProps() {
+  document.getElementById('labelPanel').classList.remove('visible');
+}
+
+// ── Help ──
+
+let helpTab = 'start';
+let helpOpener = null;
+
+function openHelp(tab) {
+  closeMenus();
+  const o = document.getElementById('helpOverlay');
+  if (!document.getElementById('symbolTable').rows.length) buildSymbolTable();
+  if (o.hidden) helpOpener = document.activeElement;
+  o.hidden = false;
+  showHelpTab(tab || helpTab);
+  document.getElementById('helpClose').focus();
+}
+
+function closeHelp() {
+  document.getElementById('helpOverlay').hidden = true;
+  if (location.hash === '#help') {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
+  if (helpOpener && helpOpener.focus && document.contains(helpOpener)) helpOpener.focus();
+  helpOpener = null;
+}
+
+function showHelpTab(name) {
+  helpTab = name;
+  document.querySelectorAll('.help-tab').forEach(t => {
+    const on = t.dataset.help === name;
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+    t.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll('.help-pane').forEach(p => { p.hidden = p.id !== 'helpPane-' + name; });
+  document.getElementById('helpBody').scrollTop = 0;
+}
+
+// The symbol table, drawn with the same shapes as the canvas.
+function buildSymbolTable() {
+  const K = 0.7, ink = STROKE_COLOR, sw = 1.4;
+  const S = SHAPE_SIZE * K, H = SHAPE_HALF * K, e0 = 4 * K, e1 = 48 * K;
+  const shapeInner = (shape, o) => makeShapeSVG(shape, !!o.dead, o.fill ? 'solid' : 'none', ink,
+    [null, null, null, null], o.ct || '', [null, null], 'stripes', 'full')
+    .replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  const P = (x, y, shape, o) => `<g transform="translate(${x} ${y}) scale(${K})">${shapeInner(shape, o || {})}</g>`;
+  const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${ink}" stroke-width="${sw}"${dash ? ' stroke-dasharray="4 3"' : ''}/>`;
+  const T = (x, y, t) => `<text x="${x}" y="${y}" text-anchor="middle" font-size="9" fill="${ink}" font-family="-apple-system,'Segoe UI',sans-serif">${t}</text>`;
+  const arrow = (x, y) => `<g transform="translate(${x} ${y}) scale(${K})"><path d="${PROBAND_ARROW_D}" transform="translate(-18 54)" fill="none" stroke="${ink}" stroke-width="1.8"/></g>`;
+  const pic = (w, h, body) => `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">${body}</svg>`;
+  const row = (y) => [2, 2 + S + 8, 2 + 2 * (S + 8)].map(x => [x, y]);
+  const [a, b, c] = row(2);
+  const couple = (x, y, gap, mid) => {
+    const fx = x + S + gap, ly = y + H;
+    return P(x, y, 'male') + P(fx, y, 'female') + L(x + e1, ly, fx + e0, ly) + (mid ? mid((x + e1 + fx + e0) / 2, ly) : '');
+  };
+  const slashes = (mx, y) => L(mx - 6, y - 5.6, mx - 1, y + 5.6) + L(mx + 0.5, y - 5.6, mx + 5.5, y + 5.6);
+  const double = (x, y, gap) => {
+    const fx = x + S + gap, ly = y + H;
+    return P(x, y, 'male') + P(fx, y, 'female') + L(x + e1, ly - 1.4, fx + e0, ly - 1.4) + L(x + e1, ly + 1.4, fx + e0, ly + 1.4);
+  };
+  const twins = (identical) => {
+    const fork = 22, kidTop = 46, c1 = 34, c2 = 90, end = kidTop + e0;
+    let d = L(62, 2, 62, fork) + L(62, fork, c1, end) + L(62, fork, c2, end);
+    if (identical) d += L((62 + c1) / 2, (fork + end) / 2, (62 + c2) / 2, (fork + end) / 2);
+    return pic(124, kidTop + S + 2, d + P(c1 - H, kidTop, 'male') + P(c2 - H, kidTop, identical ? 'male' : 'female'));
+  };
+  const children = () => {
+    const kids = [6, 54, 102], kidTop = 66, bar = 52, gap = 32;
+    const cx = kids.map(x => x + H);
+    let d = couple(cx[1] - (e0 + e1 + S + gap) / 2, 2, gap);
+    d += L(cx[1], 2 + H, cx[1], bar) + L(cx[0], bar, cx[2], bar);
+    cx.forEach(x => { d += L(x, bar, x, kidTop + e0); });
+    d += P(kids[0], kidTop, 'male') + P(kids[1], kidTop, 'female') + P(kids[2], kidTop, 'male');
+    return pic(144, kidTop + S + 2, d);
+  };
+  const adoption = () => {
+    const top = 26, end = top + 3 * K;
+    const d = L(28, 2, 28, end, true) + P(28 - H, top, 'adopted-female') + L(98, 2, 98, end) + P(98 - H, top, 'adopted-male') +
+      T(28, top + S + 12, 'in') + T(98, top + S + 12, 'out');
+    return pic(126, top + S + 16, d);
+  };
+  const noChildren = () => {
+    const d = L(26, 2, 26, 22) + P(26 - H, 22 - e0, 'no-offspring') + L(86, 2, 86, 22) + P(86 - H, 22 - e0, 'infertile');
+    return pic(112, 34, d);
+  };
+
+  const people = [
+    ['Man, woman, sex not known', pic(126, 41, P(...a, 'male') + P(...b, 'female') + P(...c, 'unknown')),
+      'The symbol shows the person’s gender. Since 2022 the recommendation is to note sex assigned at birth underneath where it matters clinically (AFAB, AMAB, or UAAB if unassigned at birth). The diamond is also used for a person who is non-binary.',
+      'Male, Female or Unknown on the toolbar, or Change symbol in the panel.'],
+    ['Affected', pic(126, 41, P(...a, 'male', { fill: 1 }) + P(...b, 'female', { fill: 1 }) + P(...c, 'unknown', { fill: 1 })),
+      'Shaded. With more than one condition, give each its own colour or part of the symbol and explain them in a key.',
+      'Shading in the panel; Key on the toolbar.'],
+    ['Several people', pic(84, 41, P(...a, 'male', { ct: '3' }) + P(...b, 'female', { ct: 'n' })),
+      'A number inside the symbol, or n when the number is not known.',
+      'Type the number, or n, beside Number under Inside the symbol.'],
+    ['Deceased', pic(84, 41, P(...a, 'male', { dead: 1 }) + P(...b, 'female', { dead: 1 })),
+      'A diagonal line through the symbol. Write the age at death underneath (for example d. 62y), with the cause if it is known.',
+      'Deceased in the panel; the age and cause go in Notes.'],
+    ['Proband', pic(60, 56, arrow(18, 2) + P(18, 2, 'male')),
+      'An arrow at the lower left. Strictly, an arrow with a P marks the proband (the affected person through whom the family came to attention) and an arrow alone marks the consultand (the person seeking advice).',
+      'Proband in the panel.'],
+    ['Carrier', pic(84, 41, P(...a, 'female', { ct: 'dot' }) + P(...b, 'male', { ct: 'dot' })),
+      'A dot: carries a variant but is not expected to develop the condition, for example a carrier of a recessive condition.',
+      'Inside the symbol: Carrier.'],
+    ['Presymptomatic carrier', pic(84, 41, P(...a, 'male', { ct: 'line' }) + P(...b, 'female', { ct: 'line' })),
+      'A vertical line: has a variant and may develop the condition later, but has no signs of it at present.',
+      'Inside the symbol: Presymptomatic.'],
+    ['Pregnancy', pic(84, 41, P(...a, 'unknown', { ct: 'P' }) + P(...b, 'female', { ct: 'P' })),
+      'P inside the symbol, with the gestational age underneath. Use a square or circle once the sex is known.',
+      'Inside the symbol: P.'],
+    ['Pregnancy loss', pic(126, 41, P(...a, 'miscarriage') + P(...b, 'miscarriage', { fill: 1 }) + P(...c, 'miscarriage', { dead: 1 })),
+      'A small triangle, shaded if affected, with the gestational age (and sex, if known) underneath. A termination of pregnancy adds a diagonal line. An ectopic pregnancy is written ECT underneath.',
+      'Loss on the toolbar; Deceased adds the line for a termination.'],
+    ['Stillbirth', pic(60, 54, P(10, 2, 'male', { dead: 1 }) + T(10 + H, S + 13, 'SB 28 wk')),
+      'The baby’s symbol with a diagonal line, and SB with the gestational age underneath.',
+      'Add the symbol, switch on Deceased and write SB in Notes.'],
+    ['Donor, surrogate', pic(84, 41, P(...a, 'male', { ct: 'D' }) + P(...b, 'female', { ct: 'S' })),
+      'D marks an egg or sperm donor, and S a surrogate (gestational carrier).',
+      'Inside the symbol: D or S.'],
+    ['Adopted', pic(84, 41, P(...a, 'adopted-male') + P(...b, 'adopted-female')),
+      'Brackets around the symbol.',
+      'More on the toolbar, or Change symbol in the panel.']
+  ];
+  const lines = [
+    ['Partners', pic(118, 41, couple(2, 2, 40)),
+      'A horizontal relationship line. The custom of drawing the man on the left has been relaxed (Resta et al., 2023).',
+      'Partners on the toolbar, then click both people; or Add a relative: Partner.'],
+    ['Separated', pic(118, 41, couple(2, 2, 40, slashes)),
+      'Slashes across the relationship line: the relationship has ended.',
+      'Click the line, then Separated.'],
+    ['Consanguineous', pic(118, 41, double(2, 2, 40)),
+      'A double relationship line. If the relationship is not clear from the pedigree, write it above the line (for example second cousins).',
+      'Pedigree Studio draws a double line by itself when the partners share an ancestor in the pedigree; otherwise click the line, then Consanguineous. A Text label (under More) can carry the relationship.'],
+    ['Children', children(),
+      'A line of descent from the relationship line to the sibship line, with the brothers and sisters below in birth order, oldest on the left.',
+      'Add a relative, or click a relationship line and use Add a child, or the Child tool. Older and Younger change the order.'],
+    ['Identical twins', twins(true),
+      'The twins’ lines start from one point, with a bar between them for identical (monozygotic) twins.',
+      'Twins on the toolbar: choose Identical, then click both children.'],
+    ['Non-identical twins', twins(false),
+      'The lines start from one point, without a bar.',
+      'Twins on the toolbar: choose Non-identical, then click both children.'],
+    ['Adopted in, adopted out', adoption(),
+      'A dashed line of descent joins an adopted child to the adoptive parents; a solid line joins a child to the birth parents.',
+      'Click a line of descent, then Dashed (adopted).'],
+    ['No children, infertility', noChildren(),
+      'One bar: no children, by choice or for a reason not known. Two bars: infertility. Write the reason underneath if it is known.',
+      'Click a relationship line and use No children or Infertility, or add the symbol from More.']
+  ];
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const body = (title, rows) => `<tr class="sym-group"><td colspan="2">${title}</td></tr>` +
+    rows.map(([name, picture, meaning, how]) =>
+      `<tr><td class="sym">${picture}</td><td><span class="sym-name">${esc(name)}</span>${esc(meaning)}<span class="sym-how">${esc(how)}</span></td></tr>`).join('');
+  document.getElementById('symbolTable').innerHTML =
+    '<thead><tr><th>Symbol</th><th>Meaning, and how to draw it here</th></tr></thead><tbody>' +
+    body('People', people) + body('Lines', lines) + '</tbody>';
+}
+
+// ── Wiring ──
+
+document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => addFromToolbar(b.dataset.add)));
+document.getElementById('moreAddBtn').addEventListener('click', e => toggleMenu('moreMenu', e.currentTarget));
+document.getElementById('fileBtn').addEventListener('click', e => toggleMenu('fileMenu', e.currentTarget));
+document.getElementById('fileMenu').addEventListener('click', e => {
+  const sec = e.target.closest('.pop-sec');
+  if (e.target.closest('button') && sec && sec.hasAttribute('data-closes')) closeMenus();
+});
+document.getElementById('moreMenu').addEventListener('keydown', e => {
+  const items = Array.from(e.currentTarget.querySelectorAll('button'));
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
+document.getElementById('keyBtn').addEventListener('click', toggleKey);
+document.getElementById('tidyBtn').addEventListener('click', () => { closeMenus(); redistributePedigreeWithWarning(); });
+document.getElementById('helpBtn').addEventListener('click', () => openHelp());
+document.getElementById('emptyHelpBtn').addEventListener('click', () => openHelp('start'));
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('.st-pop, #moreAddBtn, #fileBtn')) return;
+  closeMenus();
+}, true);
+window.addEventListener('resize', () => closeMenus());
+
+document.querySelectorAll('[data-qa]').forEach(b => b.addEventListener('click', () => addRelative(b.dataset.qa)));
+document.querySelectorAll('[data-qp]').forEach(b => b.addEventListener('click', () => addChildToSelectedCouple(b.dataset.qp)));
+document.getElementById('sibMove').addEventListener('click', e => {
+  const b = e.target.closest('[data-mv]');
+  if (b) moveInBirthOrder(Number(b.dataset.mv));
+});
+document.getElementById('deletePersonBtn').addEventListener('click', () => { if (selectedPerson) removePerson(selectedPerson); });
+document.getElementById('deleteLabelBtn').addEventListener('click', () => { if (selectedLabel) removeLabel(selectedLabel); });
+document.getElementById('inspClose').addEventListener('click', () => {
+  exitAllEditModes();
+  deselectAll();
+  if (currentTool !== 'move') setTool('move');
+});
+document.getElementById('ctNumberBtn').addEventListener('click', applyNumberInside);
+document.getElementById('ctNumber').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); applyNumberInside(); }
+});
+new MutationObserver(syncInspector).observe(document.getElementById('inspector'),
+  { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+document.querySelectorAll('.help-tab').forEach(t => t.addEventListener('click', () => showHelpTab(t.dataset.help)));
+document.querySelector('.help-tabs').addEventListener('keydown', e => {
+  const tabs = Array.from(document.querySelectorAll('.help-tab'));
+  const i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  let j = null;
+  if (e.key === 'ArrowRight') j = (i + 1) % tabs.length;
+  else if (e.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+  else if (e.key === 'Home') j = 0;
+  else if (e.key === 'End') j = tabs.length - 1;
+  if (j === null) return;
+  e.preventDefault();
+  showHelpTab(tabs[j].dataset.help);
+  tabs[j].focus();
+});
+document.getElementById('helpClose').addEventListener('click', closeHelp);
+document.getElementById('helpOverlay').addEventListener('click', e => { if (e.target.id === 'helpOverlay') closeHelp(); });
+document.getElementById('helpOverlay').addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  // keep the keyboard inside the help while it is open
+  const f = Array.from(document.querySelectorAll('#helpOverlay button, #helpOverlay a[href]'))
+    .filter(el => el.tabIndex >= 0 && !el.closest('[hidden]'));
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+window.addEventListener('hashchange', () => { if (location.hash === '#help') openHelp(); });
+
+// Esc closes the help or a menu before anything else
+window.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!document.getElementById('helpOverlay').hidden) { closeHelp(); e.stopImmediatePropagation(); return; }
+  if (Array.from(document.querySelectorAll('.st-pop')).some(m => !m.hidden)) {
+    closeMenus(true);
+    e.stopImmediatePropagation();
+  }
+}, true);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && currentTool !== 'move') setTool('move');
+  if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping()) { e.preventDefault(); openHelp(); }
+});
+
 // ── Init ──
 applyCanvasSize();
 initColorPickers();
 initMultiColorPickers();
 initDrawColorPicker();
-tryAutoRestore();
 updateStatus();
+if (tryAutoRestore()) fitToView();
 updateUndoRedoUI();
+refreshChrome();
+if (location.hash === '#help') openHelp();
 </script>
 </body>
 </html>

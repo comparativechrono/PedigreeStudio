@@ -26,23 +26,25 @@ Most pedigree software needs internet access, a server, an institutional licence
 - **Working under strict data governance** (GDPR, HIPAA) where transmitting patient-identifiable family data to external servers is problematic
 - **Teaching genetics students** who need to practise pedigree construction without accounts or IT setup
 
-Pedigree Studio removes all of these barriers. The entire application is a single file under 100 KB with zero external dependencies.
+Pedigree Studio removes all of these barriers. The entire application is a single file of about 450 KB with no external dependencies.
 
 ---
 
 ## Features
 
 ### Pedigree symbols
-- **Sex**: square (male), circle (female), diamond (unknown)
-- **Miscarriage/SAb**: triangle with optional sex label
-- **Affected status**: solid fill or quartered fill from a 10-colour palette
-- **Deceased**: diagonal line through symbol
-- **Proband**: arrow indicator
-- **Centre symbols**: S (multiple individuals) or P (pregnancy)
+- **Sex**: square (male), circle (female), diamond (unknown or not stated)
+- **Pregnancy loss**: triangle, with the sex if known
+- **Affected status**: shading in a solid colour, halves, quarters or a pattern, from a 10-colour palette or any colour you type
+- **Deceased**: diagonal line through the symbol
+- **Proband**: arrow
+- **Inside the symbol**: a dot for a carrier, a vertical line for a presymptomatic carrier, P for a pregnancy, D for a donor, S for a surrogate, or a number (or n) for several people
+- **Adoption**: brackets, with a dashed line of descent to the adoptive parents
+- **No children and infertility**: one or two bars below the couple
 
 ### Relationships
 - **Partnership lines** between individuals
-- **Consanguinity**: double partnership line
+- **Consanguinity**: double partnership line, drawn automatically when the partners share an ancestor in the pedigree
 - **Separation/divorce**: crossed partnership line
 - **Child connections**: right-angle descent lines from partnership midpoint
 - **Partner lines over people**: when a partner line would pass behind someone (a person with three or more partners), it is drawn up and over them
@@ -56,16 +58,21 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Automatic generation numbering** (Roman numeral + Arabic) with intelligent repositioning around descent lines
 
 ### Interaction
+- **Toolbar** with every tool named: add people, connect them, select, draw, undo and redo, the colour key, Tidy, and a File menu for export and settings
+- **Add a relative**: with someone selected, add a partner, son, daughter, parents, brother or sister in one click, already joined up
+- **Birth order**: move someone older or younger along their row of brothers and sisters
+- **Couples**: click a relationship line to make it consanguineous or separated, or to add the couple's children (including a pregnancy loss, no children or infertility)
 - **Drag and drop** positioning on an infinite pannable, zoomable canvas
 - **Group movement**: connected family members move together by default
-- **Multi-select**: rubber-band selection or Shift+click
-- **Touch support**: fully responsive on tablets and phones
-- **Partnership type cycling**: click an existing partnership line to change between normal, consanguineous, and separated
-- **Redistribute (tidy)**: lays the whole pedigree out again in one go: generations in rows, partners side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. It copes with partners from different generations, people with several partners, children with two sets of parents, large sibships and free-position people (who stay where you put them). Undo puts the previous drawing back
+- **Multi-select**: Shift+click, or Ctrl+A for everyone
+- **Touch support**: works on tablets and phones; on a phone the panel becomes a sheet along the bottom of the screen
+- **Help**: the ? button (or the ? key) opens a guide with the symbol table, keyboard shortcuts and the references for the nomenclature
+- **Tidy**: lays the whole pedigree out again in one go: generations in rows, partners side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. It copes with partners from different generations, people with several partners, children with two sets of parents, large sibships and free-position people (who stay where you put them). Undo puts the previous drawing back
 
 ### Data and export
 - **PNG export** at 2× resolution for clinical reports and publications
-- **JSON session save/load** for archival, transfer, and later editing
+- **SVG export** for documents and posters
+- **Pedigree files** (.json) to save, share and open again later; files saved by earlier versions open unchanged
 - **Auto-save** to browser localStorage between sessions
 - **Zero network requests**: all data stays on the local device, always
 
@@ -88,35 +95,36 @@ You can copy the file to a USB drive, email it, upload it to a shared drive, or 
 ## How to use
 
 ### Adding people
-Select a shape (male, female, unknown, or miscarriage) in the side panel and click **Add Person**. The person appears on the canvas and can be dragged into position.
+Click **Male**, **Female**, **Unknown** or **Loss** on the toolbar; **More** has the adoption symbols, no children, infertility and text labels. The new person is selected, and the panel on the right offers **Add a relative**: a partner, son, daughter, parents, brother or sister, each joined up as it is added.
 
-### Drawing relationships
-1. Select the **Partner** tool and click two people to draw a partnership line
-2. Select the **Child** tool, click a partnership line, then click a person to connect them as a child
-3. Select the **Twin** tool and click two children of the same partnership to link them as twins
+### Drawing relationships yourself
+1. **Partners**: click two people
+2. **Child**: click a relationship line, then the child
+3. **Twins**: choose identical or non-identical in the panel, then click two children of the same couple
 
-### Editing properties
-Click on a person to select them. The properties panel shows options for annotation text, deceased status, proband designation, centre symbol (S/P), fill mode and colour, and shape changes.
+### Editing
+Click a person to open their panel: notes under the symbol, deceased, proband, shading, the mark inside the symbol, and the symbol itself. Click a relationship line to make it consanguineous or separated, or to add a child of the couple. Click a line of descent to dash it for adoption.
 
-### Changing partnership type
-Click an existing partnership line while in **Move** mode to select it. Use the **Partnership Type** buttons in the panel to switch between Normal, Consanguineous, and Separated. You'll also be offered the option to delete the partnership.
+### Tidy
+**Tidy** on the toolbar lays the whole pedigree out again. **Undo** puts your own layout back.
 
-### Exporting
-- **Export Image**: saves a PNG of the pedigree
-- **Save Session**: exports a JSON file you can reload later
-- **Load Session**: imports a previously saved JSON file
+### Saving and exporting
+Under **File**: **Picture (PNG)**, **Vector (SVG)**, and **Save** and **Open** for pedigree files. Numbering, how people move when dragged, and spacing are set there too.
+
+### Help
+The **?** button opens the help: getting started, the table of symbols with how to draw each one, keyboard shortcuts, and the references for the nomenclature.
 
 ---
 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: ~95 KB
+- **Size**: about 450 KB
 - **Rendering**: DOM elements for persons, SVG for connection lines, Canvas API for image export
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads
 - **Compatibility**: any modern browser on any operating system
-- **Layout tests**: `tests/layout/` holds the test pedigrees and scripts used to check the redistribute layout (see its README); they are not needed to run the Studio
+- **Tests**: `tests/layout/` holds the test pedigrees and scripts used to check Tidy (see its README), and `tests/interface/check.py` clicks through the toolbar, the panel and the help; neither is needed to run the Studio
 
 ---
 

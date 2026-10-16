@@ -29,7 +29,7 @@ with sync_playwright() as p:
     data = fx('05-three-partners__neat.json')
     pg.evaluate("(d) => { restoreSession(d); updateAllConnections(); }", data)
     before = pg.evaluate("() => Array.from(persons.values()).map(p => [p.id, p.el.style.left, p.el.style.top])")
-    # the Tidy button in the panel
+    # Tidy, as the toolbar button runs it
     pg.evaluate("() => redistributePedigreeWithWarning()")
     pg.wait_for_timeout(200)
     after = pg.evaluate("() => Array.from(persons.values()).map(p => [p.id, p.el.style.left, p.el.style.top])")

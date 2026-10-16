@@ -1,0 +1,4 @@
+fixtures/
+out/
+fuzz_*.json
+__pycache__/

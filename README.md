@@ -59,7 +59,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 
 ### Interaction
 - **Toolbar** with every tool named: add people, connect them, select, draw, undo and redo, the colour key, Tidy, and a File menu for export and settings
-- **Add a relative**: with someone selected, add a partner, son, daughter, parents, brother or sister in one click, already joined up
+- **Add a relative**: with someone selected, add a partner, son, daughter, parents, brother or sister in one click, already joined up, with the pedigree laid out again to make room
 - **Birth order**: move someone older or younger along their row of brothers and sisters
 - **Couples**: click a relationship line to make it consanguineous or separated, or to add the couple's children (including a pregnancy loss, no children or infertility)
 - **Drag and drop** positioning on an infinite pannable, zoomable canvas
@@ -95,7 +95,7 @@ You can copy the file to a USB drive, email it, upload it to a shared drive, or 
 ## How to use
 
 ### Adding people
-Click **Male**, **Female**, **Unknown** or **Loss** on the toolbar; **More** has the adoption symbols, no children, infertility and text labels. The new person is selected, and the panel on the right offers **Add a relative**: a partner, son, daughter, parents, brother or sister, each joined up as it is added.
+Click **Male**, **Female**, **Unknown** or **Loss** on the toolbar; **More** has the adoption symbols, no children, infertility and text labels. The new person is selected, and the selection panel offers **Add a relative**: a partner, son, daughter, parents, brother or sister, each joined up as it is added. The pedigree is laid out again each time to make room, and **Undo** takes the whole step back.
 
 ### Drawing relationships yourself
 1. **Partners**: click two people

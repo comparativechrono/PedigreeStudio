@@ -103,7 +103,8 @@
     display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left;
     padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
   }
-  .st-pop > button:hover, .st-pop > button:focus-visible { background: var(--bg); outline: none; }
+  .st-pop > button:hover { background: var(--bg); }
+  .st-pop > button:focus-visible { background: var(--bg); outline: 2px solid var(--accent); outline-offset: -2px; }
   .st-pop > button svg { width: 34px; height: 20px; flex: none; fill: none; stroke: var(--text); stroke-width: 1.8; }
   .st-pop hr { border: 0; border-top: 1px solid var(--border-light); margin: 4px 0; }
   .st-pop-wide { width: 320px; padding: 4px 12px 10px; }
@@ -121,6 +122,7 @@
   .pbtn:hover { background: var(--bg); }
   .pbtn:focus-visible, .qa-btn:focus-visible, .ct-btn:focus-visible, .sh-btn:focus-visible, .fill-mode-btn:focus-visible, .shading-option-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .pbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pbtn:disabled, .pbtn:disabled:hover { opacity: 0.4; cursor: default; background: #fff; }
   .pbtn.danger { color: var(--danger); border-color: #f2c9c6; background: #fdf3f2; }
   .pbtn.danger:hover { background: #fbe4e2; }
   .pbtn.wide { display: block; width: 100%; margin-top: 12px; }
@@ -336,6 +338,8 @@
   .empty-hint p { color: var(--text-muted); font-size: 13.5px; line-height: 1.5; max-width: 340px; margin: 0 auto; }
   .empty-hint b { color: var(--text); }
   .empty-hint .empty-sub { font-size: 12px; margin-top: 4px; }
+  .empty-hint .hint-btn { white-space: nowrap; }
+  .empty-hint .hint-btn svg { width: 13px; height: 13px; margin: 0 3px 0 0; stroke: currentColor; stroke-width: 2.2; vertical-align: -1px; }
   .empty-hint .pbtn { pointer-events: auto; margin-top: 14px; }
   .status-bar {
     position: absolute; left: 10px; bottom: 12px; z-index: 90;
@@ -389,6 +393,10 @@
   .qa-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
   .qa-btn:hover { background: #e2f0f2; border-color: var(--accent); }
   .qa-btn:active { transform: scale(0.97); }
+  .qa-btn:disabled, .qa-btn:disabled:hover { opacity: 0.4; cursor: default; background: var(--accent-soft); border-color: var(--accent-edge); transform: none; }
+  .only-line { display: none; }
+  #propsPanel.is-line .only-line { display: block; }
+  #propsPanel.is-line .not-line, #propsPanel.is-loss .not-loss { display: none !important; }
   .sib-move { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
   .sib-move span { font-size: 11px; color: var(--text-muted); flex: 1 1 auto; }
   .sib-move .pbtn { flex: none; padding: 3px 8px; font-size: 11px; }
@@ -406,6 +414,7 @@
   .fill-swatch { width: 23px; height: 23px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
   .fill-swatch:hover { transform: scale(1.12); }
   .fill-swatch.active { border-color: var(--text); }
+  .fill-swatch:focus-visible, .draw-color-btn:focus-visible, .half-cell:focus-visible, .quarter-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .fill-swatch.clear-swatch { background: #fff !important; position: relative; }
   .fill-swatch.clear-swatch::after {
     content: ''; position: absolute; top: 2px; left: 50%; width: 1.5px; height: calc(100% - 4px);
@@ -445,6 +454,7 @@
     padding: 3px 4px; text-align: center; font-size: 12px; font-weight: 700; touch-action: auto;
   }
   .ct-num .ct-btn { border-radius: 0 5px 5px 0; }
+  .ct-num input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .shape-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .sh-btn { display: flex; align-items: center; justify-content: center; height: 28px; border: 1px solid var(--border); background: #fff; border-radius: 5px; cursor: pointer; }
   .sh-btn svg { width: 22px; height: 22px; fill: none; stroke: var(--text); stroke-width: 1.6; }
@@ -455,7 +465,13 @@
   /* phones: the selection panel becomes a sheet at the bottom */
   @media (max-width: 620px) {
     .inspector { top: auto; left: 6px; right: 6px; bottom: 52px; width: auto; max-height: 52%; }
-    .status-bar { display: none; }
+    /* on a phone the status line is a short message that fades */
+    .status-bar {
+      left: 50%; bottom: 56px; transform: translateX(-50%); max-width: calc(100% - 24px); z-index: 210;
+      background: rgba(26,35,50,0.9); color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 8px;
+      white-space: normal; text-align: center; opacity: 0; transition: opacity 0.25s;
+    }
+    .status-bar.toast { opacity: 1; }
   }
 
   /* ── Help ── */
@@ -479,6 +495,10 @@
   .help-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .help-card .insp-close { top: 12px; right: 12px; }
   .help-body { overflow: auto; overscroll-behavior: contain; padding: 14px 20px 22px; font-size: 13px; line-height: 1.55; color: #384355; }
+  .help-body:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .toolbar-key { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px 14px; margin: 2px 0 4px; }
+  .tk-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text); }
+  .tk-item svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .help-body h3 { font-size: 14px; color: var(--text); margin: 18px 0 6px; }
   .help-body h3:first-child { margin-top: 2px; }
   .help-body p { margin-bottom: 8px; }
@@ -512,7 +532,7 @@
 <body>
 
 <!-- ── Toolbar ── -->
-<header class="st-bar" role="toolbar" aria-label="Pedigree tools">
+<header class="st-bar" aria-label="Pedigree tools">
   <div class="st-brand">Pedigree <span>Studio</span></div>
 
   <div class="st-group" role="group" aria-label="Add a person">
@@ -546,7 +566,7 @@
   <div class="st-group st-right" role="group" aria-label="View and file">
     <button class="st-btn" type="button" id="keyBtn" title="Colour key" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="4"/><rect x="3" y="10" width="5" height="4"/><rect x="3" y="16" width="5" height="4"/><path d="M11 6h10M11 12h10M11 18h10"/></svg><span>Key</span></button>
     <button class="st-btn" type="button" id="tidyBtn" title="Tidy the layout"><svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg><span>Tidy</span></button>
-    <button class="st-btn" type="button" id="fileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="fileMenu" title="File and settings"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg><span>File</span></button>
+    <button class="st-btn" type="button" id="fileBtn" aria-expanded="false" aria-controls="fileMenu" title="File and settings"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg><span>File</span></button>
     <button class="st-btn" type="button" id="helpBtn" title="Help" aria-label="Help"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4M12 17.5h.01"/></svg></button>
   </div>
 </header>
@@ -592,7 +612,7 @@
     <div class="pop-h">Moving</div>
     <div class="toggle-row">
       <label for="individualMoveToggle">Move one person at a time</label>
-      <button class="toggle-switch" type="button" id="individualMoveToggle" onclick="toggleIndividualMove()" aria-label="Move one person at a time"></button>
+      <button class="toggle-switch" type="button" role="switch" aria-checked="false" id="individualMoveToggle" onclick="toggleIndividualMove()" aria-label="Move one person at a time"></button>
     </div>
   </div>
   <div class="pop-sec">
@@ -617,7 +637,7 @@
   <div class="mode-banner" id="modeBanner" onclick="this.classList.remove('visible')"></div>
   <div class="empty-hint" id="emptyHint"><div>
     <svg viewBox="0 0 120 70" aria-hidden="true"><rect x="10" y="8" width="22" height="22"/><circle cx="98" cy="19" r="11"/><path d="M32 19h55M60 19v20M30 39h60M30 39v8M90 39v8"/><rect x="19" y="47" width="22" height="22"/><circle cx="90" cy="58" r="11"/></svg>
-    <p>Add the first person with <b>Male</b>, <b>Female</b> or <b>Unknown</b> above.</p>
+    <p>Add the first person with <b class="hint-btn"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg>Male</b>, <b class="hint-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></svg>Female</b> or <b class="hint-btn"><svg viewBox="0 0 24 24"><path d="M12 2.5L21.5 12 12 21.5 2.5 12z"/></svg>Unknown</b> above.</p>
     <p class="empty-sub">Pedigree Studio runs in your browser. Nothing you draw leaves this device.</p>
     <button class="pbtn" type="button" id="emptyHelpBtn">How to use Pedigree Studio</button>
   </div></div>
@@ -635,8 +655,8 @@
 
     <!-- Person -->
     <section class="panel-section props-panel" id="propsPanel">
-      <h3 class="insp-h">Person <span class="insp-num" id="inspNum"></span></h3>
-      <div class="qa">
+      <h3 class="insp-h"><span id="inspTitle">Person</span> <span class="insp-num" id="inspNum"></span></h3>
+      <div class="qa not-line not-loss">
         <div class="lbl">Add a relative</div>
         <div class="qa-grid">
           <button class="qa-btn" type="button" data-qa="partner"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="7" height="8"/><circle cx="18.5" cy="12" r="4"/><path d="M9 12h5.5"/></svg>Partner</button>
@@ -656,15 +676,24 @@
       <label class="lbl" for="personText">Notes</label>
       <textarea id="personText" placeholder="Name, age, diagnoses" oninput="updatePersonText()" onfocus="pushUndo()"></textarea>
 
-      <div class="toggle-row">
-        <label for="deceasedToggle">Deceased</label>
-        <button class="toggle-switch" type="button" id="deceasedToggle" onclick="toggleDeceased()" aria-label="Deceased"></button>
-      </div>
-      <div class="toggle-row">
-        <label for="probandToggle">Proband</label>
-        <button class="toggle-switch" type="button" id="probandToggle" onclick="toggleProband()" aria-label="Proband"></button>
+      <div class="only-line">
+        <div class="lbl">Symbol</div>
+        <div class="seg2">
+          <button class="pbtn" type="button" data-ls="no-offspring" onclick="changeShape('no-offspring')">No children</button>
+          <button class="pbtn" type="button" data-ls="infertile" onclick="changeShape('infertile')">Infertility</button>
+        </div>
       </div>
 
+      <div class="toggle-row not-line">
+        <label for="deceasedToggle">Deceased</label>
+        <button class="toggle-switch" type="button" role="switch" aria-checked="false" id="deceasedToggle" onclick="toggleDeceased()" aria-label="Deceased"></button>
+      </div>
+      <div class="toggle-row not-line">
+        <label for="probandToggle">Proband</label>
+        <button class="toggle-switch" type="button" role="switch" aria-checked="false" id="probandToggle" onclick="toggleProband()" aria-label="Proband"></button>
+      </div>
+
+      <div class="not-line">
       <div class="lbl">Shading</div>
       <div class="fill-mode-row">
         <button class="fill-mode-btn active" type="button" data-mode="none" onclick="setFillMode('none')">None</button>
@@ -682,7 +711,7 @@
             <div class="half-cell" data-h="0" onclick="selectHalf(0)" style="background:#fff;">L</div>
             <div class="half-cell" data-h="1" onclick="selectHalf(1)" style="background:#fff;">R</div>
           </div>
-          <span class="quarter-label" id="halfLabel">Click a half, then pick a colour</span>
+          <span class="quarter-label" id="halfLabel">Pick a half, then a colour</span>
         </div>
         <div class="fill-colors" id="halfColorPicker"></div>
       </div>
@@ -694,7 +723,7 @@
             <div class="quarter-cell" data-q="2" onclick="selectQuarter(2)" style="background:#fff;">BL</div>
             <div class="quarter-cell" data-q="1" onclick="selectQuarter(1)" style="background:#fff;">BR</div>
           </div>
-          <span class="quarter-label" id="quarterLabel">Click a quarter, then pick a colour</span>
+          <span class="quarter-label" id="quarterLabel">Pick a quarter, then a colour</span>
         </div>
         <div class="fill-colors" id="quarterColorPicker"></div>
       </div>
@@ -710,6 +739,9 @@
         </div>
       </div>
 
+      </div>
+
+      <div class="not-line">
       <div class="lbl">Inside the symbol</div>
       <div class="ct-row">
         <button class="ct-btn" type="button" data-ct="" onclick="setCenterText('')">None</button>
@@ -721,6 +753,9 @@
         <span class="ct-num"><input type="text" id="ctNumber" maxlength="2" placeholder="3" inputmode="text" autocomplete="off" aria-label="How many people"><button class="ct-btn" type="button" id="ctNumberBtn" title="Number of people">Number</button></span>
       </div>
 
+      </div>
+
+      <div class="not-line">
       <div class="lbl">Change symbol</div>
       <div class="shape-row">
         <button class="sh-btn" type="button" onclick="changeShape('male')" title="Male" aria-label="Male"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg></button>
@@ -730,6 +765,8 @@
         <button class="sh-btn" type="button" onclick="changeShape('adopted-male')" title="Adopted male" aria-label="Adopted male"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><rect x="7" y="7" width="10" height="10"/></svg></button>
         <button class="sh-btn" type="button" onclick="changeShape('adopted-female')" title="Adopted female" aria-label="Adopted female"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><circle cx="12" cy="12" r="5.5"/></svg></button>
         <button class="sh-btn" type="button" onclick="changeShape('adopted-unknown')" title="Adopted, sex unknown" aria-label="Adopted, sex unknown"><svg viewBox="0 0 24 24"><path d="M5 3H2v18h3M19 3h3v18h-3"/><path d="M12 5.5l6.5 6.5-6.5 6.5-6.5-6.5z"/></svg></button>
+      </div>
+
       </div>
 
       <div id="miscarriageSexUI" style="display:none;">
@@ -745,7 +782,7 @@
         <summary>More</summary>
         <div class="toggle-row">
           <label for="noSnapToggle">Free position</label>
-          <button class="toggle-switch" type="button" id="noSnapToggle" onclick="toggleNoSnap()" aria-label="Free position"></button>
+          <button class="toggle-switch" type="button" role="switch" aria-checked="false" id="noSnapToggle" onclick="toggleNoSnap()" aria-label="Free position"></button>
         </div>
       </details>
       <button class="pbtn danger wide" type="button" id="deletePersonBtn">Delete this person</button>
@@ -802,7 +839,7 @@
             <div class="half-cell" data-mh="0" onclick="multiSelectHalf(0)" style="background:#fff;">L</div>
             <div class="half-cell" data-mh="1" onclick="multiSelectHalf(1)" style="background:#fff;">R</div>
           </div>
-          <span class="quarter-label" id="multiHalfLabel">Click a half, then pick a colour</span>
+          <span class="quarter-label" id="multiHalfLabel">Pick a half, then a colour</span>
         </div>
         <div class="fill-colors" id="multiHalfColorPicker"></div>
       </div>
@@ -814,7 +851,7 @@
             <div class="quarter-cell" data-mq="2" onclick="multiSelectQuarter(2)" style="background:#fff;">BL</div>
             <div class="quarter-cell" data-mq="1" onclick="multiSelectQuarter(1)" style="background:#fff;">BR</div>
           </div>
-          <span class="quarter-label" id="multiQuarterLabel">Click a quarter, then pick a colour</span>
+          <span class="quarter-label" id="multiQuarterLabel">Pick a quarter, then a colour</span>
         </div>
         <div class="fill-colors" id="multiQuarterColorPicker"></div>
       </div>
@@ -865,7 +902,7 @@
       </div>
       <div class="toggle-row">
         <label for="labelBorderToggle">Border</label>
-        <button class="toggle-switch" type="button" id="labelBorderToggle" onclick="toggleLabelBorder()" aria-label="Border"></button>
+        <button class="toggle-switch" type="button" role="switch" aria-checked="false" id="labelBorderToggle" onclick="toggleLabelBorder()" aria-label="Border"></button>
       </div>
       <button class="pbtn danger wide" type="button" id="deleteLabelBtn">Delete this label</button>
     </section>
@@ -911,18 +948,20 @@
       </div>
       <button class="insp-close" type="button" id="helpClose" aria-label="Close help">×</button>
     </div>
-    <div class="help-body" id="helpBody">
+    <div class="help-body" id="helpBody" tabindex="0">
 
       <section class="help-pane" id="helpPane-start" role="tabpanel" aria-labelledby="helpTab-start">
         <ol class="help-steps">
           <li><b>Add the first person</b> with <b>Male</b>, <b>Female</b> or <b>Unknown</b> on the toolbar. This is usually the person the pedigree is for, so switch on <b>Proband</b> in the panel that opens.</li>
-          <li><b>Build out from them.</b> With someone selected, <b>Add a relative</b> puts in a partner, son, daughter, parents, brother or sister, already joined up. <b>Older</b> and <b>Younger</b> move a person along their row of brothers and sisters, which runs from the oldest on the left.</li>
-          <li><b>Join people yourself</b> with the tools under <b>Connect</b>. <b>Partners</b>: click two people. <b>Child</b>: click a relationship line, then the child. <b>Twins</b>: choose identical or non-identical, then click two children of the same couple.</li>
+          <li><b>Build out from them.</b> With someone selected, <b>Add a relative</b> puts in a partner, son, daughter, parents, brother or sister, already joined up, and lays the pedigree out again to make room. <b>Older</b> and <b>Younger</b> move a person, with their family, along their row of brothers and sisters, which runs from the oldest on the left.</li>
+          <li><b>Join people yourself</b> with <b>Partners</b>, <b>Child</b> and <b>Twins</b> on the toolbar. <b>Partners</b>: click two people. <b>Child</b>: click a relationship line, then the child. <b>Twins</b>: choose identical or non-identical in the panel, then click two children of the same couple.</li>
           <li><b>Describe each person</b> in the panel: notes under the symbol (name, age, diagnoses and the age at diagnosis), deceased, shading for anyone affected, and a mark inside the symbol for carriers, pregnancies, donors, surrogates or a number of people.</li>
-          <li><b>Click a line to change it.</b> A relationship line can be marked consanguineous or separated, and you can add the couple's children from there. A line of descent can be dashed for adoption.</li>
+          <li><b>Click a line to change it.</b> A relationship line can be marked consanguineous or separated, and you can add the couple's children from there, including a pregnancy loss, no children or infertility. A line of descent can be dashed for adoption.</li>
           <li><b>Tidy</b> lays the whole pedigree out again: generations in rows, couples side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. <b>Undo</b> puts your own layout back.</li>
           <li><b>Save and export</b> from <b>File</b>: a picture (PNG, or SVG for documents and posters) or a pedigree file (.json) that you can open again later. The pedigree you are working on is also kept in this browser until you clear it.</li>
         </ol>
+        <h3>The toolbar</h3>
+        <div class="toolbar-key" id="toolbarKey"></div>
         <h3>Moving around</h3>
         <p>Drag a person to move them. Dragging moves their whole connected family unless <b>Move one person at a time</b> is switched on under <b>File</b>. Drag the background to move the view, scroll or pinch to zoom, and use the button at the bottom right to fit everything in.</p>
         <h3>Colours and the key</h3>
@@ -941,7 +980,7 @@
           <tr><td><kbd>Delete</kbd> or <kbd>Backspace</kbd></td><td>Delete what is selected</td></tr>
           <tr><td><kbd>Shift</kbd> + click</td><td>Select several people, or several lines</td></tr>
           <tr><td><kbd>Ctrl</kbd> + <kbd>A</kbd></td><td>Select everyone</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>Back to Select, and clear the selection</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Back to Select, and clear the selection; closes the help or a menu first</td></tr>
           <tr><td>Arrow keys</td><td>Nudge the selection by 1 pixel, or 10 with <kbd>Shift</kbd>, when <b>Move one person at a time</b> is on</td></tr>
           <tr><td>Double-click a text label</td><td>Edit its text</td></tr>
           <tr><td>Double-click the label above a symbol</td><td>Type your own label, when numbering is set to <b>Own</b></td></tr>
@@ -1535,6 +1574,7 @@ function updateStatus() {
     draw: drawEraser ? 'Eraser: tap a drawn line to remove it' : 'Draw: sketch on the canvas'
   };
   s.textContent = map[currentTool] || 'Ready';
+  routineStatus = s.textContent;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2209,6 +2249,11 @@ function toggleMultiSelect(id) {
     document.getElementById('multiPartnershipPanel').classList.remove('visible');
     document.getElementById('multiChildLinkPanel').classList.remove('visible');
     removeLinkDeleteBtn();
+  }
+  if (multiSelected.size === 0 && selectedPerson && selectedPerson !== id && persons.has(selectedPerson)) {
+    multiSelected.add(selectedPerson);
+    persons.get(selectedPerson).el.classList.remove('selected');
+    persons.get(selectedPerson).el.classList.add('multi-selected');
   }
   if (multiSelected.has(id)) { multiSelected.delete(id); persons.get(id)?.el.classList.remove('multi-selected'); }
   else { multiSelected.add(id); persons.get(id)?.el.classList.add('multi-selected'); }
@@ -6370,6 +6415,7 @@ function clearAll() {
   document.getElementById('multiChildLinkPanel').classList.remove('visible');
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
   document.getElementById('statusBar').textContent = 'Canvas cleared';
+  deselectAll();
   refreshChrome();
 }
 
@@ -6412,7 +6458,7 @@ function buildSessionData() {
     });
   });
   return {
-    version: 4,
+    version: 5,
     personIdCounter, labelIdCounter, lineIdCounter,
     persons: personArr,
     labels: labelArr,
@@ -6430,6 +6476,7 @@ function buildSessionData() {
 }
 
 function restoreSession(data) {
+  deselectAll();
   document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
   document.getElementById('lines-layer').innerHTML = '';
   document.getElementById('draw-layer').innerHTML = '';
@@ -6543,10 +6590,10 @@ function importJSON(event) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      deselectAll();
       pushUndo();
       isRestoring = true;
-      restoreSession(data);
-      isRestoring = false;
+      try { restoreSession(data); } finally { isRestoring = false; }
       document.getElementById('statusBar').textContent = 'Session loaded!';
       fitToView();
     } catch (err) { alert('Could not read session file: ' + err.message); }
@@ -9249,6 +9296,9 @@ function runManagedPedigreeLayout(options) {
 // birth order) and the help.
 // ══════════════════════════════════════════════════════
 
+// the last message updateStatus() wrote: the tool in use, not news
+let routineStatus = '';
+
 function setStatus(msg) {
   const s = document.getElementById('statusBar');
   if (s) s.textContent = msg;
@@ -9274,12 +9324,25 @@ function partnershipsOf(id) {
   return partnerships.filter(p => p.fromId === id || p.toId === id);
 }
 
-// Run several changes as one step for Undo, then redraw once.
-function asOneStep(fn) {
+// Run several changes as one step for Undo, then redraw once. With
+// opts.tidy the pedigree is laid out again afterwards, in the same step:
+// the construction placement on its own can leave two families sharing one
+// sibship line or a generation drawn half a row out.
+function asOneStep(fn, opts) {
   pushUndo();
   undoGroupActive = true;
+  const oneAtATime = individualMoveMode;
+  individualMoveMode = false; // new relatives are placed as families
   let out;
-  try { out = fn(); } finally { undoGroupActive = false; }
+  try {
+    out = fn();
+    if (opts && opts.tidy && persons.size) {
+      runManagedPedigreeLayout({ seedIds: Array.from(persons.keys()), reason: 'addRelative' });
+    }
+  } finally {
+    undoGroupActive = false;
+    individualMoveMode = oneAtATime;
+  }
   keepOnCanvas();
   updateAllConnections();
   updateNumbering();
@@ -9287,6 +9350,19 @@ function asOneStep(fn) {
   expandCanvasIfNeeded();
   scheduleSave();
   return out;
+}
+
+// Where someone is on the screen, so the view can be moved to keep them
+// there after the pedigree has been laid out again.
+function screenSpot(id) {
+  return persons.has(id) ? { x: getPersonX(id) * zoomLevel + panX, y: getPersonY(id) * zoomLevel + panY } : null;
+}
+function holdOnScreen(id, spot) {
+  const now = screenSpot(id);
+  if (!spot || !now) return;
+  panX += spot.x - now.x;
+  panY += spot.y - now.y;
+  applyTransform();
 }
 
 // Keep everyone at positive coordinates (adding parents above the top row
@@ -9352,26 +9428,27 @@ function revealPeople(ids) {
   if (isFinite(minX)) revealRect(minX, minY, maxX, maxY);
 }
 
-// Show or hide the colour key. A key that would appear out of sight goes
-// beside the pedigree instead.
-function toggleKey() {
-  toggleLegend();
-  refreshChrome();
-  const lb = document.getElementById('legend-box');
-  if (!lb) return;
-  const r = openCanvasRect();
-  const sx = legendX * zoomLevel + panX, sy = legendY * zoomLevel + panY;
-  const inView = sx >= r.left && sy >= r.top &&
-    sx + lb.offsetWidth * zoomLevel <= r.right && sy + lb.offsetHeight * zoomLevel <= r.bottom;
-  if (!inView) {
-    const c = contentBounds(true);
-    if (c) { legendX = Math.round(c.maxX + 40); legendY = Math.round(c.minY + 24); }
-    else { legendX = Math.round((r.left + 40 - panX) / zoomLevel); legendY = Math.round((r.top + 40 - panY) / zoomLevel); }
-    lb.style.left = legendX + 'px';
-    lb.style.top = legendY + 'px';
-    scheduleSave();
+// The part of the canvas taken by the current selection, or null.
+function selectionRect() {
+  if (selectedPerson && persons.has(selectedPerson)) {
+    const x = getPersonX(selectedPerson), y = getPersonY(selectedPerson);
+    return [x, y, x + SHAPE_SIZE, y + SHAPE_SIZE];
   }
-  revealRect(legendX - 10, legendY - 10, legendX + lb.offsetWidth + 10, legendY + lb.offsetHeight + 10);
+  if (selectedLabel && labels.has(selectedLabel)) {
+    const el = labels.get(selectedLabel).el, x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    return [x, y, x + el.offsetWidth, y + el.offsetHeight];
+  }
+  const ps = selectedPartnershipId && partnerships.find(p => p.id === selectedPartnershipId);
+  if (ps && persons.has(ps.fromId) && persons.has(ps.toId)) {
+    const xs = [getPersonX(ps.fromId), getPersonX(ps.toId)], ys = [getPersonY(ps.fromId), getPersonY(ps.toId)];
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs) + SHAPE_SIZE, Math.max(...ys) + SHAPE_SIZE];
+  }
+  const cl = selectedChildLinkId && childLinks.find(c => c.id === selectedChildLinkId);
+  if (cl && persons.has(cl.childId)) {
+    const x = getPersonX(cl.childId), y = getPersonY(cl.childId);
+    return [x, y - 40, x + SHAPE_SIZE, y + SHAPE_SIZE];
+  }
+  return null;
 }
 
 function flashPeople(ids) {
@@ -9451,8 +9528,10 @@ function addRelative(kind, id) {
     setStatus(p.shape === 'miscarriage' ? 'A pregnancy loss cannot have relatives added' : 'Select a person, not a line symbol');
     return [];
   }
+  if (kind === 'parents' && parentPartnershipOf(id)) { setStatus('Their parents are already in the pedigree'); return []; }
   const added = [];
   let msg = '';
+  const spot = screenSpot(id);
   asOneStep(() => {
     if (kind === 'partner') {
       const r = addPartnerCore(id);
@@ -9470,7 +9549,6 @@ function addRelative(kind, id) {
       msg = (kind === 'son' ? 'Son' : 'Daughter') + ' added' +
         (own.length === 0 ? ', with a partner as the other parent' : own.length > 1 ? ' with the most recent partner' : '');
     } else if (kind === 'parents') {
-      if (parentPartnershipOf(id)) { msg = 'Their parents are already in the pedigree'; return; }
       const pship = addParentsCore(id);
       if (pship) { added.push(pship.fromId, pship.toId); msg = 'Parents added'; }
     } else if (kind === 'brother' || kind === 'sister') {
@@ -9481,7 +9559,8 @@ function addRelative(kind, id) {
       if (k) added.push(k);
       msg = (kind === 'brother' ? 'Brother' : 'Sister') + ' added' + (had ? '' : ', with parents');
     }
-  });
+  }, { tidy: true });
+  holdOnScreen(id, spot);
   if (persons.has(id)) selectPerson(id);
   flashPeople(added);
   revealPeople([id].concat(added));
@@ -9492,38 +9571,63 @@ function addRelative(kind, id) {
 function addChildToSelectedCouple(shape) {
   const pship = partnerships.find(x => x.id === selectedPartnershipId);
   if (!pship) return null;
+  const spot = screenSpot(pship.fromId);
   let k = null;
-  asOneStep(() => { k = addChildCore(pship, shape); });
-  if (k) { flashPeople([k]); revealPeople([k]); }
+  asOneStep(() => { k = addChildCore(pship, shape); }, { tidy: true });
+  holdOnScreen(pship.fromId, spot);
+  if (k) { flashPeople([k]); revealPeople([pship.fromId, pship.toId, k]); }
   const names = { male: 'Son', female: 'Daughter', unknown: 'Child', miscarriage: 'Pregnancy loss', 'no-offspring': 'No children', infertile: 'Infertility' };
   setStatus(k ? (names[shape] || 'Child') + ' added' : 'Could not add a child here');
   return k;
 }
 
-// Swap a person (with their partners and descendants) with the brother or
-// sister next to them.
+// A couple's children in birth order (left to right), with twins and
+// triplets kept together as one place in the order.
+function birthOrderPlaces(pship) {
+  const sibs = getPartnershipChildIds(pship.id);
+  const root = new Map(sibs.map(id => [id, id]));
+  const find = id => { while (root.get(id) !== id) id = root.get(id); return id; };
+  twinLinks.forEach(t => {
+    if (root.has(t.child1Id) && root.has(t.child2Id)) root.set(find(t.child1Id), find(t.child2Id));
+  });
+  const places = new Map();
+  sibs.forEach(id => {
+    const r = find(id);
+    if (!places.has(r)) places.set(r, []);
+    places.get(r).push(id);
+  });
+  const left = ids => Math.min(...ids.map(k => getPersonX(k)));
+  return Array.from(places.values()).sort((a, b) => left(a) - left(b));
+}
+
+// Swap a person (with their partners, descendants and twin) with the
+// brother or sister next to them, then lay the pedigree out again.
 function moveInBirthOrder(dir, id) {
   id = id || selectedPerson;
   const pship = parentPartnershipOf(id);
   if (!pship) { setStatus('No brothers or sisters in the pedigree'); return; }
-  const sibs = getPartnershipChildIds(pship.id).sort((a, b) => getPersonX(a) - getPersonX(b));
-  const i = sibs.indexOf(id);
+  const places = birthOrderPlaces(pship);
+  const i = places.findIndex(pl => pl.includes(id));
   const j = i + (dir < 0 ? -1 : 1);
-  if (i < 0 || j < 0 || j >= sibs.length) { setStatus(dir < 0 ? 'Already the oldest' : 'Already the youngest'); return; }
-  const leftId = dir < 0 ? sibs[j] : id;
-  const rightId = dir < 0 ? id : sibs[j];
+  if (i < 0 || j < 0 || j >= places.length) { setStatus(dir < 0 ? 'Already the oldest' : 'Already the youngest'); return; }
+  const leftPlace = dir < 0 ? places[j] : places[i];
+  const rightPlace = dir < 0 ? places[i] : places[j];
+  const spot = screenSpot(id);
   asOneStep(() => {
-    let A = getDefaultChildBlock(leftId, pship.id);
-    let B = getDefaultChildBlock(rightId, pship.id);
-    if (setsIntersect(A, B)) { A = new Set([leftId]); B = new Set([rightId]); }
+    let A = new Set(), B = new Set();
+    leftPlace.forEach(k => getDefaultChildBlock(k, pship.id).forEach(x => A.add(x)));
+    rightPlace.forEach(k => getDefaultChildBlock(k, pship.id).forEach(x => B.add(x)));
+    if (setsIntersect(A, B)) { A = new Set(leftPlace); B = new Set(rightPlace); }
     const a = getIdsBounds(A), b = getIdsBounds(B);
     if (!a || !b) return;
     const gap = Math.max(DEFAULT_SNAP_GAP, b.left - a.right);
     moveDefaultIds(B, a.left - b.left, 0);
     moveDefaultIds(A, (b.right - b.left) + gap, 0);
     alignConnectedPersons();
-  });
+  }, { tidy: true });
+  holdOnScreen(id, spot);
   selectPerson(id);
+  revealPeople([id]);
   setStatus('Birth order changed');
 }
 
@@ -9549,12 +9653,12 @@ function addFromToolbar(shape) {
 function closeMenus(returnFocus) {
   document.querySelectorAll('.st-pop').forEach(m => {
     if (m.hidden) return;
+    const hadFocus = m.contains(document.activeElement);
     m.hidden = true;
     const opener = document.querySelector('[aria-controls="' + m.id + '"]');
-    if (opener) {
-      opener.setAttribute('aria-expanded', 'false');
-      if (returnFocus) opener.focus();
-    }
+    if (opener) opener.setAttribute('aria-expanded', 'false');
+    if (opener && returnFocus) opener.focus();
+    else if (hadFocus) document.activeElement.blur(); // not left on a hidden item
   });
 }
 
@@ -9569,6 +9673,9 @@ function toggleMenu(id, anchor) {
   const w = menu.offsetWidth;
   menu.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left)) + 'px';
   menu.style.top = (r.bottom + 4) + 'px';
+  menu.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 12) + 'px';
+  const first = menu.querySelector('button, input');
+  if (first) first.focus({ preventScroll: true });
 }
 
 function refreshChrome() {
@@ -9584,6 +9691,28 @@ function refreshChrome() {
   }
 }
 
+// Show or hide the colour key. A key that would appear out of sight goes
+// beside the pedigree instead.
+function toggleKey() {
+  toggleLegend();
+  refreshChrome();
+  const lb = document.getElementById('legend-box');
+  if (!lb) return;
+  const r = openCanvasRect();
+  const sx = legendX * zoomLevel + panX, sy = legendY * zoomLevel + panY;
+  const inView = sx >= r.left && sy >= r.top &&
+    sx + lb.offsetWidth * zoomLevel <= r.right && sy + lb.offsetHeight * zoomLevel <= r.bottom;
+  if (!inView) {
+    const c = contentBounds(true);
+    if (c) { legendX = Math.round(c.maxX + 40); legendY = Math.round(c.minY + 24); }
+    else { legendX = Math.round((r.left + 40 - panX) / zoomLevel); legendY = Math.round((r.top + 40 - panY) / zoomLevel); }
+    lb.style.left = legendX + 'px';
+    lb.style.top = legendY + 'px';
+    scheduleSave();
+  }
+  revealRect(legendX - 10, legendY - 10, legendX + lb.offsetWidth + 10, legendY + lb.offsetHeight + 10);
+}
+
 // ── Selection panel ──
 
 function syncInspector() {
@@ -9595,6 +9724,14 @@ function syncInspector() {
 
 function refreshPersonPanel(p) {
   if (!p) return;
+  const panel = document.getElementById('propsPanel');
+  const line = isLineShape(p.shape), loss = p.shape === 'miscarriage';
+  panel.classList.toggle('is-line', line);
+  panel.classList.toggle('is-loss', loss);
+  document.getElementById('inspTitle').textContent = line ? (p.shape === 'infertile' ? 'Infertility' : 'No children') : loss ? 'Pregnancy loss' : 'Person';
+  document.getElementById('deletePersonBtn').textContent = line || loss ? 'Delete this symbol' : 'Delete this person';
+  document.getElementById('personText').placeholder = line ? 'Reason, if known' : loss ? 'Gestation, e.g. 10 wk' : 'Name, age, diagnoses';
+  document.querySelectorAll('[data-ls]').forEach(b => b.classList.toggle('active', b.dataset.ls === p.shape));
   const num = p.el.querySelector('.person-number');
   document.getElementById('inspNum').textContent = num ? num.textContent : '';
   const ct = p.centerText || '';
@@ -9602,7 +9739,15 @@ function refreshPersonPanel(p) {
   document.getElementById('ctNumber').value = isNumber ? ct : '';
   document.getElementById('ctNumberBtn').classList.toggle('active', isNumber);
   const parents = parentPartnershipOf(p.id);
-  document.getElementById('sibMove').hidden = !(parents && getPartnershipChildIds(parents.id).length > 1);
+  document.querySelector('[data-qa="parents"]').disabled = !!parents;
+  const places = parents ? birthOrderPlaces(parents) : [];
+  const at = places.findIndex(pl => pl.includes(p.id));
+  document.getElementById('sibMove').hidden = places.length < 2;
+  document.querySelector('[data-mv="-1"]').disabled = at <= 0;
+  document.querySelector('[data-mv="1"]').disabled = at < 0 || at >= places.length - 1;
+  // showProps starts with no half or quarter chosen
+  document.getElementById('halfLabel').textContent = 'Pick a half, then a colour';
+  document.getElementById('quarterLabel').textContent = 'Pick a quarter, then a colour';
 }
 
 function applyNumberInside() {
@@ -9629,6 +9774,40 @@ function hideLabelProps() {
   document.getElementById('labelPanel').classList.remove('visible');
 }
 
+// The engine draws colour swatches and the half and quarter pickers as
+// plain boxes; make them buttons that the keyboard can reach.
+function makeKeyboardButtons() {
+  const quarterNames = { 0: 'Top right quarter', 1: 'Bottom right quarter', 2: 'Bottom left quarter', 3: 'Top left quarter' };
+  document.querySelectorAll('.fill-swatch, .draw-color-btn, .half-cell, .quarter-cell').forEach(el => {
+    if (el.hasAttribute('tabindex')) return;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    let name;
+    if (el.classList.contains('clear-swatch')) name = 'No colour';
+    else if (el.classList.contains('half-cell')) name = (el.dataset.h || el.dataset.mh) === '0' ? 'Left half' : 'Right half';
+    else if (el.classList.contains('quarter-cell')) name = quarterNames[el.dataset.q || el.dataset.mq];
+    else name = 'Colour ' + rgbToHex(el.style.backgroundColor || el.style.background);
+    el.setAttribute('aria-label', name);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
+}
+
+// On a phone the status line becomes a short-lived message above the panel.
+let toastTimer = null;
+function toastStatus() {
+  const s = document.getElementById('statusBar');
+  if (!window.matchMedia('(max-width: 620px)').matches) { s.classList.remove('toast'); return; }
+  const text = s.textContent;
+  if (!text || text === routineStatus) { s.classList.remove('toast'); return; }
+  const insp = document.getElementById('inspector');
+  s.style.bottom = insp.classList.contains('show') ? (insp.offsetHeight + 62) + 'px' : '';
+  s.classList.add('toast');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => s.classList.remove('toast'), 2800);
+}
+
 // ── Help ──
 
 let helpTab = 'start';
@@ -9637,7 +9816,7 @@ let helpOpener = null;
 function openHelp(tab) {
   closeMenus();
   const o = document.getElementById('helpOverlay');
-  if (!document.getElementById('symbolTable').rows.length) buildSymbolTable();
+  if (!document.getElementById('symbolTable').rows.length) { buildSymbolTable(); buildToolbarKey(); }
   if (o.hidden) helpOpener = document.activeElement;
   o.hidden = false;
   showHelpTab(tab || helpTab);
@@ -9662,6 +9841,16 @@ function showHelpTab(name) {
   });
   document.querySelectorAll('.help-pane').forEach(p => { p.hidden = p.id !== 'helpPane-' + name; });
   document.getElementById('helpBody').scrollTop = 0;
+}
+
+// Each toolbar button's icon with its name, for when the names are hidden.
+function buildToolbarKey() {
+  const box = document.getElementById('toolbarKey');
+  box.innerHTML = Array.from(document.querySelectorAll('.st-bar .st-btn')).map(b => {
+    const span = b.querySelector('span');
+    const name = span ? span.textContent : (b.getAttribute('aria-label') || b.title);
+    return '<div class="tk-item">' + b.querySelector('svg').outerHTML + '<span>' + name + '</span></div>';
+  }).join('');
 }
 
 // The symbol table, drawn with the same shapes as the canvas.
@@ -9714,8 +9903,8 @@ function buildSymbolTable() {
   };
 
   const people = [
-    ['Man, woman, sex not known', pic(126, 41, P(...a, 'male') + P(...b, 'female') + P(...c, 'unknown')),
-      'The symbol shows the person’s gender. Since 2022 the recommendation is to note sex assigned at birth underneath where it matters clinically (AFAB, AMAB, or UAAB if unassigned at birth). The diamond is also used for a person who is non-binary.',
+    ['Man, woman, and gender not known or non-binary', pic(126, 41, P(...a, 'male') + P(...b, 'female') + P(...c, 'unknown')),
+      'The symbol shows the person’s gender. Since 2022 the recommendation is to note sex assigned at birth underneath where it matters clinically (AFAB, AMAB, or UAAB if unassigned at birth). The diamond is used for a person who is non-binary, with a note underneath, and on its own when the gender is not known.',
       'Male, Female or Unknown on the toolbar, or Change symbol in the panel.'],
     ['Affected', pic(126, 41, P(...a, 'male', { fill: 1 }) + P(...b, 'female', { fill: 1 }) + P(...c, 'unknown', { fill: 1 })),
       'Shaded. With more than one condition, give each its own colour or part of the symbol and explain them in a key.',
@@ -9740,7 +9929,7 @@ function buildSymbolTable() {
       'Inside the symbol: P.'],
     ['Pregnancy loss', pic(126, 41, P(...a, 'miscarriage') + P(...b, 'miscarriage', { fill: 1 }) + P(...c, 'miscarriage', { dead: 1 })),
       'A small triangle, shaded if affected, with the gestational age (and sex, if known) underneath. A termination of pregnancy adds a diagonal line. An ectopic pregnancy is written ECT underneath.',
-      'Loss on the toolbar; Deceased adds the line for a termination.'],
+      'Loss on the toolbar, or Add a child on the couple’s relationship line; Deceased adds the line for a termination.'],
     ['Stillbirth', pic(60, 54, P(10, 2, 'male', { dead: 1 }) + T(10 + H, S + 13, 'SB 28 wk')),
       'The baby’s symbol with a diagonal line, and SB with the gestational age underneath.',
       'Add the symbol, switch on Deceased and write SB in Notes.'],
@@ -9800,6 +9989,17 @@ document.getElementById('moreMenu').addEventListener('keydown', e => {
   const i = items.indexOf(document.activeElement);
   if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
   if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+  if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+});
+document.querySelectorAll('.st-pop').forEach(menu => {
+  // keys pressed in a menu stay in the menu (Esc is handled before this)
+  menu.addEventListener('keydown', e => { if (!menu.hidden && e.key !== 'Escape') e.stopPropagation(); });
+  // tabbing out of a menu closes it
+  menu.addEventListener('focusout', e => {
+    const to = e.relatedTarget;
+    if (to && !menu.contains(to) && to !== document.querySelector('[aria-controls="' + menu.id + '"]')) closeMenus();
+  });
 });
 document.getElementById('keyBtn').addEventListener('click', toggleKey);
 document.getElementById('tidyBtn').addEventListener('click', () => { closeMenus(); redistributePedigreeWithWarning(); });
@@ -9815,7 +10015,7 @@ document.querySelectorAll('[data-qa]').forEach(b => b.addEventListener('click', 
 document.querySelectorAll('[data-qp]').forEach(b => b.addEventListener('click', () => addChildToSelectedCouple(b.dataset.qp)));
 document.getElementById('sibMove').addEventListener('click', e => {
   const b = e.target.closest('[data-mv]');
-  if (b) moveInBirthOrder(Number(b.dataset.mv));
+  if (b && !b.disabled) moveInBirthOrder(Number(b.dataset.mv));
 });
 document.getElementById('deletePersonBtn').addEventListener('click', () => { if (selectedPerson) removePerson(selectedPerson); });
 document.getElementById('deleteLabelBtn').addEventListener('click', () => { if (selectedLabel) removeLabel(selectedLabel); });
@@ -9830,6 +10030,33 @@ document.getElementById('ctNumber').addEventListener('keydown', e => {
 });
 new MutationObserver(syncInspector).observe(document.getElementById('inspector'),
   { subtree: true, attributes: true, attributeFilter: ['class'] });
+document.querySelectorAll('.toggle-switch').forEach(sw => {
+  const sync = () => sw.setAttribute('aria-checked', sw.classList.contains('on') ? 'true' : 'false');
+  sync();
+  new MutationObserver(sync).observe(sw, { attributes: true, attributeFilter: ['class'] });
+});
+new MutationObserver(toastStatus).observe(document.getElementById('statusBar'), { childList: true, characterData: true, subtree: true });
+
+// When a tap or click selects something the panel would hide, move the
+// view so that it stays in sight (but not after dragging it somewhere).
+let tapStart = null;
+document.getElementById('canvasArea').addEventListener('pointerdown', e => { tapStart = { x: e.clientX, y: e.clientY }; }, true);
+document.getElementById('canvasArea').addEventListener('pointerup', e => {
+  const moved = !tapStart || Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > 6;
+  tapStart = null;
+  if (moved || (e.target.closest && e.target.closest('.inspector'))) return;
+  // after the click or touch that makes the selection has been handled
+  setTimeout(() => {
+    const sel = selectionRect();
+    const insp = document.getElementById('inspector');
+    if (!sel || !insp.classList.contains('show')) return;
+    const area = document.getElementById('canvasArea').getBoundingClientRect();
+    const b = insp.getBoundingClientRect();
+    const x1 = area.left + sel[0] * zoomLevel + panX, x2 = area.left + sel[2] * zoomLevel + panX;
+    const y1 = area.top + sel[1] * zoomLevel + panY, y2 = area.top + sel[3] * zoomLevel + panY;
+    if (x2 > b.left && x1 < b.right && y2 > b.top && y1 < b.bottom) revealRect(sel[0] - 16, sel[1] - 16, sel[2] + 16, sel[3] + 16);
+  }, 60);
+});
 
 document.querySelectorAll('.help-tab').forEach(t => t.addEventListener('click', () => showHelpTab(t.dataset.help)));
 document.querySelector('.help-tabs').addEventListener('keydown', e => {
@@ -9847,24 +10074,34 @@ document.querySelector('.help-tabs').addEventListener('keydown', e => {
   tabs[j].focus();
 });
 document.getElementById('helpClose').addEventListener('click', closeHelp);
-document.getElementById('helpOverlay').addEventListener('click', e => { if (e.target.id === 'helpOverlay') closeHelp(); });
-document.getElementById('helpOverlay').addEventListener('keydown', e => {
-  if (e.key !== 'Tab') return;
-  // keep the keyboard inside the help while it is open
-  const f = Array.from(document.querySelectorAll('#helpOverlay button, #helpOverlay a[href]'))
-    .filter(el => el.tabIndex >= 0 && !el.closest('[hidden]'));
-  if (!f.length) return;
-  const first = f[0], last = f[f.length - 1];
-  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+const helpOverlay = document.getElementById('helpOverlay');
+helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) closeHelp(); });
+helpOverlay.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    // keep the keyboard inside the help while it is open
+    const f = Array.from(helpOverlay.querySelectorAll('button, a[href], #helpBody'))
+      .filter(el => el.tabIndex >= 0 && !el.closest('[hidden]'));
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  // nothing typed in the help reaches the drawing behind it
+  if (e.key !== 'Escape') e.stopPropagation();
 });
 window.addEventListener('hashchange', () => { if (location.hash === '#help') openHelp(); });
 
-// Esc closes the help or a menu before anything else
+// Esc closes the help or a menu before anything else. While the help is
+// open, keys from anywhere else are ignored.
 window.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (!document.getElementById('helpOverlay').hidden) { closeHelp(); e.stopImmediatePropagation(); return; }
-  if (Array.from(document.querySelectorAll('.st-pop')).some(m => !m.hidden)) {
+  if (!helpOverlay.hidden) {
+    if (e.key === 'Escape') { closeHelp(); e.stopImmediatePropagation(); return; }
+    if (!helpOverlay.contains(e.target)) {
+      e.stopImmediatePropagation();
+      if (e.key === 'Tab') { e.preventDefault(); document.getElementById('helpClose').focus(); }
+    }
+    return;
+  }
+  if (e.key === 'Escape' && Array.from(document.querySelectorAll('.st-pop')).some(m => !m.hidden)) {
     closeMenus(true);
     e.stopImmediatePropagation();
   }
@@ -9879,6 +10116,7 @@ applyCanvasSize();
 initColorPickers();
 initMultiColorPickers();
 initDrawColorPicker();
+makeKeyboardButtons();
 updateStatus();
 if (tryAutoRestore()) fitToView();
 updateUndoRedoUI();

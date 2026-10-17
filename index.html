@@ -1004,10 +1004,13 @@
           <li>Resta RG, French KS, Bennett RL, Austin J. Both sides now: changing a long-standing pedigree tradition of men on the left and women on the right. <i>J Genet Couns</i>. 2023;32(3):530–531. <a href="https://doi.org/10.1002/jgc4.1662" target="_blank" rel="noopener">doi:10.1002/jgc4.1662</a>.</li>
         </ol>
         <h3>How Tidy works</h3>
-        <p>Tidy treats the pedigree as a layered drawing. It puts each person in a generation by the network simplex method of Gansner et al. (1993), orders each row to keep families together with as few crossing lines as possible, and then finds the positions that centre children under their parents and keep lines straight, by solving a small optimisation problem with FISTA (Beck and Teboulle, 2009).</p>
+        <p>Tidy treats the pedigree as a layered drawing, the approach introduced by Sugiyama et al. (1981). It puts each person in a generation by the network simplex method of Gansner et al. (1993). It orders each row to keep families together with as few crossing lines as possible, using the barycentre method of Sugiyama et al. and sifting (Matuszewski et al., 1999). It then finds the positions that centre children under their parents and keep lines straight, by solving a small optimisation problem with FISTA (Beck and Teboulle, 2009), using the adaptive restarts of O'Donoghue and Candès (2015).</p>
         <ol class="help-refs" start="5">
+          <li>Sugiyama K, Tagawa S, Toda M. Methods for visual understanding of hierarchical system structures. <i>IEEE Trans Syst Man Cybern</i>. 1981;11(2):109–125. <a href="https://doi.org/10.1109/TSMC.1981.4308636" target="_blank" rel="noopener">doi:10.1109/TSMC.1981.4308636</a>.</li>
           <li>Gansner ER, Koutsofios E, North SC, Vo KP. A technique for drawing directed graphs. <i>IEEE Trans Softw Eng</i>. 1993;19(3):214–230. <a href="https://doi.org/10.1109/32.221135" target="_blank" rel="noopener">doi:10.1109/32.221135</a>.</li>
+          <li>Matuszewski C, Schönfeld R, Molitor P. Using sifting for <i>k</i>-layer straightline crossing minimization. In: <i>Graph Drawing (GD 1999)</i>. Lecture Notes in Computer Science, vol 1731. Springer; 1999. p. 217–224. <a href="https://doi.org/10.1007/3-540-46648-7_22" target="_blank" rel="noopener">doi:10.1007/3-540-46648-7_22</a>.</li>
           <li>Beck A, Teboulle M. A fast iterative shrinkage-thresholding algorithm for linear inverse problems. <i>SIAM J Imaging Sci</i>. 2009;2(1):183–202. <a href="https://doi.org/10.1137/080716542" target="_blank" rel="noopener">doi:10.1137/080716542</a>.</li>
+          <li>O'Donoghue B, Candès E. Adaptive restart for accelerated gradient schemes. <i>Found Comput Math</i>. 2015;15(3):715–732. <a href="https://doi.org/10.1007/s10208-013-9150-3" target="_blank" rel="noopener">doi:10.1007/s10208-013-9150-3</a>.</li>
         </ol>
       </section>
 
@@ -8557,10 +8560,11 @@ const PSL = (() => {
     let cur = O.total();
     for (let round = 0; round < cfg.rounds; round++) {
       const before = cur;
-      // barycentric sweeps
+      // barycentric sweeps (Sugiyama, Tagawa and Toda 1981)
       for (let r = 1; r < nRows; r++) cur = trySort(r, 'down', cur);
       for (let r = nRows - 2; r >= 0; r--) cur = trySort(r, 'up', cur);
-      // sifting: move each item to its best place in its row, and try flips
+      // sifting (Matuszewski, Schönfeld and Molitor 1999): move each item to
+      // its best place in its row, and try flips
       for (let r = 0; r < nRows; r++) cur = sift(r, cur);
       if (cur >= before - 1e-9) break;
       if (O.work > cfg.orderWork) break;
@@ -8964,8 +8968,9 @@ const PSL = (() => {
         for (let b = 0; b < top; b++) for (let j = 0; j < pLen[b]; j++, i++) Y[vars[i]] = pVal[b] + off[i];
       }
     }
-    // accelerated projected gradient (FISTA with restarts), each variable
-    // scaled by its own curvature bound so loosely tied parts converge too
+    // accelerated projected gradient (FISTA, Beck and Teboulle 2009, with the
+    // adaptive restart of O'Donoghue and Candès 2015), each variable scaled by
+    // its own curvature bound so loosely tied parts converge too
     const D = new Float64Array(n);
     const Yb = new Float64Array(n), Xn = new Float64Array(n);
     function solve() {

@@ -1,7 +1,8 @@
 """Checks of the Studio's interface: the toolbar and its menus, the selection
 panel (Add a relative, birth order, the number and line inside a symbol,
 adding children to a couple, text labels), the help, keyboard shortcuts,
-the phone layout, and opening pedigrees saved by earlier versions.
+long entries in the key, the phone layout, and opening pedigrees saved by
+earlier versions.
 
 usage: python3 check.py [PAGE]
   PAGE  the Studio page to check (default: the index.html two folders up)
@@ -41,6 +42,25 @@ OLD_SESSION = {
     'childLinks': [{'id': 'cl-2', 'partnershipId': 'pship-1', 'childId': 'person-3'},
                    {'id': 'cl-3', 'partnershipId': 'pship-1', 'childId': 'person-4'}],
     'twinLinks': [], 'legendLabels': {}, 'legendVisible': False, 'zoom': 1, 'panX': 0, 'panY': 0,
+    'numberingMode': 'numbers', 'partnerGapMultiplier': 2, 'childHeightMultiplier': 2.5
+}
+
+# A pedigree whose key has a long entry, for the key's two ways of showing one
+LONG_ENTRY = 'Early-onset familial Alzheimer disease, with symptoms before the age of 65'
+KEY_SESSION = {
+    'version': 5, 'personIdCounter': 3, 'labelIdCounter': 0, 'lineIdCounter': 2,
+    'persons': [
+        {'id': 'person-1', 'shape': 'male', 'x': 300, 'y': 300, 'text': '', 'deceased': False, 'proband': False,
+         'fillMode': 'solid', 'fillColor': '#c0392b', 'quarters': [None] * 4, 'centerText': ''},
+        {'id': 'person-2', 'shape': 'female', 'x': 404, 'y': 300, 'text': '', 'deceased': False, 'proband': False,
+         'fillMode': 'solid', 'fillColor': '#2980b9', 'quarters': [None] * 4, 'centerText': ''},
+        {'id': 'person-3', 'shape': 'female', 'x': 352, 'y': 430, 'text': '', 'deceased': False, 'proband': True,
+         'fillMode': 'shading', 'shadingPattern': 'stripes', 'shadingCoverage': 'full', 'fillColor': '#1a2332',
+         'quarters': [None] * 4, 'centerText': ''}],
+    'labels': [], 'partnerships': [{'id': 'pship-1', 'fromId': 'person-1', 'toId': 'person-2', 'type': 'normal'}],
+    'childLinks': [{'id': 'cl-2', 'partnershipId': 'pship-1', 'childId': 'person-3'}], 'twinLinks': [],
+    'legendLabels': {'#c0392b': LONG_ENTRY, '#2980b9': 'Breast cancer', 'shading:stripes:full': 'Hearing loss'},
+    'legendVisible': True, 'legendX': 520, 'legendY': 260, 'zoom': 1, 'panX': 0, 'panY': 0,
     'numberingMode': 'numbers', 'partnerGapMultiplier': 2, 'childHeightMultiplier': 2.5
 }
 
@@ -366,6 +386,59 @@ with sync_playwright() as p:
     check('>S<' in ev("() => persons.get('person-3').el.innerHTML"), '...and its S is still drawn')
     ev("() => selectPerson('person-3')")
     check(ev("() => document.querySelector('[data-ct=\"S\"]').classList.contains('active')"), '...and shows as S in the panel')
+
+    # long entries in the key: they widen it, or, as File sets, wrap onto more lines in a key whose width can be
+    # dragged; the exports show the key as it is
+    ev("(d) => restoreSession(d)", KEY_SESSION)
+    pg.wait_for_timeout(150)
+    fields = """() => Array.from(document.querySelectorAll('#legend-box .legend-input')).map(f => ({
+        tag: f.tagName, sw: f.scrollWidth, cw: f.clientWidth, sh: f.scrollHeight, ch: f.clientHeight, w: f.offsetWidth }))"""
+    key_width = lambda: pg.locator('#legend-box').bounding_box()['width']
+    f = ev(fields)
+    check(ev("() => legendFit") == 'widen' and all(x['tag'] == 'INPUT' and x['sw'] <= x['cw'] + 1 for x in f) and key_width() > 400,
+          'a long entry in the key widens it, and every entry shows all its text')
+    check(len(set(x['w'] for x in f)) == 1, '...with the entries lined up')
+    pg.click('#fileBtn')
+    pg.click('[data-lf="wrap"]')
+    check(ev("() => legendFit") == 'wrap' and shown('#fileMenu'), 'File sets long entries to wrap, and stays open')
+    pg.keyboard.press('Escape')
+    f = ev(fields)
+    check(all(x['tag'] == 'TEXTAREA' and x['sh'] <= x['ch'] + 1 for x in f) and abs(key_width() - 240) < 1 and f[0]['ch'] > 2 * f[1]['ch'] - 10,
+          '...then the key keeps its width, and the long entry takes more lines')
+    g = pg.locator('#legend-box .legend-resize').bounding_box()
+    pg.mouse.move(g['x'] + g['width'] / 2, g['y'] + g['height'] / 2)
+    pg.mouse.down()
+    pg.mouse.move(g['x'] + g['width'] / 2 + 120, g['y'] + g['height'] / 2, steps=5)
+    pg.mouse.up()
+    check(abs(ev("() => legendWidth") - 360) <= 2 and abs(key_width() - ev("() => legendWidth")) < 1 and ev("() => [legendX, legendY]") == [520, 260],
+          "dragging the key's right edge widens it, without moving it")
+    pg.keyboard.press('Control+z')
+    check(ev("() => legendWidth") == 240, '...and undo narrows it again')
+    pg.keyboard.press('Control+y')
+    saved = ev("() => buildSessionData()")
+    check(saved.get('legendFit') == 'wrap' and saved.get('legendWidth') == 360, 'how long entries show, and the width, are saved')
+    ev("(d) => restoreSession(d)", saved)
+    check(ev("() => legendFit") == 'wrap' and abs(key_width() - 360) < 1 and ev("() => document.querySelector('[data-lf=wrap]').classList.contains('active')"),
+          '...and come back when the pedigree is opened')
+    # (KEY, then the entries: the long one takes two lines in a key 360 pixels wide)
+    for mode in ('wrap', 'widen'):
+        ev("(m) => setLegendFit(m)", mode)
+        with pg.expect_download() as dl:
+            ev("() => saveAsSVG()")
+        svg = open(dl.value.path(), encoding='utf-8').read()
+        drawn = ev("""(svg) => {
+            const host = document.createElement('div'); host.innerHTML = svg; document.body.appendChild(host);
+            const s = host.querySelector('svg'), rects = Array.from(s.querySelectorAll('rect[rx="8"]'));
+            const key = rects[rects.length - 1].getBBox();
+            const lines = Array.from(s.querySelectorAll('text')).map(t => [t.textContent, t.getBBox()])
+              .filter(([, b]) => b.x >= key.x && b.y >= key.y && b.y <= key.y + key.height);
+            host.remove();
+            return { inside: lines.every(([, b]) => b.x + b.width <= key.x + key.width + 0.5 && b.y + b.height <= key.y + key.height + 0.5),
+                     text: lines.map(([t]) => t).join(' '), n: lines.length }; }""", svg)
+        check(drawn['inside'] and LONG_ENTRY in drawn['text'] and drawn['n'] == (4 if mode == 'widen' else 5),
+              'the SVG export shows the key as it is, every word inside it, when entries %s (%d lines)' % ('widen it' if mode == 'widen' else 'wrap', drawn['n']))
+    ev("(d) => restoreSession(d)", OLD_SESSION)
+    check(ev("() => legendFit") == 'widen', 'a pedigree saved before this setting widens its key')
 
     check(not errors, 'no errors on the page: %s' % errors[:3])
     ctx.close()

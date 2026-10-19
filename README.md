@@ -54,7 +54,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 ### Annotation and labelling
 - **Text annotations** below each person (diagnoses, ages, genotypes) with automatic left/right positioning
 - **Free text labels** placeable anywhere on the canvas
-- **Colour key/legend**: draggable, with editable labels for each colour in use
+- **Colour key/legend**: draggable, with editable labels for each colour in use; a long label widens the key or wraps onto more lines, as you choose
 - **Automatic generation numbering** (Roman numeral + Arabic) with intelligent repositioning around descent lines
 
 ### Interaction
@@ -109,7 +109,7 @@ Click a person to open their panel: notes under the symbol, deceased, proband, s
 **Tidy** on the toolbar lays the whole pedigree out again. **Undo** puts your own layout back.
 
 ### Saving and exporting
-Under **File**: **Picture (PNG)**, **Vector (SVG)**, and **Save** and **Open** for pedigree files. Numbering, how people move when dragged, and spacing are set there too.
+Under **File**: **Picture (PNG)**, **Vector (SVG)**, and **Save** and **Open** for pedigree files. Numbering, how people move when dragged, spacing, and whether long entries in the key widen it or wrap are set there too.
 
 ### Help
 The **?** button opens the help: getting started, the table of symbols with how to draw each one, keyboard shortcuts, and the references for the nomenclature.

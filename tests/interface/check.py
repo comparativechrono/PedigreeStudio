@@ -426,7 +426,9 @@ with sync_playwright() as p:
     check(ev("() => persons.size") == 4 and ev("() => persons.get('person-3').centerText") == 'S', 'an older pedigree opens unchanged')
     check('>S<' in ev("() => persons.get('person-3').el.innerHTML"), '...and its S is still drawn')
     ev("() => selectPerson('person-3')")
-    check(ev("() => document.querySelector('[data-ct=\"S\"]').classList.contains('active')"), '...and shows as S in the panel')
+    check(ev("() => !document.querySelector('[data-ct=\"S\"]') && !!document.querySelector('[data-ct=\"G\"]')"
+             " && !document.querySelector('[data-ct].active') && persons.get('person-3').centerText === 'S'"),
+          '...and the panel, which offers G in its place since the 2025 correction, leaves its S as it is')
 
     # long entries in the key: they widen it, or, as File sets, wrap onto more lines in a key whose width can be
     # dragged; the exports show the key as it is
@@ -534,6 +536,80 @@ with sync_playwright() as p:
     hb = pg.locator('.help-card').bounding_box()
     check(abs(hb['width'] - 390) < 2, 'the help fills the phone screen')
     check(not errors, 'no errors on the phone: %s' % errors[:3])
+    ctx.close()
+
+    # the nomenclature's marks: the proband's P, a consultand's arrow, twins whose zygosity is not known,
+    # G for a gestational carrier (2025 correction) and an ectopic pregnancy's slash in the help
+    ctx = browser.new_context(viewport={'width': 1400, 'height': 900}, accept_downloads=True)
+    pg = watch(ctx.new_page())
+    errors = []
+    pg.on('pageerror', lambda e: errors.append(str(e)))
+    pg.on('dialog', lambda d: d.accept())
+    pg.goto(url)
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => { try { localStorage.clear(); } catch (e) {} }")
+    pg.reload()
+    pg.wait_for_timeout(300)
+    ev = pg.evaluate
+    family = {'version': 5, 'personIdCounter': 4, 'lineIdCounter': 3, 'persons': [
+        {'id': 'person-1', 'shape': 'male', 'x': 300, 'y': 200}, {'id': 'person-2', 'shape': 'female', 'x': 420, 'y': 200},
+        {'id': 'person-3', 'shape': 'male', 'x': 300, 'y': 360}, {'id': 'person-4', 'shape': 'male', 'x': 420, 'y': 360}],
+        'partnerships': [{'id': 'pship-1', 'fromId': 'person-1', 'toId': 'person-2'}],
+        'childLinks': [{'id': 'child-2', 'partnershipId': 'pship-1', 'childId': 'person-3'},
+                       {'id': 'child-3', 'partnershipId': 'pship-1', 'childId': 'person-4'}]}
+    ev("(d) => { restoreSession(d); fitToView(); }", family)
+    arrow = lambda pid: ev("(id) => { const a = document.querySelector('#' + id + ' .proband-arrow'); return a ? (a.querySelector('text') ? 'P' : 'arrow') : ''; }", pid)
+    ev("() => selectPerson('person-3')")
+    pg.click('#probandToggle')
+    check(arrow('person-3') == 'P', 'Proband draws the arrow with a P')
+    ev("() => selectPerson('person-2')")
+    pg.click('#consultandToggle')
+    check(arrow('person-2') == 'arrow' and ev("() => document.getElementById('consultandToggle').classList.contains('on')"),
+          'Consultand draws the arrow alone, and the switch shows it')
+    ev("() => selectPerson('person-1')")
+    pg.click('#consultandToggle')
+    check(arrow('person-1') == 'arrow' and arrow('person-2') == 'arrow', 'there can be more than one consultand')
+    ev("() => selectPerson('person-4')")
+    pg.click('#probandToggle')
+    check(arrow('person-4') == 'P' and arrow('person-3') == '', 'there is one proband: marking another moves the arrow and P')
+    pg.click('.undo-btn')
+    check(arrow('person-3') == 'P' and arrow('person-4') == '', 'Undo moves them back')
+    ev("() => deselectAll()")
+    pg.click('#tool-twin')
+    pg.click('[data-tt="unknown"]')
+    pg.click('#person-3 .person-shape', position={'x': 26, 'y': 26})
+    pg.click('#person-4 .person-shape', position={'x': 26, 'y': 26})
+    pg.wait_for_timeout(150)
+    mark = ev("""() => { const m = document.querySelector('#lines-layer .twin-mark');
+        if (!m) return null; const r = m.getBoundingClientRect(), a = document.querySelector('#person-3').getBoundingClientRect(),
+        b = document.querySelector('#person-4').getBoundingClientRect();
+        return { text: m.textContent, between: r.left > a.left && r.right < b.right && r.bottom < a.top, type: twinLinks[0] && twinLinks[0].type }; }""")
+    check(bool(mark) and mark['text'] == '?' and mark['between'] and mark['type'] == 'unknown',
+          'Twins with Not known join the twins with a question mark between their lines: %s' % mark)
+    pg.click('#tool-move')
+    ev("() => selectPerson('person-2')")
+    check(not shown('[data-ct="S"]') and shown('[data-ct="G"]'), 'Inside the symbol offers G for a gestational carrier, and no S')
+    pg.click('[data-ct="G"]')
+    check(ev("() => document.querySelector('#person-2 .person-shape text').textContent") == 'G', 'G goes inside the symbol')
+    with pg.expect_download() as dl:
+        ev("() => saveAsSVG()")
+    svg = open(dl.value.path(), encoding='utf-8').read()
+    check('>P</text>' in svg and '>?</text>' in svg and '>G</text>' in svg, 'the SVG export draws the P, the question mark and the G')
+    with pg.expect_download() as dl:
+        ev("() => exportJSON()")
+    saved_path2 = dl.value.path()
+    ev("() => restoreSession({ version: 5, persons: [] })")
+    pg.set_input_files('#importFile', saved_path2)
+    pg.wait_for_timeout(300)
+    check(arrow('person-3') == 'P' and arrow('person-1') == 'arrow' and arrow('person-2') == 'arrow'
+          and ev("() => twinLinks.length === 1 && twinLinks[0].type === 'unknown' && !!document.querySelector('#lines-layer .twin-mark')"),
+          'saved and opened again, the proband, consultands and twins are as they were')
+    ev("() => openHelp('symbols')") if ev("() => typeof openHelp === 'function'") else pg.click('#helpBtn')
+    names = ev("() => Array.from(document.querySelectorAll('#symbolTable .sym-name')).map(e => e.textContent)")
+    ect = ev("() => Array.from(document.querySelectorAll('#symbolTable tr')).find(r => /Pregnancy loss/.test(r.textContent)).textContent")
+    check('Proband, consultand' in names and 'Twins, zygosity not known' in names and 'Donor, gestational carrier' in names
+          and 'ectopic pregnancy, with ECT' in ect, 'the help shows the consultand, unknown zygosity, G and the ectopic slash')
+    check(not errors, 'no errors with the new marks: %s' % errors[:3])
     ctx.close()
 
     # a link to the help

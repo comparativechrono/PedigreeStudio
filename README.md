@@ -159,4 +159,4 @@ Issues and pull requests are welcome. The entire application is in a single HTML
 
 ## Licence
 
-[To be specified]
+Pedigree Studio is free and open source under the MIT licence: see [LICENSE](LICENSE).

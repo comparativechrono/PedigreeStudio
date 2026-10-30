@@ -119,12 +119,12 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 450 KB
+- **Size**: about 480 KB (115 KB compressed)
 - **Rendering**: DOM elements for persons, SVG for connection lines, Canvas API for image export
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads
 - **Compatibility**: any modern browser on any operating system
-- **Tests**: `tests/layout/` holds the test pedigrees and scripts used to check Tidy (see its README), and `tests/interface/check.py` clicks through the toolbar, the panel and the help; neither is needed to run the Studio
+- **Tests**: `tests/layout/` holds the test pedigrees and scripts used to check Tidy (see its README), `tests/interface/check.py` clicks through the toolbar, the panel and the help, and `tests/security/check.py` opens a hostile pedigree file to check that it can neither run code nor reach the network; none of them is needed to run the Studio
 
 ---
 
@@ -133,6 +133,8 @@ The **?** button opens the help: getting started, the table of symbols with how 
 Pedigree Studio makes **zero network requests**. No analytics, no tracking, no telemetry, no CDN calls, no font downloads. When you open the file from your local disk, the browser has no reason to contact any server at all.
 
 All pedigree data is stored in your browser's localStorage, which is a local-only storage mechanism that is never shared with any website or server. When you export a session or image, the file is generated entirely on your device.
+
+A pedigree file someone has sent you is safe to open. The Studio keeps only what a drawing can hold: text stays text, colours must be colours and numbers must be numbers, and it shows text as text. So a file cannot add anything to the page, run code in it or make it fetch anything, and an SVG exported from it cannot either. As a second guard, the page tells the browser not to let it load or send anything at all (its Content Security Policy). `tests/security/check.py` checks this with a deliberately hostile file.
 
 This architecture was a deliberate design choice for clinical environments where patient-identifiable data must not leave the device.
 

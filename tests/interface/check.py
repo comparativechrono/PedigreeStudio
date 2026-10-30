@@ -24,6 +24,15 @@ def check(cond, msg):
         fails.append(msg)
 
 
+blocked = []
+
+
+def watch(pg):
+    """Note anything the page's Content Security Policy stops: in normal use, nothing should be."""
+    pg.on('console', lambda m: blocked.append(m.text) if 'Content Security Policy' in m.text else None)
+    return pg
+
+
 # A pedigree saved by the Studio before this interface: S was then labelled
 # "several people"; it is kept as it was drawn.
 OLD_SESSION = {
@@ -122,7 +131,7 @@ def build(pg, steps):
 with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context(viewport={'width': 1400, 'height': 900}, accept_downloads=True)
-    pg = ctx.new_page()
+    pg = watch(ctx.new_page())
     errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)))
     pg.on('dialog', lambda d: d.accept())
@@ -478,7 +487,7 @@ with sync_playwright() as p:
     # pedigrees built only with Add a relative read correctly at every size of family
     for steps in BUILDS:
         ctx = browser.new_context(viewport={'width': 1400, 'height': 900})
-        pg = ctx.new_page()
+        pg = watch(ctx.new_page())
         pg.on('dialog', lambda d: d.accept())
         pg.goto(url)
         pg.wait_for_timeout(200)
@@ -490,7 +499,7 @@ with sync_playwright() as p:
 
     # phone
     ctx = browser.new_context(viewport={'width': 390, 'height': 844}, has_touch=True, is_mobile=True)
-    pg = ctx.new_page()
+    pg = watch(ctx.new_page())
     errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)))
     pg.goto(url)
@@ -528,11 +537,12 @@ with sync_playwright() as p:
     ctx.close()
 
     # a link to the help
-    pg = browser.new_page()
+    pg = watch(browser.new_page())
     pg.goto(url + '#help')
     pg.wait_for_timeout(300)
     check(pg.evaluate("() => !document.getElementById('helpOverlay').hidden"), 'a link ending #help opens the help')
     browser.close()
 
+check(not blocked, 'the Content Security Policy stopped nothing the Studio does: %s' % blocked[:2])
 print('\n%d failed' % len(fails) if fails else '\nall passed')
 sys.exit(1 if fails else 0)

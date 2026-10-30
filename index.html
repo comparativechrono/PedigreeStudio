@@ -1037,7 +1037,7 @@
 
       <section class="help-pane" id="helpPane-about" role="tabpanel" aria-labelledby="helpTab-about" hidden>
         <h3>Your data</h3>
-        <p>Pedigree Studio runs entirely in your browser and makes no network requests: nothing you draw is sent anywhere. The pedigree you are working on is kept in this browser's own storage so that it is still here next time; <b>Clear the canvas</b> under <b>File</b> removes it. Exported pictures and pedigree files are made on this device.</p>
+        <p>Pedigree Studio runs entirely in your browser and makes no network requests: nothing you draw is sent anywhere. The pedigree you are working on is kept in this browser's own storage so that it is still here next time; <b>Clear the canvas</b> under <b>File</b> removes it, from Undo as well, so it cannot be brought back. Exported pictures and pedigree files are made on this device.</p>
         <h3>Citing Pedigree Studio</h3>
         <p>Hearn TJ. PedigreeStudio [software]. Zenodo. <a href="https://doi.org/10.5281/zenodo.20209376" target="_blank" rel="noopener">doi:10.5281/zenodo.20209376</a>. Source code and issues: <a href="https://github.com/comparativechrono/PedigreeStudio" target="_blank" rel="noopener">github.com/comparativechrono/PedigreeStudio</a> (MIT licence).</p>
         <h3>Pedigree nomenclature</h3>
@@ -6771,8 +6771,7 @@ document.addEventListener('keydown', (e) => {
 // ══════════════════════
 
 function clearAll() {
-  if (!confirm('Remove everything from the canvas?')) return;
-  pushUndo();
+  if (!confirm('Remove everything from the canvas? This cannot be undone.')) return;
   document.getElementById('canvas').querySelectorAll('.person, .label, .legend-box').forEach(el => el.remove());
   document.getElementById('lines-layer').innerHTML = '';
   document.getElementById('draw-layer').innerHTML = '';
@@ -6795,6 +6794,10 @@ function clearAll() {
   document.getElementById('multiPartnershipPanel').classList.remove('visible');
   document.getElementById('multiChildLinkPanel').classList.remove('visible');
   try { localStorage.removeItem('pedigree-studio-session'); } catch(e) {}
+  // Clearing is final: the pedigree goes from Undo and Redo too, so that no one who uses
+  // this browser afterwards can bring it back
+  undoStack.length = 0; redoStack.length = 0;
+  updateUndoRedoUI();
   document.getElementById('statusBar').textContent = 'Canvas cleared';
   deselectAll();
   refreshChrome();

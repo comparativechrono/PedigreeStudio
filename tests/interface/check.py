@@ -134,7 +134,8 @@ with sync_playwright() as p:
     pg = watch(ctx.new_page())
     errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.on('dialog', lambda d: d.accept())
+    dialogs = []
+    pg.on('dialog', lambda d: (dialogs.append(d.message), d.accept()))
     pg.goto(url)
     pg.wait_for_timeout(300)
     pg.evaluate("() => { try { localStorage.clear(); } catch (e) {} }")
@@ -369,9 +370,15 @@ with sync_playwright() as p:
     pg.mouse.click(120, 820)
     pg.wait_for_timeout(120)
     pg.click('#fileBtn')
+    check(stacks()[0] > 0, 'there is something to undo before clearing')
     pg.click('#fileMenu button:has-text("Clear")')
     pg.wait_for_timeout(100)
     check(not shown('#inspector') and shown('#emptyHint'), 'clearing the canvas closes the panel and shows the hint')
+    check(stacks() == [0, 0] and ev("() => document.querySelector('.undo-btn').disabled"),
+          '...and empties Undo and Redo, so the pedigree cannot be brought back')
+    check(bool(dialogs) and 'cannot be undone' in dialogs[-1], '...and says so before it clears: %s' % (dialogs[-1:] or ''))
+    check(ev("() => { try { return localStorage.getItem('pedigree-studio-session'); } catch (e) { return 'unreadable'; } }") is None,
+          '...and the copy kept in this browser is gone')
 
     # twins move together in the birth order
     ev("""() => restoreSession({ persons: [

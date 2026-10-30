@@ -2,8 +2,10 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<!-- Everything the Studio needs is in this file, so the browser is told not to let the page load anything or send any request. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; base-uri 'none'; form-action 'none'">
+<!-- Everything the Studio needs is in this file, so the browser is told not to let the page load anything or send any request.
+     The one exception is on the Studio's website: there the page may use the site's manifest and service worker, which let it be
+     installed and opened without a connection (see offerOffline). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pedigree Studio</title>
 <meta name="description" content="Draw clinical pedigrees with the standard symbols. Pedigree Studio runs in your browser and sends nothing anywhere.">
@@ -1036,8 +1038,10 @@
       </section>
 
       <section class="help-pane" id="helpPane-about" role="tabpanel" aria-labelledby="helpTab-about" hidden>
+        <h3>Without a connection</h3>
+        <p>Open Pedigree Studio once from its website, <a href="https://pedigreestudio.xyz" target="_blank" rel="noopener">pedigreestudio.xyz</a>, and it will open there again without a connection. To keep it as an app, install it: choose <b>Install</b> in the browser's menu (Chrome, Edge) or <b>Add to Home Screen</b> (Safari on an iPhone or iPad, Chrome on Android). Or save the page itself: it is one file, which opens in a browser from your computer or a USB stick.</p>
         <h3>Your data</h3>
-        <p>Pedigree Studio runs entirely in your browser and makes no network requests: nothing you draw is sent anywhere. The pedigree you are working on is kept in this browser's own storage so that it is still here next time; <b>Clear the canvas</b> under <b>File</b> removes it, from Undo as well, so it cannot be brought back. Exported pictures and pedigree files are made on this device.</p>
+        <p>Pedigree Studio runs entirely in your browser: nothing you draw is sent anywhere, and the page itself makes no network requests. Opened from its website, the browser also keeps a copy of the Studio so that it opens without a connection, and fetches a newer copy when there is one; those requests fetch only the Studio's own files. The pedigree you are working on is kept in this browser's own storage so that it is still here next time; <b>Clear the canvas</b> under <b>File</b> removes it, from Undo as well, so it cannot be brought back. Exported pictures and pedigree files are made on this device.</p>
         <h3>Citing Pedigree Studio</h3>
         <p>Hearn TJ. PedigreeStudio [software]. Zenodo. <a href="https://doi.org/10.5281/zenodo.20209376" target="_blank" rel="noopener">doi:10.5281/zenodo.20209376</a>. Source code and issues: <a href="https://github.com/comparativechrono/PedigreeStudio" target="_blank" rel="noopener">github.com/comparativechrono/PedigreeStudio</a> (MIT licence).</p>
         <h3>Pedigree nomenclature</h3>
@@ -10553,6 +10557,23 @@ document.addEventListener('keydown', e => {
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping()) { e.preventDefault(); openHelp(); }
 });
 
+// ── Opening without a connection ──
+// Opened from its website (over https, and not inside another page), the Studio can be installed
+// like an app and opened without a connection: the site's manifest names it and gives its icons,
+// and the site's service worker (sw.js) keeps a copy of this page. The worker only fetches the
+// Studio's own files; nothing drawn here goes to it. Opened from a file, none of this happens.
+// Copies that are not on the website (the workbench's) set INSTALLABLE to false.
+const INSTALLABLE = true;
+function offerOffline() {
+  if (!INSTALLABLE || !('serviceWorker' in navigator) || !window.isSecureContext || window.top !== window ||
+      !/^https?:$/.test(location.protocol)) return;
+  // (iPhones and iPads find the home-screen icon by its usual name, apple-touch-icon.png, beside the page)
+  const link = document.createElement('link');
+  link.rel = 'manifest'; link.href = 'manifest.webmanifest';
+  document.head.appendChild(link);
+  navigator.serviceWorker.register('sw.js').catch(() => {}); // a site without sw.js: the Studio works as before
+}
+
 // ── Init ──
 applyCanvasSize();
 initColorPickers();
@@ -10564,6 +10585,7 @@ if (tryAutoRestore()) fitToView();
 updateUndoRedoUI();
 refreshChrome();
 if (location.hash === '#help') openHelp();
+window.addEventListener('load', offerOffline);
 </script>
 </body>
 </html>

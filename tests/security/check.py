@@ -1,8 +1,12 @@
 """Checks that a pedigree file cannot add to the Studio's page, run code in it or make the browser
 fetch anything.
 
-usage: python3 check.py [PAGE]
-  PAGE  the Studio page to check (default: the index.html two folders up)
+usage: python3 check.py [PAGE] [--key NAME] [--no-policy]
+  PAGE         the Studio page to check (default: the index.html two folders up); a copy of the Studio
+               elsewhere, such as the workbench's or the practical's, can be checked too
+  --key NAME   the name under which the page keeps its drawing in the browser (default: the one the
+               page's own code names, or else pedigree-studio-session)
+  --no-policy  the page is not expected to have a Content Security Policy (a copy that has none)
 
 The check writes a drawing in which every field holds something hostile: markup inside a symbol, a
 colour that is a web address, quotes that would end an attribute, numbers that are text. The Studio
@@ -13,12 +17,19 @@ Security Policy, so that the Studio's own defences are tested, not only the brow
 
 Needs Python 3 with Playwright (pip install playwright; playwright install chromium). Exits with status
 1 if any check fails."""
-import json, os, sys, tempfile
+import argparse, json, os, re, sys, tempfile
 import xml.etree.ElementTree as ET
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-page_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(HERE, '..', '..', 'index.html')
+ap = argparse.ArgumentParser()
+ap.add_argument('page', nargs='?', default=os.path.join(HERE, '..', '..', 'index.html'))
+ap.add_argument('--key')
+ap.add_argument('--no-policy', action='store_true')
+args = ap.parse_args()
+page_path = os.path.abspath(args.page)
+named = re.search(r"localStorage\.getItem\('([^']+)'\)", open(page_path, encoding='utf-8').read())
+key = args.key or (named.group(1) if named else 'pedigree-studio-session')
 fails = []
 
 
@@ -176,7 +187,7 @@ def run(path, label):
                   'a drawing saved again keeps only what a drawing can hold')
 
         # the same drawing, kept in the browser and restored when the page opens
-        pg.evaluate("(d) => localStorage.setItem('pedigree-studio-session', d)", json.dumps(HOSTILE))
+        pg.evaluate("([k, d]) => localStorage.setItem(k, d)", [key, json.dumps(HOSTILE)])
         pg.reload()
         pg.wait_for_timeout(500)
         look('restored from the browser')
@@ -190,7 +201,8 @@ run(page_path, 'the page as it is')
 # the same page without its Content Security Policy: the Studio's own checks must hold by themselves
 html = open(page_path, encoding='utf-8').read()
 start = html.find('<meta http-equiv="Content-Security-Policy"')
-check(start >= 0, 'the page has a Content Security Policy')
+if not args.no_policy:
+    check(start >= 0, 'the page has a Content Security Policy')
 if start >= 0:
     bare = os.path.join(os.path.dirname(page_path), '.no-csp-check.html')
     with open(bare, 'w', encoding='utf-8') as f:

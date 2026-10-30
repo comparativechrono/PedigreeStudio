@@ -379,6 +379,38 @@ with sync_playwright() as p:
     check(order[0] == 'person-5', 'Older moves a child past a pair of twins, not between them: %s' % order)
     check(ev("() => document.querySelector('[data-mv=\"-1\"]').disabled"), '...and then they are the oldest')
 
+    # Draw: black and 4 px unless the user picks otherwise, as testers asked
+    pg.click('#tool-draw')
+    check(shown('#drawPanel'), 'Draw shows its settings')
+    check(ev("() => [drawColor, drawLineWidth]") == ['#1a2332', 4], 'Draw starts in black, 4 px wide')
+    check(ev("() => { const b = Array.from(document.querySelectorAll('.draw-color-btn')); return b.filter(x => x.classList.contains('active')).length === 1 && b[0].classList.contains('active'); }"),
+          '...with the black swatch chosen')
+    check(ev("() => [document.getElementById('drawWidthSlider').value, document.getElementById('drawWidthLabel').textContent]") == ['4', '4px'],
+          '...and the width slider at 4px')
+    spot = ev("""() => { const r = document.getElementById('canvasArea').getBoundingClientRect();
+        for (let fy = 0.9; fy > 0.3; fy -= 0.05) for (let fx = 0.1; fx < 0.9; fx += 0.05) {
+          const x = r.left + fx * r.width, y = r.top + fy * r.height, ok = (px, py) => { const e = document.elementFromPoint(px, py);
+            return !!e && (['canvasArea', 'canvas', 'lines-layer', 'draw-layer'].includes(e.id) || !!e.closest('#lines-layer') || !!e.closest('#draw-layer')); };
+          if (ok(x, y) && ok(x + 60, y - 10)) return [x, y]; }
+        return null; }""")
+    if spot:
+        n = ev("() => drawStrokes.length")
+        pg.mouse.move(spot[0], spot[1])
+        pg.mouse.down()
+        pg.mouse.move(spot[0] + 60, spot[1] - 10, steps=6)
+        pg.mouse.up()
+        st = ev("() => { const s = drawStrokes[drawStrokes.length - 1]; return [drawStrokes.length, s.color, s.width, s.el.getAttribute('stroke'), s.el.getAttribute('stroke-width')]; }")
+        check(st == [n + 1, '#1a2332', 4, '#1a2332', '4'], 'a stroke drawn is black and 4 px wide: %s' % st)
+        pg.click('.undo-btn')
+        check(ev("() => drawStrokes.length") == n, '...and undo takes it away')
+    else:
+        check(False, 'found an empty spot on the canvas to draw on')
+    ev("() => { setDrawColor('#2980b9'); setDrawWidth(7); }")
+    check(ev("() => [drawColor, drawLineWidth, document.getElementById('drawWidthLabel').textContent]") == ['#2980b9', 7, '7px'],
+          '...and the colour and width can still be changed')
+    ev("() => { setDrawColor('#1a2332'); setDrawWidth(4); document.getElementById('drawWidthSlider').value = 4; }")
+    pg.click('#tool-move')
+
     # pedigrees from earlier versions
     ev("(d) => { restoreSession(d); updateAllConnections(); }", OLD_SESSION)
     pg.wait_for_timeout(100)

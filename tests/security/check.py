@@ -65,7 +65,7 @@ HOSTILE = {
         person(6, fillMode='shading', shadingPattern='dots', shadingCoverage='half-left', deceased=TAG),
         person(7, id='person-99999999999999999999'),  # (new people must still get ids of their own)
         # ids the page itself uses, an id too long to be one, and the same id twice: all left out
-        person(8, id='statusBar'), person(9, id='legend-box'), person(10, id='symbolTable'),
+        person(8, id='statusBar'), person(9, id='legend-box'), person(10, id='importFile'),
         person(11, id='shpat-1'), person(12, id='p' * 300), person(13, id='person-1'),
     ],
     'labels': [{'id': 'label-1', 'x': 100, 'y': 420, 'text': TAG, 'size': QUOTE, 'bordered': True},
@@ -106,7 +106,7 @@ STATE = """() => {
     text1: (document.querySelector('#person-1 .person-text') || {}).textContent,
     proto: Object.prototype.polluted === undefined,
     ownParts: !!document.getElementById('statusBar') && !document.getElementById('statusBar').closest('#canvas')
-      && !!document.getElementById('symbolTable') && !document.getElementById('symbolTable').closest('#canvas')
+      && !!document.getElementById('importFile') && !document.getElementById('importFile').closest('#canvas')
       && (document.getElementById('legend-box') || {}).className.startsWith('legend-box'),
     keyText: Array.from(document.querySelectorAll('.legend-input')).map(f => f.value).join(' '),
   };
@@ -150,7 +150,7 @@ def run(path, label):
                   % (how, s['imgs'], s['handlers']))
             check(not s['urls'], '%s: no colour or style points to a file: %s' % (how, s['urls'][:2]))
             check(s['persons'] == 7, '%s: every person with an id of their own was drawn (%d of 7)' % (how, s['persons']))
-            check(s['ownParts'], '%s: no one took an id the page uses, and its status bar, help and key still work' % how)
+            check(s['ownParts'], '%s: no one took an id the page uses, and its status bar, file input and key still work' % how)
             check('function' not in s['keyText'], '%s: the key shows nothing of the page\'s own code' % how)
             check(s['centre'] == TAG[:8], '%s: text inside a symbol is shown as text (%r)' % (how, s['centre']))
             check(s['text1'] == TAG, '%s: text under a symbol is shown as written' % how)

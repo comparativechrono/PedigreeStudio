@@ -26,7 +26,7 @@ Most pedigree software needs internet access, a server, an institutional licence
 - **Working under strict data governance** (GDPR, HIPAA) where transmitting patient-identifiable family data to external servers is problematic
 - **Teaching genetics students** who need to practise pedigree construction without accounts or IT setup
 
-Pedigree Studio removes all of these barriers. The entire application is a single file of about 485 KB with no external dependencies.
+Pedigree Studio removes all of these barriers. The entire application is a single file of about 500 KB with no external dependencies.
 
 ---
 
@@ -119,7 +119,7 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 485 KB (116 KB compressed)
+- **Size**: about 500 KB (120 KB compressed)
 - **Rendering**: DOM elements for persons, SVG for connection lines, Canvas API for image export
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads

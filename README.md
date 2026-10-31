@@ -35,7 +35,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 ### Pedigree symbols
 - **Sex**: square (male), circle (female), diamond (unknown or not stated)
 - **Pregnancy loss**: triangle, with the sex if known
-- **Affected status**: shading in a solid colour, halves, quarters or a pattern, from a 10-colour palette or any colour you type
+- **Affected status**: shading in a solid colour, halves, thirds, quarters or a pattern, from a 10-colour palette or any colour you type
 - **Deceased**: diagonal line through the symbol
 - **Proband and consultand**: an arrow, with a P for the proband
 - **Inside the symbol**: a dot for a carrier (the 2008 symbol), a vertical line for a presymptomatic carrier, P for a pregnancy, D for a donor, G for a gestational carrier, or a number (or n) for several people
@@ -51,12 +51,13 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Identical twins**: V-shaped lines with horizontal connecting bar
 - **Non-identical twins**: V-shaped lines without bar
 - **Twins of unknown zygosity**: V-shaped lines with a question mark between them
+- **Triplets and more**: lines from one point, with a bar between identical ones and a question mark where zygosity is not known
 
 ### Annotation and labelling
 - **Text annotations** below each person (diagnoses, ages, genotypes) with automatic left/right positioning
 - **Free text labels** placeable anywhere on the canvas
 - **Colour key/legend**: draggable, with editable labels for each colour in use; a long label widens the key or wraps onto more lines, as you choose
-- **Automatic generation numbering** (Roman numeral + Arabic) with intelligent repositioning around descent lines
+- **Automatic generation numbering** (Roman numeral + Arabic), below each symbol and under its notes, as the nomenclature recommends
 
 ### Interaction
 - **Toolbar** with every tool named: add people, connect them, select, draw, undo and redo, the colour key, Tidy, and a File menu for export and settings
@@ -101,7 +102,7 @@ Click **Male**, **Female**, **Unknown** or **Loss** on the toolbar; **More** has
 ### Drawing relationships yourself
 1. **Partners**: click two people
 2. **Child**: click a relationship line, then the child
-3. **Twins**: choose identical or non-identical in the panel, then click two children of the same couple
+3. **Twins**: choose identical, non-identical or not known in the panel, then click two children of the same couple; for triplets or more, link each further child to one already linked
 
 ### Editing
 Click a person to open their panel: notes under the symbol, deceased, proband, shading, the mark inside the symbol, and the symbol itself. Click a relationship line to make it consanguineous or separated, or to add a child of the couple. Click a line of descent to dash it for adoption.
@@ -120,7 +121,7 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 500 KB (120 KB compressed)
+- **Size**: about 510 KB (124 KB compressed)
 - **Rendering**: DOM elements for persons, SVG for connection lines, the Canvas API for PNG export (SVG export is written as markup)
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads

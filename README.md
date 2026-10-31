@@ -26,7 +26,7 @@ Most pedigree software needs internet access, a server, an institutional licence
 - **Working under strict data governance** (GDPR, HIPAA) where transmitting patient-identifiable family data to external servers is problematic
 - **Teaching genetics students** who need to practise pedigree construction without accounts or IT setup
 
-Pedigree Studio removes all of these barriers. The entire application is a single file of about 510 KB with no external dependencies.
+Pedigree Studio removes all of these barriers. The entire application is a single file of about 525 KB with no external dependencies.
 
 ---
 
@@ -57,7 +57,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Text annotations** below each person (diagnoses, ages, genotypes) with automatic left/right positioning
 - **Free text labels** placeable anywhere on the canvas
 - **Colour key/legend**: draggable, with editable labels for each colour in use; a long label widens the key or wraps onto more lines, as you choose
-- **Automatic generation numbering** (Roman numeral + Arabic), below each symbol and under its notes, as the nomenclature recommends
+- **Automatic generation numbering** (Roman numeral + Arabic), below each symbol and under its notes, or to its lower right where a line or another symbol is in the way, as the nomenclature recommends
 
 ### Interaction
 - **Toolbar** with every tool named: add people, connect them, select, draw, undo and redo, the colour key, Tidy, and a File menu for export and settings
@@ -121,7 +121,7 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 510 KB (124 KB compressed)
+- **Size**: about 525 KB (128 KB compressed)
 - **Rendering**: DOM elements for persons, SVG for connection lines, the Canvas API for PNG export (SVG export is written as markup)
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads

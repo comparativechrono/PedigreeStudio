@@ -1027,7 +1027,7 @@
         <ol class="help-steps">
           <li><b>Add the first person</b> with <b>Male</b>, <b>Female</b> or <b>Unknown</b> on the toolbar. This is usually the person the pedigree is for, so switch on <b>Proband</b> in the panel that opens.</li>
           <li><b>Build out from them.</b> With someone selected, <b>Add a relative</b> puts in a partner, son, daughter, parents, brother or sister, already joined up, and lays the pedigree out again to make room. <b>Older</b> and <b>Younger</b> move a person, with their family, along their row of brothers and sisters, which runs from the oldest on the left.</li>
-          <li><b>Join people yourself</b> with <b>Partners</b>, <b>Child</b> and <b>Twins</b> on the toolbar. <b>Partners</b>: click two people. <b>Child</b>: click a relationship line, then the child. <b>Twins</b>: choose identical or non-identical in the panel, then click two children of the same couple.</li>
+          <li><b>Join people yourself</b> with <b>Partners</b>, <b>Child</b> and <b>Twins</b> on the toolbar. <b>Partners</b>: click two people. <b>Child</b>: click a relationship line, then the child. <b>Twins</b>: choose identical, non-identical or not known in the panel, then click two children of the same couple; for triplets or more, link each of the others to one already linked.</li>
           <li><b>Describe each person</b> in the panel: notes under the symbol (name, age, diagnoses and the age at diagnosis), deceased, shading for anyone affected, and a mark inside the symbol for carriers, pregnancies, donors, gestational carriers or a number of people.</li>
           <li><b>Click a line to change it.</b> A relationship line can be marked consanguineous or separated, and you can add the couple's children from there, including a pregnancy loss, no children or infertility. A line of descent can be dashed for adoption.</li>
           <li><b>Tidy</b> lays the whole pedigree out again: generations in rows, couples side by side, brothers and sisters together under their parents in the order you drew them, and as few crossing lines as possible. <b>Undo</b> puts your own layout back.</li>
@@ -1684,6 +1684,7 @@ function setMiscarriageSex(s) {
   document.querySelectorAll('[data-ms]').forEach(b => b.classList.toggle('active', b.dataset.ms === s));
   let msEl = p.el.querySelector('.miscarriage-sex');
   if (msEl) msEl.textContent = s !== 'unknown' ? s : '';
+  updateTextWrapping();  // (the notes and the number go below the sex, or back up without it)
   scheduleSave();
 }
 
@@ -2163,12 +2164,12 @@ function partnershipDropX(pship) {
 
 // ── Child link path d-string ──
 // siblingTops: array of non-noSnap sibling top positions (excl. this child)
-// twinInfo: null, or for twins, triplets and more { forkX, avgTop } from twinFork(): where their lines meet
+// twinInfo: null, or for twins, triplets and more { forkX, top } from twinFork(): where their lines meet
 
 function computeChildLinkD(midX, midY, childCenterX, childTop, childNoSnap, siblingTops, twinInfo, branchYOffset) {
   branchYOffset = branchYOffset || 0;
   if (twinInfo) {
-    const branchY = Math.max(midY + 4, twinInfo.avgTop - SHAPE_HALF) - branchYOffset;
+    const branchY = Math.max(midY + 4, twinInfo.top - SHAPE_HALF) - branchYOffset;
     return `M ${midX} ${midY} L ${midX} ${branchY} L ${twinInfo.forkX} ${branchY} L ${childCenterX} ${childTop}`;
   }
   let dropY;
@@ -2211,7 +2212,7 @@ function twinGroup(childId, pshipId) {
   }
   return group;
 }
-// Where a multiple birth's lines meet: { forkX, avgTop, members: [{ id, x, top }] from left to right }, or null for
+// Where a multiple birth's lines meet: { forkX, top (the highest of them), members: [{ id, x, top }] from left to right }, or null for
 // a child who is not one of twins (or more) under that couple. The point is above the middle child of triplets
 // (whose line goes straight down, as in the nomenclature), and half-way between the middle two of twins or
 // quadruplets.
@@ -2224,7 +2225,7 @@ function twinFork(childId, pshipId) {
   }).sort((a, b) => a.x - b.x);
   const n = members.length, mid = n >> 1;
   return { forkX: n % 2 ? members[mid].x : (members[mid - 1].x + members[mid].x) / 2,
-           avgTop: members.reduce((t, m) => t + m.top, 0) / n, members };
+           top: Math.min(...members.map(m => m.top)), members };
 }
 // Zygosity along links: identical with anything gives that other; not known with anything else, not known;
 // otherwise non-identical
@@ -2236,7 +2237,24 @@ function twinTypeAlong(x, y) {
 // The zygosity of two children of one multiple birth: their own link's or, with no link between them, what the
 // group's links give (identical when a chain of identical links joins them, else along the shortest chain)
 function twinPairType(aId, bId, pshipId) {
-  const links = twinLinks.filter(t => t.partnershipId === pshipId);
+  return twinPairTypeIn(twinLinks.filter(t => t.partnershipId === pshipId), aId, bId);
+}
+// How many of a multiple birth's links an order of its children (ids, left to right) cannot show: a link between
+// neighbours always shows; one between children further apart shows when the pairs between them, each drawn with
+// its own link or what the links give, add up to what it says
+function twinLinksHidden(order, links) {
+  links = links.filter(t => t.child1Id !== t.child2Id && order.includes(t.child1Id) && order.includes(t.child2Id));
+  const shown = [];
+  for (let i = 0; i + 1 < order.length; i++) shown.push(twinPairTypeIn(links, order[i], order[i + 1]));
+  return links.filter(t => {
+    let i = order.indexOf(t.child1Id), j = order.indexOf(t.child2Id);
+    if (i > j) [i, j] = [j, i];
+    let type = 'identical';
+    for (let k = i; k < j; k++) type = twinTypeAlong(type, shown[k]);
+    return type !== (t.type || 'identical');
+  }).length;
+}
+function twinPairTypeIn(links, aId, bId) {
   const other = (t, u) => t.child1Id === u ? t.child2Id : t.child2Id === u ? t.child1Id : null;
   const direct = links.find(t => other(t, aId) === bId);
   if (direct) return direct.type;
@@ -2285,7 +2303,7 @@ function twinLinkDecor(tl) {
   const a = fork.members[i], b = fork.members[i + 1];
   const cl = childLinks.find(c => c.childId === tl.child1Id && c.partnershipId === tl.partnershipId);
   const midY = (getPersonCenter(fp).y + getPersonCenter(tp).y) / 2;
-  const branchY = Math.max(midY + 4, fork.avgTop - SHAPE_HALF) - ((cl && cl.branchYOffset) || 0);
+  const branchY = Math.max(midY + 4, fork.top - SHAPE_HALF) - ((cl && cl.branchYOffset) || 0);
   return {
     bar: computeTwinBarD(type, fork.forkX, branchY, a.x, b.x, a.top, b.top),
     mark: type === 'unknown' ? twinMarkPos(fork.forkX, branchY, a.x, b.x, a.top, b.top) : null
@@ -2937,6 +2955,7 @@ function changeShape(newShape) {
   p.shape = newShape;
   if (!p.miscarriageSex) p.miscarriageSex = 'unknown';
   refreshPersonShape(p);
+  updateTextWrapping();  // (a loss's sex, written under it, moves its notes and number)
   showProps(p);
   scheduleSave();
 }
@@ -5731,15 +5750,16 @@ function startTwinConnect(id) {
   }
 }
 
-function addTwinLink(child1Id, child2Id, type, customId) {
+function addTwinLink(child1Id, child2Id, type, customId, pshipId) {
+  if (child1Id === child2Id) return;  // (a child is not their own twin, whatever a file says)
   if (!customId) pushUndo();
-  // Find shared partnership
+  // the couple whose twins they are: the one named (a file's), if they are both its children, or else the first
+  // they share, preferring one whose lines to both are not dashed (birth parents rather than adoptive)
   const c1Links = childLinks.filter(cl => cl.childId === child1Id);
   const c2Links = childLinks.filter(cl => cl.childId === child2Id);
-  let sharedPship = null;
-  for (const l1 of c1Links) for (const l2 of c2Links) {
-    if (l1.partnershipId === l2.partnershipId) { sharedPship = l1.partnershipId; break; }
-  }
+  const shared = c1Links.filter(l1 => c2Links.some(l2 => l2.partnershipId === l1.partnershipId)).map(l1 => l1.partnershipId);
+  const born = shared.filter(id => !c1Links.find(l => l.partnershipId === id).dashed && !c2Links.find(l => l.partnershipId === id).dashed);
+  const sharedPship = shared.includes(pshipId) ? pshipId : born.length ? born[0] : shared.length ? shared[0] : null;
   if (!sharedPship) { document.getElementById('statusBar').textContent = 'Children must share a partnership'; return; }
   if (twinLinks.some(t => (t.child1Id === child1Id && t.child2Id === child2Id) || (t.child1Id === child2Id && t.child2Id === child1Id))) return;
 
@@ -5781,9 +5801,15 @@ function addTwinLink(child1Id, child2Id, type, customId) {
   refreshTwinGroup(group);
   if (!loadingDrawing) updateNumbering();  // (restoreSession() numbers everyone once, at the end)
   scheduleSave();
-  document.getElementById('statusBar').textContent = group.length > 2
+  let said = group.length > 2
     ? 'Linked: ' + (group.length === 3 ? 'triplets' : group.length + ' children') + ', from one point'
     : tl.type === 'unknown' ? 'Twins linked (zygosity not known)!' : (tl.type === 'identical' ? 'Identical' : 'Non-identical') + ' twins linked!';
+  // children linked across one between them: say so when the drawing cannot show what a link says
+  if (!loadingDrawing && group.length > 2) {
+    const order = group.slice().sort((u, v) => getPersonX(u) - getPersonX(v));
+    if (twinLinksHidden(order, twinLinks.filter(t => t.partnershipId === sharedPship))) said += '. In this order not every link\'s zygosity can be drawn: Tidy puts them in the order that shows the most';
+  }
+  document.getElementById('statusBar').textContent = said;
 }
 
 // Take a child out of their twins or triplets (under one couple, or all): their twin links go, and the others
@@ -5805,7 +5831,7 @@ function unlinkTwin(id, pshipId) {
       if (twinGroup(a.id, pid).includes(b.id)) continue;
       const type = a.type === 'identical' ? b.type : b.type === 'identical' ? a.type
         : a.type === 'unknown' || b.type === 'unknown' ? 'unknown' : 'nonidentical';
-      addTwinLink(a.id, b.id, type, 'twin-' + (++lineIdCounter));
+      addTwinLink(a.id, b.id, type, 'twin-' + (++lineIdCounter), pid);
     }
     refreshTwinGroup(left.map(o => o.id).concat(id));
   });
@@ -6612,10 +6638,10 @@ function updateNumbering() {
 // Where each pedigree number goes: below the symbol, as the last of what is written there (Bennett et al. 2022).
 // It goes under the notes, lined up with them (on the left when they run to the right of the symbol, on the right
 // when they run to the left of it, beside a partner's line), or centred under a symbol without notes; below the
-// sex of a pregnancy loss, and clear of the proband's arrow. A number that would run into someone else's notes or
-// number moves down below them. Where a line would cross it, or run between it and the symbol (notes that reach
-// the children's line, say), or where it would land on someone's symbol, it goes to the lower right of the symbol
-// instead, which the nomenclature also allows, if that is clear. p.numberAt keeps
+// sex of a pregnancy loss, and clear of the proband's arrow. Where someone else's notes, number, arrow or symbol is
+// in the way, or a line would cross it or run between it and the symbol (notes that reach the children's line,
+// say), it goes to the lower right of the symbol instead, which the nomenclature also allows, if that is clear,
+// and otherwise down below the notes in the way. p.numberAt keeps
 // where, from the symbol's top left, for the exports: { x, y, w, h, align: 'left' | 'right' | 'center' }.
 const NUMBER_LINE = 12, NUMBER_GAP = 2, NUMBER_TOP = 56;
 
@@ -6682,6 +6708,11 @@ function placeNumbers() {
   });
   const inTheWay = [];
   persons.forEach(p => {
+    // the proband's or consultand's arrow, and the P, at the lower left of the symbol
+    if (hasArrow(p)) {
+      const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+      inTheWay.push({ id: p.id + ' arrow', x1: x - 30, y1: y + 52, x2: x, y2: y + 78 });
+    }
     const t = p.el.querySelector('.person-text');
     if (!t || !p.text || !t.offsetHeight) return;
     const x = parseFloat(p.el.style.left) + t.offsetLeft, y = parseFloat(p.el.style.top) + t.offsetTop;
@@ -6698,22 +6729,25 @@ function placeNumbers() {
       if (hasSexLabel(p)) ny += SEX_LABEL_H;
       if (hasArrow(p) && nx < 2) ny = Math.max(ny, 78);
     }
-    for (let tries = 0; tries < 20; tries++) {
-      const X1 = o.x + nx - 2, X2 = o.x + nx + w + 2, Y1 = o.y + ny, Y2 = o.y + ny + h;
-      const hit = inTheWay.find(b => b.id !== p.id && b.x1 < X2 && b.x2 > X1 && b.y1 < Y2 && b.y2 > Y1);
-      if (!hit) break;
-      ny = hit.y2 - o.y + NUMBER_GAP;
-    }
-    // a line across the number, or between it and the symbol (notes long enough to reach the children's line), or
-    // the number pushed down onto someone's symbol
     const lineThrough = (X1, Y1, X2, Y2) => segs.some(sg => segmentHitsBox(sg, X1, Y1, X2, Y2));
-    const onSymbol = symbols.some(b => b.id !== p.id && b.x1 < o.x + nx + w && b.x2 > o.x + nx && b.y1 < o.y + ny + h && b.y2 > o.y + ny);
-    if (onSymbol || lineThrough(o.x + nx - 1, o.y + Math.min(ny, notes ? notes.y : ny), o.x + nx + w + 1, o.y + ny + h)) {
+    const othersAt = (X1, Y1, X2, Y2) => inTheWay.find(b => b.id !== p.id && b.x1 < X2 && b.x2 > X1 && b.y1 < Y2 && b.y2 > Y1);
+    const symbolAt = (X1, Y1, X2, Y2) => symbols.some(b => b.id !== p.id && b.x1 < X2 && b.x2 > X1 && b.y1 < Y2 && b.y2 > Y1);
+    // in the way: someone else's notes, number, arrow or symbol, or a line across the number or between it and the
+    // symbol (notes long enough to reach the children's line, say)
+    const blocked = (x, y) => othersAt(o.x + x - 2, o.y + y, o.x + x + w + 2, o.y + y + h) || symbolAt(o.x + x, o.y + y, o.x + x + w, o.y + y + h) ||
+      lineThrough(o.x + x - 1, o.y + Math.min(y, notes ? notes.y : y), o.x + x + w + 1, o.y + y + h);
+    if (blocked(nx, ny)) {
       const rx = SHAPE_SIZE + NUMBER_GAP + 1, ry = SHAPE_SIZE - h;
       const X1 = o.x + rx, Y1 = o.y + ry, X2 = X1 + w, Y2 = Y1 + h;
-      const taken = inTheWay.some(b => b.id !== p.id && b.x1 < X2 + 2 && b.x2 > X1 - 2 && b.y1 < Y2 && b.y2 > Y1) ||
-        symbols.some(b => b.id !== p.id && b.x1 < X2 + 2 && b.x2 > X1 - 2 && b.y1 < Y2 + 2 && b.y2 > Y1 - 2);
-      if (!taken && !lineThrough(X1 - 2, Y1 - 1, X2 + 2, Y2 + 1)) { nx = rx; ny = ry; align = 'left'; }
+      if (!othersAt(X1 - 2, Y1, X2 + 2, Y2) && !symbolAt(X1 - 2, Y1 - 2, X2 + 2, Y2 + 2) && !lineThrough(X1 - 2, Y1 - 1, X2 + 2, Y2 + 1)) {
+        nx = rx; ny = ry; align = 'left';
+      } else {
+        for (let tries = 0; tries < 20; tries++) {
+          const hit = othersAt(o.x + nx - 2, o.y + ny, o.x + nx + w + 2, o.y + ny + h);
+          if (!hit) break;
+          ny = hit.y2 - o.y + NUMBER_GAP;
+        }
+      }
     }
     o.ne.style.left = nx + 'px';
     o.ne.style.top = ny + 'px';
@@ -6771,8 +6805,10 @@ function writeNumbers() {
             const pd = persons.get(pid);
             if (pd) { pd.customLabel = ne.textContent.trim(); }
           }
+          placeNumbers();
           scheduleSave();
         });
+        ne.addEventListener('input', () => placeNumbers());  // (a label kept in its place as it is typed)
         ne.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); ne.blur(); }
         });
@@ -7319,7 +7355,7 @@ function restoreSession(data) {
       const n = parseInt(cd.id.split('-')[1]) || 0; if (n < 1e9 && n > lineIdCounter) lineIdCounter = n;
     });
     (data.twinLinks || []).forEach(td => {
-      addTwinLink(td.child1Id, td.child2Id, td.type, td.id);
+      addTwinLink(td.child1Id, td.child2Id, td.type, td.id, td.partnershipId);
       const n = parseInt(td.id.split('-')[1]) || 0; if (n < 1e9 && n > lineIdCounter) lineIdCounter = n;
     });
   } finally {
@@ -7381,10 +7417,16 @@ function importJSON(event) {
     try {
       // (a file that is not a drawing is turned away here, before Undo is touched)
       const data = cleanSession(JSON.parse(e.target.result));
+      const before = buildSessionData();
       deselectAll();
       pushUndo();
       isRestoring = true;
-      try { restoreSession(data); } finally { isRestoring = false; }
+      try { restoreSession(data); }
+      catch (err) {
+        // a file that cannot be drawn leaves the drawing as it was, rather than half replaced
+        try { restoreSession(before); undoStack.pop(); updateUndoRedoUI(); } catch (e2) { /* (it is still on the Undo list) */ }
+        throw err;
+      } finally { isRestoring = false; }
       document.getElementById('statusBar').textContent = 'Session loaded!';
       fitToView();
     } catch (err) { alert('Could not read session file: ' + err.message); }
@@ -7413,6 +7455,14 @@ function legendExportLayout(entries) {
   return { lw, lh, rows, line: LINE };
 }
 
+// the width of the widest line of someone's notes as the exports write it
+let exportMeasureCtx = null;
+function exportNotesWidth(text) {
+  if (!exportMeasureCtx) exportMeasureCtx = document.createElement('canvas').getContext('2d');
+  exportMeasureCtx.font = "11px -apple-system, 'Segoe UI', system-ui, Helvetica, sans-serif";
+  return Math.max(0, ...String(text).split('\n').map(l => exportMeasureCtx.measureText(l).width));
+}
+
 // ── Shared export bounds computation ──
 function computeExportBounds() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -7428,8 +7478,13 @@ function computeExportBounds() {
     });
     minX = Math.min(minX, x - (isLeftP ? 140 : 20)); minY = Math.min(minY, y - 20);
     maxX = Math.max(maxX, x + SHAPE_SIZE + (isLeftP ? 20 : 140)); maxY = Math.max(maxY, y + SHAPE_SIZE + 80);
-    // long notes, and the number under them (the exports draw each line of the notes 15 px below the last)
-    if (p.text) maxY = Math.max(maxY, y + (isLeftP && hasArrow(p) ? 74 : hasSexLabel(p) ? 56 + SEX_LABEL_H : 56) + p.text.split('\n').length * 15 + 4);
+    // long notes, and the number under them (the exports draw each line of the notes 15 px below the last, in
+    // full, from 30 px into the symbol, to the left of it for a left-hand partner)
+    if (p.text) {
+      maxY = Math.max(maxY, y + (isLeftP && hasArrow(p) ? 74 : hasSexLabel(p) ? 56 + SEX_LABEL_H : 56) + p.text.split('\n').length * 15 + 4);
+      const w = exportNotesWidth(p.text);
+      if (isLeftP) minX = Math.min(minX, x + SHAPE_SIZE - 30 - w - 4); else maxX = Math.max(maxX, x + 30 + w + 4);
+    }
     const na = p.numberAt;
     if (na) {
       minX = Math.min(minX, x + na.x - 4); maxX = Math.max(maxX, x + na.x + na.w + 4);
@@ -8325,7 +8380,7 @@ const PSL = (() => {
     const ne = p.el && p.el.querySelector('.person-number');
     const num = ne && ne.textContent ? { w: Math.ceil(ne.offsetWidth || 0), h: NUMBER_LINE + NUMBER_GAP } : null;
     const sex = hasSexLabel(p) ? SEX_LABEL_H : 0;
-    if (!text) return { w: 0, h: 0, numW: num ? num.w : 0, numH: num ? num.h + sex : 0 };
+    if (!text) return { w: 0, h: 0, numH: num ? num.h + sex : 0 };
     const el = p.el && p.el.querySelector('.person-text');
     if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
     let font = '11px -apple-system, sans-serif', lh = 15;
@@ -8338,7 +8393,7 @@ const PSL = (() => {
     const lines = text.split('\n');
     let w = 0;
     lines.forEach(l => { w = Math.max(w, measureCtx.measureText(l).width); });
-    return { w: Math.max(Math.min(Math.ceil(w) + 2, 260), num ? num.w : 0), h: Math.ceil(lines.length * lh) + (num ? num.h : 0) + sex, numW: 0, numH: 0 };
+    return { w: Math.max(Math.min(Math.ceil(w) + 2, 260), num ? num.w : 0), h: Math.ceil(lines.length * lh) + (num ? num.h : 0) + sex, numH: 0 };
   }
 
   function sexOf(shape) {
@@ -8360,7 +8415,7 @@ const PSL = (() => {
         proband: !!p.proband,
         arrow: hasArrow(p),
         textW: tm.w, textH: tm.h,
-        numW: tm.numW, numH: tm.numH,  // a number under a symbol without notes
+        numH: tm.numH,         // the height of a number under a symbol without notes
         origin: null,          // couple id this person is a child of
         couples: [],           // couple ids this person is a partner in
         rank: 0, comp: -1, item: null, off: 0, x: 0, y: 0
@@ -8401,9 +8456,11 @@ const PSL = (() => {
     const linked = (a, b) => { const tw = twinOf.get(a); return !!tw && tw.has(b); };
     couples.forEach(c => {
       // twins, triplets and more stay together, where the first of them is drawn, each next to one it is linked
-      // to: a chain of links (A-B, B-C) is followed from one end
-      const out = [], done = new Set();
+      // to: a chain of links (A-B, B-C) is followed from one end. A group with someone in a free position, who
+      // does not move, goes where that one is drawn, so that the others gather round them
+      const out = [], done = new Set(), waiting = new Map();
       c.children.forEach(id => {
+        if (waiting.has(id)) { waiting.get(id).forEach(m => { done.add(m); out.push(m); }); return; }
         if (done.has(id)) return;
         const group = [id];
         for (let i = 0; i < group.length; i++) c.children.forEach(o => { if (!group.includes(o) && linked(group[i], o)) group.push(o); });
@@ -8411,14 +8468,33 @@ const PSL = (() => {
           const drawn = c.children.filter(o => group.includes(o));
           const ends = drawn.filter(m => drawn.filter(o => o !== m && linked(m, o)).length === 1);
           let cur = ends.length ? ends[0] : drawn[0];
-          const seq = [cur];
+          let seq = [cur];
           while (seq.length < drawn.length) {
             const next = drawn.find(o => !seq.includes(o) && linked(cur, o)) || drawn.find(o => !seq.includes(o));
             seq.push(next);
             cur = next;
           }
+          // up to six children: the order that leaves the fewest links' zygosity undrawn (a ring or a star of links,
+          // say), and of those the closest to the chain followed above
+          if (seq.length <= 6) {
+            const links = twinLinks.filter(t => t.partnershipId === c.id && seq.includes(t.child1Id) && seq.includes(t.child2Id));
+            const apart = order => { let n = 0; for (let i = 0; i < order.length; i++) for (let j = i + 1; j < order.length; j++) if (seq.indexOf(order[i]) > seq.indexOf(order[j])) n++; return n; };
+            let best = seq, bestHidden = twinLinksHidden(seq, links), bestApart = 0;
+            const permute = (done, rest) => {
+              if (!rest.length) {
+                const h = twinLinksHidden(done, links);
+                if (h < bestHidden || (h === bestHidden && apart(done) < bestApart)) { best = done; bestHidden = h; bestApart = apart(done); }
+                return;
+              }
+              rest.forEach((m, i) => permute(done.concat(m), rest.slice(0, i).concat(rest.slice(i + 1))));
+            };
+            if (bestHidden) permute([], seq);
+            seq = best;
+          }
           group.splice(0, group.length, ...seq);
         }
+        const pin = group.length > 1 && c.children.find(o => group.includes(o) && people.get(o).pinned);
+        if (pin && pin !== id) { group.forEach(m => done.add(m)); done.delete(pin); waiting.set(pin, group); return; }
         group.forEach(m => { done.add(m); out.push(m); });
       });
       c.children = out;
@@ -9564,7 +9640,6 @@ const PSL = (() => {
     function textSpan(p) {
       if (!p) return null;
       if (p.textW) return p.textLeft ? [22 - p.textW, 22] : [30, 30 + p.textW];
-      if (p.numW) return [cfg.H - p.numW / 2, cfg.H + p.numW / 2];
       return null;
     }
     function gapBetween(a, b) {
@@ -10023,10 +10098,14 @@ const PSL = (() => {
       let moved = false;
       all.sort((a, b) => X(a) - X(b));
       for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
-        const a = all[i], b = all[j];
+        let a = all[i], b = all[j];
         if (X(b) - X(a) >= S + pad) break;
         if (Math.abs(Y(a) - Y(b)) >= S || (a.pinned && b.pinned)) continue;
+        // people pushed earlier in this pass may have passed each other: take the two in their order now, so that
+        // a push is never more than the overlap (a stale order once pushed whole rows thousands of pixels)
+        if (X(b) < X(a)) [a, b] = [b, a];
         const need = S + pad - (X(b) - X(a));
+        if (need <= 0) continue;
         if (!b.pinned) {
           // push b, and everyone to its right in its row, further right
           all.forEach(q => { if (!q.pinned && Math.abs(Y(q) - Y(b)) < S && X(q) >= X(b) && q !== a) q.x += need; });

@@ -793,8 +793,9 @@ with sync_playwright() as p:
     svg = open(dl.value.path(), encoding='utf-8').read()
     import re
     ys = {m.group(2): float(m.group(1)) for m in re.finditer(r'<text x="[-\d.]+" y="([-\d.]+)"[^>]*>(I-1|II-3)</text>', svg)}
-    py = ev("() => [parseFloat(persons.get('person-1').el.style.top), parseFloat(persons.get('person-5').el.style.top)]")
-    check(len(ys) == 2 and ys['I-1'] > py[0] + 52 and ys['II-3'] > py[1] + 52, 'the SVG export puts the numbers below the symbols: %s' % ys)
+    py = ev("() => [persons.get('person-1'), persons.get('person-5')].map(p => [parseFloat(p.el.style.top), p.numberAt.y, p.numberAt.x])")
+    check(len(ys) == 2 and ys['I-1'] > py[0][0] + 52 and abs(ys['I-1'] - (py[0][0] + py[0][1] + 1.5)) < 0.6 and abs(ys['II-3'] - (py[1][0] + py[1][1] + 1.5)) < 0.6,
+          'the SVG export puts each number where the screen does, below the symbol or, with notes from the next symbol running under it, at its lower right: %s %s' % (ys, py))
     ev("() => openHelp('symbols')") if ev("() => typeof openHelp === 'function'") else pg.click('#helpBtn')
     names = ev("() => Array.from(document.querySelectorAll('#symbolTable .sym-name')).map(e => e.textContent)")
     check('More than one condition' in names and 'Triplets and more' in names, 'the help shows thirds and triplets')
@@ -803,6 +804,56 @@ with sync_playwright() as p:
           ev("() => document.body.innerHTML.includes('Double-click the label under a symbol')"), "the shortcuts say a label of your own is under the symbol")
     cells = ev("() => Array.from(document.querySelectorAll('#thirdGrid .third-cell, #multiThirdGrid .third-cell')).map(c => [c.tabIndex, c.getAttribute('aria-label')])")
     check(len(cells) == 6 and all(c[0] == 0 and c[1] and c[1].endswith('third') for c in cells), 'the thirds can be picked with the keyboard: %s' % cells[:3])
+    ev("() => closeHelp()") if ev("() => typeof closeHelp === 'function'") else None
+
+    # a loss's sex set in the panel: its notes and number go below it at once
+    ev("(t) => { restoreSession(JSON.parse(t)); fitToView(); }", data)
+    ev("() => selectPerson('person-6')")
+    pg.click('[data-ms="female"]')
+    loss = ev("""() => { const p = persons.get('person-6'), ne = p.el.querySelector('.person-number'), t = p.el.querySelector('.person-text');
+        return { sex: p.el.querySelector('.miscarriage-sex').textContent, notesTop: t.offsetTop, numTop: ne.offsetTop, notesBottom: t.offsetTop + t.offsetHeight }; }""")
+    check(loss['notesTop'] == 69 and loss['numTop'] >= loss['notesBottom'], "a loss's sex set in the panel moves its notes and number below it at once: %s" % loss)
+    ev("() => deselectAll()")
+    # a label of your own, typed longer: it stays centred under the symbol
+    ev("() => setNumberingMode('freetext')")
+    lab = ev("""() => { const p = persons.get('person-5'), ne = p.el.querySelector('.person-number');
+        ne.contentEditable = 'true'; ne.focus(); ne.textContent = 'Daughter, born 2001'; ne.dispatchEvent(new Event('input')); ne.blur();
+        return { label: p.customLabel, centre: ne.offsetLeft + ne.offsetWidth / 2, at: p.numberAt }; }""")
+    check(lab['label'] == 'Daughter, born 2001' and abs(lab['centre'] - 26) < 1.5 and abs(lab['at']['x'] + lab['at']['w'] / 2 - 26) < 1.5,
+          'a label of your own typed longer stays centred under the symbol, on screen and for the exports: %s' % lab)
+    ev("() => setNumberingMode('numbers')")
+    # quadruplets all linked to one of them (a star of links): a bar between each pair of neighbours
+    stars = ev("""() => { restoreSession({ version: 5, persons: [
+          { id: 'person-1', shape: 'male', x: 300, y: 200 }, { id: 'person-2', shape: 'female', x: 404, y: 200 },
+          { id: 'person-3', shape: 'male', x: 196, y: 340 }, { id: 'person-4', shape: 'female', x: 300, y: 340 },
+          { id: 'person-5', shape: 'male', x: 404, y: 340 }, { id: 'person-6', shape: 'female', x: 508, y: 340 }],
+        partnerships: [{ id: 'pship-1', fromId: 'person-1', toId: 'person-2' }],
+        childLinks: [3, 4, 5, 6].map(i => ({ id: 'cl-' + i, partnershipId: 'pship-1', childId: 'person-' + i })),
+        twinLinks: [4, 5, 6].map(i => ({ id: 'twin-' + i, child1Id: 'person-3', child2Id: 'person-' + i, type: 'identical', partnershipId: 'pship-1' })) });
+        return twinLinks.filter(t => t.els[0].getAttribute('d')).length; }""")
+    check(stars == 3, 'quadruplets all linked to one of them get a bar between each pair of neighbours: %s bars' % stars)
+    # twins adopted together: their point stays under the couple the file names
+    adopted = ev("""() => { restoreSession({ version: 5, persons: [
+          { id: 'person-1', shape: 'male', x: 100, y: 200 }, { id: 'person-2', shape: 'female', x: 204, y: 200 },
+          { id: 'person-3', shape: 'male', x: 500, y: 200 }, { id: 'person-4', shape: 'female', x: 604, y: 200 },
+          { id: 'person-5', shape: 'adopted-male', x: 300, y: 340 }, { id: 'person-6', shape: 'adopted-male', x: 404, y: 340 }],
+        partnerships: [{ id: 'pship-1', fromId: 'person-1', toId: 'person-2' }, { id: 'pship-2', fromId: 'person-3', toId: 'person-4' }],
+        childLinks: [{ id: 'cl-1', partnershipId: 'pship-1', childId: 'person-5' }, { id: 'cl-2', partnershipId: 'pship-1', childId: 'person-6' },
+                     { id: 'cl-3', partnershipId: 'pship-2', childId: 'person-5', dashed: true }, { id: 'cl-4', partnershipId: 'pship-2', childId: 'person-6', dashed: true }],
+        twinLinks: [{ id: 'twin-1', child1Id: 'person-5', child2Id: 'person-6', type: 'identical', partnershipId: 'pship-1' }] });
+        return twinLinks.map(t => t.partnershipId); }""")
+    check(adopted == ['pship-1'], 'twins with birth and adoptive parents stay the twins of the couple the file names: %s' % adopted)
+    # a file the Studio cannot draw leaves the open drawing as it was
+    ev("(t) => { restoreSession(JSON.parse(t)); fitToView(); }", data)
+    kept = ev("() => [persons.size, undoStack.length]")
+    bad_path = os.path.join(tempfile.mkdtemp(), 'breaks.json')
+    json.dump({'version': 5, 'persons': [{'id': 'person-1', 'shape': 'male', 'x': 100, 'y': 100, 'fillMode': 'thirds', 'thirds': ['#123456', None, None]}]}, open(bad_path, 'w'))
+    ev("() => { const real = thirdsGeom; let once = true; window.__realThirdsGeom = real; thirdsGeom = s => { if (once) { once = false; throw new Error('test: cannot draw'); } return real(s); }; }")
+    pg.set_input_files('#importFile', bad_path)
+    pg.wait_for_timeout(400)
+    after = ev("() => { thirdsGeom = window.__realThirdsGeom; return [persons.size, undoStack.length, persons.has('person-5')]; }")
+    check(after[0] == kept[0] and after[1] == kept[1] and after[2], 'a file the Studio cannot draw leaves the open drawing, and Undo, as they were: %s %s' % (kept, after))
+    errors[:] = [e for e in errors if 'test: cannot draw' not in e]
     check(not errors, 'no errors with thirds, triplets and the numbers: %s' % errors[:3])
     ctx.close()
 

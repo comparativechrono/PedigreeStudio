@@ -11,9 +11,12 @@ window.LayoutMetrics = function (initial) {
   persons.forEach((p, id) => {
     const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
     const t = p.el.querySelector('.person-text');
-    let tb = null;
+    let tb = null, nb = null;
     if (t && (p.text || '').trim()) tb = { x1: x + t.offsetLeft, y1: y + t.offsetTop, x2: x + t.offsetLeft + t.offsetWidth, y2: y + t.offsetTop + t.offsetHeight };
-    P.set(id, { id, x, y, cx: x + H, cy: y + H, shape: p.shape, noSnap: !!p.noSnap, tb, line: p.shape === 'no-offspring' || p.shape === 'infertile' });
+    // the pedigree number, below the symbol
+    const ne = p.el.querySelector('.person-number');
+    if (ne && ne.textContent) nb = { x1: x + ne.offsetLeft, y1: y + ne.offsetTop, x2: x + ne.offsetLeft + ne.offsetWidth, y2: y + ne.offsetTop + ne.offsetHeight };
+    P.set(id, { id, x, y, cx: x + H, cy: y + H, shape: p.shape, noSnap: !!p.noSnap, tb, nb, line: p.shape === 'no-offspring' || p.shape === 'infertile' });
   });
   const people = [...P.values()];
   const m = {};
@@ -33,6 +36,16 @@ window.LayoutMetrics = function (initial) {
       if (a === b) return;
       if (b.tb && a.id < b.id && inter(a.tb, b.tb)) m.textOverlap++;
       if (inter(a.tb, box(b, 0))) m.textOverlap++;
+    });
+  });
+  // 3. pedigree numbers on notes (anyone's), symbols or other numbers
+  m.numberOverlap = 0;
+  people.forEach((a) => {
+    if (!a.nb) return;
+    people.forEach((b) => {
+      if (b.tb && inter(a.nb, b.tb)) { m.numberOverlap++; if (window.METRIC_DETAILS) window.METRIC_DETAILS.push(['number-on-notes', a.id, b.id]); }
+      if (inter(a.nb, box(b, 0))) { m.numberOverlap++; if (window.METRIC_DETAILS) window.METRIC_DETAILS.push(['number-on-symbol', a.id, b.id]); }
+      if (b.nb && a.id < b.id && inter(a.nb, b.nb)) { m.numberOverlap++; if (window.METRIC_DETAILS) window.METRIC_DETAILS.push(['number-on-number', a.id, b.id]); }
     });
   });
   // partnerships
@@ -146,14 +159,20 @@ window.LayoutMetrics = function (initial) {
       if (segHitsBox(s.x1, s.y1, s.x2, s.y2, q, -4)) { m.linesThroughSymbols++; if (window.METRIC_DETAILS) window.METRIC_DETAILS.push(['through', s.kind, s.fam, s.ends.join(','), q.id]); }
     });
   });
-  // twins side by side
+  // lines across pedigree numbers
+  m.numberLines = 0;
+  segs.forEach((s) => people.forEach((q) => {
+    if (q.nb && segHitsRect(s.x1, s.y1, s.x2, s.y2, q.nb)) { m.numberLines++; if (window.METRIC_DETAILS) window.METRIC_DETAILS.push(['line-on-number', s.kind, s.fam, q.id]); }
+  }));
+  // twins side by side, and triplets and more together: only others born with them may sit between
   m.twinsApart = 0;
   twinLinks.forEach((t) => {
     const a = P.get(t.child1Id), b = P.get(t.child2Id);
     if (!a || !b) return;
     if (Math.abs(a.y - b.y) > 2) { m.twinsApart++; return; }
+    const group = new Set(typeof twinGroup === 'function' ? twinGroup(t.child1Id, t.partnershipId) : [t.child1Id, t.child2Id]);
     const lo = Math.min(a.cx, b.cx), hi = Math.max(a.cx, b.cx);
-    if (people.some((q) => q !== a && q !== b && Math.abs(q.y - a.y) < 2 && q.cx > lo && q.cx < hi)) m.twinsApart++;
+    if (people.some((q) => !group.has(q.id) && Math.abs(q.y - a.y) < 2 && q.cx > lo && q.cx < hi)) m.twinsApart++;
   });
   // shape of the whole drawing
   const xs = people.map((q) => q.x), ys = people.map((q) => q.y);
@@ -169,11 +188,14 @@ window.LayoutMetrics = function (initial) {
   try { updateAllConnections(); } catch (e) {}
   m.score = Math.round(m.overlap * 100 + m.textOverlap * 15 + m.partnerRowMismatch * 30 + m.partnerBlocked * 30 + m.childNotBelow * 100 +
     m.crossings * 10 + m.collinear * 20 + m.linesThroughSymbols * 25 + m.sibshipIntruders * 10 + m.twinsApart * 20 +
+    m.numberOverlap * 15 + m.numberLines * 15 +
     m.siblingInversions * 3 + m.dropOutside * 4 + m.partnerGapExcess * 20 + m.misaligned * 2 + m.rowSplit * 20);
   return m;
 
   function segHitsBox(x1, y1, x2, y2, q, pad) {
-    const b = { x1: q.x - pad, y1: q.y - pad, x2: q.x + S + pad, y2: q.y + S + pad };
+    return segHitsRect(x1, y1, x2, y2, { x1: q.x - pad, y1: q.y - pad, x2: q.x + S + pad, y2: q.y + S + pad });
+  }
+  function segHitsRect(x1, y1, x2, y2, b) {
     // Liang-Barsky clip
     let t0 = 0, t1 = 1;
     const dx = x2 - x1, dy = y2 - y1;

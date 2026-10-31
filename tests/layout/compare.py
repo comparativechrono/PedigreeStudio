@@ -13,7 +13,7 @@ names = [n for n in json.load(open(os.path.join(HERE, 'fixtures', 'index.json'))
 keys = [('overlap', 'overlap'), ('textOverlap', 'notes'), ('partnerRowMismatch', 'partners-apart'), ('partnerBlocked', 'line-behind'),
         ('childNotBelow', 'child-not-below'), ('crossings', 'crossings'), ('collinear', 'lines-along'), ('linesThroughSymbols', 'line-through'),
         ('sibshipIntruders', 'strangers'), ('twinsApart', 'twins-apart'), ('siblingInversions', 'order'), ('dropOutside', 'drop-outside'),
-        ('misaligned', 'off-centre'), ('rowSplit', 'sibs-split')]
+        ('misaligned', 'off-centre'), ('rowSplit', 'sibs-split'), ('numberOverlap', 'numbers'), ('numberLines', 'line-on-number')]
 print('%-40s' % 'pedigree' + ''.join('%10s' % t for t in tags))
 tot = {t: 0 for t in tags}
 for n in names:

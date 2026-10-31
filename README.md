@@ -37,8 +37,8 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Pregnancy loss**: triangle, with the sex if known
 - **Affected status**: shading in a solid colour, halves, quarters or a pattern, from a 10-colour palette or any colour you type
 - **Deceased**: diagonal line through the symbol
-- **Proband**: arrow
-- **Inside the symbol**: a dot for a carrier, a vertical line for a presymptomatic carrier, P for a pregnancy, D for a donor, S for a surrogate, or a number (or n) for several people
+- **Proband and consultand**: an arrow, with a P for the proband
+- **Inside the symbol**: a dot for a carrier (the 2008 symbol), a vertical line for a presymptomatic carrier, P for a pregnancy, D for a donor, G for a gestational carrier, or a number (or n) for several people
 - **Adoption**: brackets, with a dashed line of descent to the adoptive parents
 - **No children and infertility**: one or two bars below the couple
 
@@ -50,6 +50,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Partner lines over people**: when a partner line would pass behind someone (a person with three or more partners), it is drawn up and over them
 - **Identical twins**: V-shaped lines with horizontal connecting bar
 - **Non-identical twins**: V-shaped lines without bar
+- **Twins of unknown zygosity**: V-shaped lines with a question mark between them
 
 ### Annotation and labelling
 - **Text annotations** below each person (diagnoses, ages, genotypes) with automatic left/right positioning

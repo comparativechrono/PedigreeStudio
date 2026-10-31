@@ -63,7 +63,8 @@ HOSTILE = {
         person(4, id='person-4' + QUOTE, fillMode='shading', shadingPattern=QUOTE, shadingCoverage=TAG),
         person(5, fillMode='solid', fillColor=URL, x=QUOTE, y=TAG, shape=TAG),
         person(6, fillMode='shading', shadingPattern='dots', shadingCoverage='half-left', deceased=TAG),
-        person(7, id='person-99999999999999999999'),  # (new people must still get ids of their own)
+        person(7, id='person-99999999999999999999',  # (new people must still get ids of their own)
+               fillMode='thirds', thirds=[URL, QUOTE, '#2980b9', TAG]),
         # ids the page itself uses, an id too long to be one, and the same id twice: all left out
         person(8, id='statusBar'), person(9, id='legend-box'), person(10, id='importFile'),
         person(11, id='shpat-1'), person(12, id='p' * 300), person(13, id='person-1'),

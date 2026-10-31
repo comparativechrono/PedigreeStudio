@@ -1056,7 +1056,7 @@
           <tr><td><kbd>Esc</kbd></td><td>Back to Select, and clear the selection; closes the help or a menu first</td></tr>
           <tr><td>Arrow keys</td><td>Nudge the selection by 1 pixel, or 10 with <kbd>Shift</kbd>, when <b>Move one person at a time</b> is on</td></tr>
           <tr><td>Double-click a text label</td><td>Edit its text</td></tr>
-          <tr><td>Double-click the label above a symbol</td><td>Type your own label, when numbering is set to <b>Own</b></td></tr>
+          <tr><td>Double-click the label under a symbol</td><td>Type your own label, when numbering is set to <b>Own</b></td></tr>
           <tr><td>Drag the background</td><td>Move the view</td></tr>
           <tr><td>Scroll, or pinch</td><td>Zoom</td></tr>
           <tr><td><kbd>?</kbd></td><td>Open this help</td></tr>
@@ -1990,7 +1990,7 @@ function thirdsGeom(shape) {
     };
   } else {
     // the corners go clockwise from the top; each divider meets the outline at [x, y, the side it lies on]
-    const corners = THIRDS_CORNERS[shape] || THIRDS_CORNERS.unknown;
+    const corners = Object.prototype.hasOwnProperty.call(THIRDS_CORNERS, shape) ? THIRDS_CORNERS[shape] : THIRDS_CORNERS.unknown;
     const n = corners.length;
     const c = shape === 'miscarriage' ? [26, 32] : [26, 26];
     const hits = shape === 'miscarriage' ? corners.map((v, i) => [v[0], v[1], i]) : [-90, 30, 150].map(a => {
@@ -2226,8 +2226,39 @@ function twinFork(childId, pshipId) {
   return { forkX: n % 2 ? members[mid].x : (members[mid - 1].x + members[mid].x) / 2,
            avgTop: members.reduce((t, m) => t + m.top, 0) / n, members };
 }
-// One twin link's bar (identical) or question mark (zygosity not known), drawn between the two children's lines
-// when they are next to each other in their group: { bar: path d or '', mark: {x, y} or null }, or null
+// Zygosity along links: identical with anything gives that other; not known with anything else, not known;
+// otherwise non-identical
+function twinTypeAlong(x, y) {
+  if (x === 'identical') return y;
+  if (y === 'identical') return x;
+  return x === 'unknown' || y === 'unknown' ? 'unknown' : 'nonidentical';
+}
+// The zygosity of two children of one multiple birth: their own link's or, with no link between them, what the
+// group's links give (identical when a chain of identical links joins them, else along the shortest chain)
+function twinPairType(aId, bId, pshipId) {
+  const links = twinLinks.filter(t => t.partnershipId === pshipId);
+  const other = (t, u) => t.child1Id === u ? t.child2Id : t.child2Id === u ? t.child1Id : null;
+  const direct = links.find(t => other(t, aId) === bId);
+  if (direct) return direct.type;
+  const reach = (useLink) => {
+    const prev = new Map([[aId, null]]), queue = [aId];
+    while (queue.length) {
+      const u = queue.shift();
+      links.forEach(t => { const v = other(t, u); if (v && useLink(t) && !prev.has(v)) { prev.set(v, t); queue.push(v); } });
+    }
+    return prev;
+  };
+  if (reach(t => t.type === 'identical').has(bId)) return 'identical';
+  const prev = reach(() => true);
+  if (!prev.has(bId)) return 'nonidentical';
+  let type = 'identical';
+  for (let v = bId; v !== aId;) { const t = prev.get(v); type = twinTypeAlong(type, t.type); v = other(t, v); }
+  return type;
+}
+// One twin link's bar (identical) or question mark (zygosity not known): { bar: path d or '', mark: {x, y} or
+// null }, or null. Each pair of neighbours in the group gets one: a link between neighbours draws its own; a link
+// between children further apart draws, in turn, that of a pair of neighbours with no link between them (in a ring
+// or a star of links, say), from what the group's links give
 function twinLinkDecor(tl) {
   const pship = partnerships.find(p => p.id === tl.partnershipId);
   if (!pship || !persons.has(tl.child1Id) || !persons.has(tl.child2Id)) return null;
@@ -2235,15 +2266,29 @@ function twinLinkDecor(tl) {
   if (!fp || !tp) return null;
   const fork = twinFork(tl.child1Id, tl.partnershipId);
   if (!fork) return null;
-  const i1 = fork.members.findIndex(m => m.id === tl.child1Id), i2 = fork.members.findIndex(m => m.id === tl.child2Id);
-  if (i1 < 0 || i2 < 0 || Math.abs(i1 - i2) !== 1) return { bar: '', mark: null };
-  const a = fork.members[Math.min(i1, i2)], b = fork.members[Math.max(i1, i2)];
+  const at = id => fork.members.findIndex(m => m.id === id);
+  const i1 = at(tl.child1Id), i2 = at(tl.child2Id);
+  if (i1 < 0 || i2 < 0) return { bar: '', mark: null };
+  let i = Math.min(i1, i2), type = tl.type;
+  if (Math.abs(i1 - i2) !== 1) {
+    const inGroup = twinLinks.filter(t => t.partnershipId === tl.partnershipId && at(t.child1Id) >= 0 && at(t.child2Id) >= 0);
+    const apart = inGroup.filter(t => Math.abs(at(t.child1Id) - at(t.child2Id)) !== 1);
+    const unlinked = [];
+    for (let k = 0; k + 1 < fork.members.length; k++) {
+      if (!inGroup.some(t => Math.min(at(t.child1Id), at(t.child2Id)) === k && Math.abs(at(t.child1Id) - at(t.child2Id)) === 1)) unlinked.push(k);
+    }
+    const n = apart.indexOf(tl);
+    if (n < 0 || n >= unlinked.length) return { bar: '', mark: null };
+    i = unlinked[n];
+    type = twinPairType(fork.members[i].id, fork.members[i + 1].id, tl.partnershipId);
+  }
+  const a = fork.members[i], b = fork.members[i + 1];
   const cl = childLinks.find(c => c.childId === tl.child1Id && c.partnershipId === tl.partnershipId);
   const midY = (getPersonCenter(fp).y + getPersonCenter(tp).y) / 2;
   const branchY = Math.max(midY + 4, fork.avgTop - SHAPE_HALF) - ((cl && cl.branchYOffset) || 0);
   return {
-    bar: computeTwinBarD(tl.type, fork.forkX, branchY, a.x, b.x, a.top, b.top),
-    mark: tl.type === 'unknown' ? twinMarkPos(fork.forkX, branchY, a.x, b.x, a.top, b.top) : null
+    bar: computeTwinBarD(type, fork.forkX, branchY, a.x, b.x, a.top, b.top),
+    mark: type === 'unknown' ? twinMarkPos(fork.forkX, branchY, a.x, b.x, a.top, b.top) : null
   };
 }
 
@@ -2801,11 +2846,21 @@ function deleteSelectedChildLink() {
   const ownTwinLinks = twinLinks.filter(t => (t.child1Id === cl.childId || t.child2Id === cl.childId) && t.partnershipId === cl.partnershipId);
   if (ownTwinLinks.length) {
     if (confirm('This child is linked as one of twins (or more). Remove those links?')) {
-      pushUndo(); undoGroupActive = true;
-      unlinkTwin(cl.childId, cl.partnershipId);
-      undoGroupActive = false;
-      updateNumbering();
-      scheduleSave();
+      const kid = cl.childId, x = getPersonX(kid);
+      const others = twinGroup(kid, cl.partnershipId).filter(o => o !== kid).map(getPersonX);
+      if (others.some(o => o < x) && others.some(o => o > x)) {
+        // the child stood between the others, whose lines would now seem to come down with its own: lay the
+        // pedigree out again, as Older and Younger do, so that they stand together and it stands beside them
+        const spot = screenSpot(kid);
+        asOneStep(() => unlinkTwin(kid, cl.partnershipId), { tidy: true });
+        holdOnScreen(kid, spot);
+      } else {
+        pushUndo(); undoGroupActive = true;
+        unlinkTwin(kid, cl.partnershipId);
+        undoGroupActive = false;
+        updateNumbering();
+        scheduleSave();
+      }
     }
   } else {
     if (confirm('Remove this child connection?')) {
@@ -5078,9 +5133,14 @@ function removeChildLink(id) {
   pushUndo();
   const idx = childLinks.findIndex(c => c.id === id);
   if (idx === -1) return;
-  childLinks[idx].els.forEach(el => el.remove());
+  const cl = childLinks[idx];
+  cl.els.forEach(el => el.remove());
   childLinks.splice(idx, 1);
   multiSelectedChildLinks.delete(id);
+  // no longer this couple's child, so no longer one of their twins (or triplets); the others stay linked
+  if (twinLinks.some(t => t.partnershipId === cl.partnershipId && (t.child1Id === cl.childId || t.child2Id === cl.childId))) {
+    unlinkTwin(cl.childId, cl.partnershipId);
+  }
   scheduleSave();
 }
 
@@ -5700,7 +5760,8 @@ function addTwinLink(child1Id, child2Id, type, customId) {
 
   svg.appendChild(twinPath);
   const tl = { id, child1Id, child2Id, type: type || 'identical', partnershipId: sharedPship, els: [twinPath] };
-  if (tl.type === 'unknown') {  // (zygosity not known: a question mark where the bar would be)
+  {  // a question mark where the bar would be, for zygosity not known (this link's, or, in a ring or star of links,
+     // that of the neighbours it is drawn for; hidden otherwise)
     const mark = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     mark.setAttribute('class', 'twin-mark');
     mark.setAttribute('text-anchor', 'middle');
@@ -5709,6 +5770,7 @@ function addTwinLink(child1Id, child2Id, type, customId) {
     mark.setAttribute('font-weight', '700');
     mark.setAttribute('fill', STROKE_COLOR);
     mark.style.pointerEvents = 'none';
+    mark.style.display = 'none';
     mark.textContent = '?';
     svg.appendChild(mark);
     tl.els.push(mark);
@@ -6551,9 +6613,58 @@ function updateNumbering() {
 // It goes under the notes, lined up with them (on the left when they run to the right of the symbol, on the right
 // when they run to the left of it, beside a partner's line), or centred under a symbol without notes; below the
 // sex of a pregnancy loss, and clear of the proband's arrow. A number that would run into someone else's notes or
-// number moves down below them. p.numberAt keeps where, from the symbol's top left, for the exports:
-// { x, y, w, h, align: 'left' | 'right' | 'center' }.
+// number moves down below them. Where a line would cross it, or run between it and the symbol (notes that reach
+// the children's line, say), or where it would land on someone's symbol, it goes to the lower right of the symbol
+// instead, which the nomenclature also allows, if that is clear. p.numberAt keeps
+// where, from the symbol's top left, for the exports: { x, y, w, h, align: 'left' | 'right' | 'center' }.
 const NUMBER_LINE = 12, NUMBER_GAP = 2, NUMBER_TOP = 56;
+
+// The lines drawn on the canvas, as straight pieces [x1, y1, x2, y2]; a curve or an arc counts as its chord.
+function drawnLineSegments() {
+  const segs = [];
+  document.querySelectorAll('#lines-layer line, #lines-layer path').forEach(el => {
+    const stroke = el.getAttribute('stroke');
+    if (el.style.display === 'none' || stroke === 'transparent' || stroke === 'none' || stroke === '#ffffff') return;
+    if (el.tagName.toLowerCase() === 'line') {
+      segs.push([+el.getAttribute('x1') || 0, +el.getAttribute('y1') || 0, +el.getAttribute('x2') || 0, +el.getAttribute('y2') || 0]);
+      return;
+    }
+    const t = (el.getAttribute('d') || '').match(/[A-Za-z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) || [];
+    let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0;
+    const num = () => Number(t[i++]) || 0;
+    const to = (nx, ny) => { segs.push([x, y, nx, ny]); x = nx; y = ny; };
+    while (i < t.length) {
+      if (/^[A-Za-z]$/.test(t[i])) cmd = t[i++];
+      if (cmd === 'M') { x = sx = num(); y = sy = num(); cmd = 'L'; }
+      else if (cmd === 'L') to(num(), num());
+      else if (cmd === 'H') to(num(), y);
+      else if (cmd === 'V') to(x, num());
+      else if (cmd === 'Q') { i += 2; to(num(), num()); }
+      else if (cmd === 'C') { i += 4; to(num(), num()); }
+      else if (cmd === 'A') { i += 5; to(num(), num()); }
+      else if (cmd === 'Z' || cmd === 'z') { to(sx, sy); cmd = ''; }
+      else i++;  // (the Studio draws no relative commands)
+    }
+  });
+  return segs;
+}
+
+// Does the straight piece s cross the box (Liang-Barsky)?
+function segmentHitsBox(s, x1, y1, x2, y2) {
+  let t0 = 0, t1 = 1;
+  const dx = s[2] - s[0], dy = s[3] - s[1];
+  const p = [-dx, dx, -dy, dy], q = [s[0] - x1, x2 - s[0], s[1] - y1, y2 - s[1]];
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(p[i]) < 1e-9) { if (q[i] < 0) return false; }
+    else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+  }
+  return t1 - t0 > 1e-6;
+}
+
 function placeNumbers() {
   const people = [];
   persons.forEach(p => {
@@ -6562,6 +6673,12 @@ function placeNumbers() {
     const t = p.el.querySelector('.person-text');
     const notes = t && p.text && t.offsetHeight ? { x: t.offsetLeft, y: t.offsetTop, w: t.offsetWidth, h: t.offsetHeight, left: t.classList.contains('text-left') } : null;
     people.push({ p, ne, x: parseFloat(p.el.style.left), y: parseFloat(p.el.style.top), notes, w: ne.offsetWidth, h: ne.offsetHeight || NUMBER_LINE });
+  });
+  const segs = people.length ? drawnLineSegments() : [];
+  const symbols = [];
+  persons.forEach(p => {
+    const x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+    symbols.push({ id: p.id, x1: x, y1: y, x2: x + SHAPE_SIZE, y2: y + SHAPE_SIZE });
   });
   const inTheWay = [];
   persons.forEach(p => {
@@ -6586,6 +6703,17 @@ function placeNumbers() {
       const hit = inTheWay.find(b => b.id !== p.id && b.x1 < X2 && b.x2 > X1 && b.y1 < Y2 && b.y2 > Y1);
       if (!hit) break;
       ny = hit.y2 - o.y + NUMBER_GAP;
+    }
+    // a line across the number, or between it and the symbol (notes long enough to reach the children's line), or
+    // the number pushed down onto someone's symbol
+    const lineThrough = (X1, Y1, X2, Y2) => segs.some(sg => segmentHitsBox(sg, X1, Y1, X2, Y2));
+    const onSymbol = symbols.some(b => b.id !== p.id && b.x1 < o.x + nx + w && b.x2 > o.x + nx && b.y1 < o.y + ny + h && b.y2 > o.y + ny);
+    if (onSymbol || lineThrough(o.x + nx - 1, o.y + Math.min(ny, notes ? notes.y : ny), o.x + nx + w + 1, o.y + ny + h)) {
+      const rx = SHAPE_SIZE + NUMBER_GAP + 1, ry = SHAPE_SIZE - h;
+      const X1 = o.x + rx, Y1 = o.y + ry, X2 = X1 + w, Y2 = Y1 + h;
+      const taken = inTheWay.some(b => b.id !== p.id && b.x1 < X2 + 2 && b.x2 > X1 - 2 && b.y1 < Y2 && b.y2 > Y1) ||
+        symbols.some(b => b.id !== p.id && b.x1 < X2 + 2 && b.x2 > X1 - 2 && b.y1 < Y2 + 2 && b.y2 > Y1 - 2);
+      if (!taken && !lineThrough(X1 - 2, Y1 - 1, X2 + 2, Y2 + 1)) { nx = rx; ny = ry; align = 'left'; }
     }
     o.ne.style.left = nx + 'px';
     o.ne.style.top = ny + 'px';
@@ -10464,13 +10592,14 @@ function hideLabelProps() {
 // plain boxes; make them buttons that the keyboard can reach.
 function makeKeyboardButtons() {
   const quarterNames = { 0: 'Top right quarter', 1: 'Bottom right quarter', 2: 'Bottom left quarter', 3: 'Top left quarter' };
-  document.querySelectorAll('.fill-swatch, .draw-color-btn, .half-cell, .quarter-cell').forEach(el => {
+  document.querySelectorAll('.fill-swatch, .draw-color-btn, .half-cell, .third-cell, .quarter-cell').forEach(el => {
     if (el.hasAttribute('tabindex')) return;
     el.tabIndex = 0;
     el.setAttribute('role', 'button');
     let name;
     if (el.classList.contains('clear-swatch')) name = 'No colour';
     else if (el.classList.contains('half-cell')) name = (el.dataset.h || el.dataset.mh) === '0' ? 'Left half' : 'Right half';
+    else if (el.classList.contains('third-cell')) name = { 0: 'Top right third', 1: 'Bottom third', 2: 'Top left third' }[el.dataset.t || el.dataset.mt];
     else if (el.classList.contains('quarter-cell')) name = quarterNames[el.dataset.q || el.dataset.mq];
     else name = 'Colour ' + rgbToHex(el.style.backgroundColor || el.style.background);
     el.setAttribute('aria-label', name);

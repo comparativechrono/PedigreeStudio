@@ -719,6 +719,21 @@ with sync_playwright() as p:
           'without the middle one of triplets, the other two stay twins, non-identical as the links said: %s' % left)
     pg.click('.undo-btn')
     check(ev("() => persons.has('person-4') && twinGroup('person-3', 'pship-1').length") == 3, 'and Undo brings the triplets back')
+    # the middle one's line of descent deleted: its twin links go, it stays their brother, and the pedigree is laid out
+    # again so that the other two stand together, not with his line coming down between theirs
+    mid = ev("""() => { selectedChildLinkId = childLinks.find(c => c.childId === 'person-4').id; deleteSelectedChildLink();
+        const xs = ['person-3', 'person-4', 'person-5'].map(getPersonX);
+        return { twins: twinLinks.map(t => [t.child1Id, t.child2Id, t.type]), child: childLinks.some(c => c.childId === 'person-4'),
+                 between: xs[1] > Math.min(xs[0], xs[2]) && xs[1] < Math.max(xs[0], xs[2]) }; }""")
+    check(mid['twins'] == [['person-3', 'person-5', 'nonidentical']] and mid['child'] and not mid['between'],
+          "the middle one's twin links removed through his line: still their brother, beside the twins rather than between them: %s" % mid)
+    pg.click('.undo-btn')
+    # two lines of descent deleted together, one of them a triplet's: the other two stay linked
+    multi = ev("""() => { multiSelectedChildLinks.clear(); ['person-4', 'person-6'].forEach(id => multiSelectedChildLinks.add(childLinks.find(c => c.childId === id).id));
+        deleteMultiSelectedChildLinks(); return twinLinks.map(t => [t.child1Id, t.child2Id, t.type]); }""")
+    check(multi == [['person-3', 'person-5', 'nonidentical']], 'lines of descent deleted together leave the other triplets linked: %s' % multi)
+    pg.click('.undo-btn')
+    check(ev("() => twinGroup('person-3', 'pship-1').length") == 3, '...and Undo brings them back')
 
     # pedigree numbers below the symbol
     ev("(t) => { restoreSession(JSON.parse(t)); fitToView(); }", data)
@@ -763,6 +778,16 @@ with sync_playwright() as p:
     pg.click('#tidyBtn')
     pg.wait_for_timeout(300)
     check(ev(overlaps) == [], '...nor after Tidy')
+    # notes long enough to reach the children's line: the number goes to the lower right of the symbol, off the lines
+    low = ev("""() => { const p = persons.get('person-2'); p.text = 'Ada\\n59\\nbreast cancer 52\\nBRCA1 +\\nmastectomy 53';
+        p.el.querySelector('.person-text').textContent = p.text; updateTextWrapping();
+        const ne = p.el.querySelector('.person-number'), x = parseFloat(p.el.style.left), y = parseFloat(p.el.style.top);
+        const box = [x + ne.offsetLeft, y + ne.offsetTop, x + ne.offsetLeft + ne.offsetWidth, y + ne.offsetTop + ne.offsetHeight];
+        return { at: p.numberAt, crossed: drawnLineSegments().some(s => segmentHitsBox(s, box[0], box[1], box[2], box[3])) }; }""")
+    check(low['at']['x'] >= 52 and low['at']['y'] + low['at']['h'] <= 52 and not low['crossed'],
+          "notes that reach the children's line send the number to the lower right of the symbol, clear of the lines: %s" % low)
+    check(ev(overlaps) == [], '...and on nothing else')
+    ev("() => { const p = persons.get('person-2'); p.text = ''; p.el.querySelector('.person-text').textContent = ''; updateTextWrapping(); }")
     with pg.expect_download() as dl:
         ev("() => saveAsSVG()")
     svg = open(dl.value.path(), encoding='utf-8').read()
@@ -773,6 +798,11 @@ with sync_playwright() as p:
     ev("() => openHelp('symbols')") if ev("() => typeof openHelp === 'function'") else pg.click('#helpBtn')
     names = ev("() => Array.from(document.querySelectorAll('#symbolTable .sym-name')).map(e => e.textContent)")
     check('More than one condition' in names and 'Triplets and more' in names, 'the help shows thirds and triplets')
+    check(ev("() => document.getElementById('helpBody').textContent.includes('Double-click the label under a symbol')")
+          if ev("() => !!document.getElementById('helpBody')") else
+          ev("() => document.body.innerHTML.includes('Double-click the label under a symbol')"), "the shortcuts say a label of your own is under the symbol")
+    cells = ev("() => Array.from(document.querySelectorAll('#thirdGrid .third-cell, #multiThirdGrid .third-cell')).map(c => [c.tabIndex, c.getAttribute('aria-label')])")
+    check(len(cells) == 6 and all(c[0] == 0 and c[1] and c[1].endswith('third') for c in cells), 'the thirds can be picked with the keyboard: %s' % cells[:3])
     check(not errors, 'no errors with thirds, triplets and the numbers: %s' % errors[:3])
     ctx.close()
 

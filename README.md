@@ -26,7 +26,7 @@ Most pedigree software needs internet access, a server, an institutional licence
 - **Working under strict data governance** (GDPR, HIPAA) where transmitting patient-identifiable family data to external servers is problematic
 - **Teaching genetics students** who need to practise pedigree construction without accounts or IT setup
 
-Pedigree Studio removes all of these barriers. The entire application is a single file of about 500 KB with no external dependencies.
+Pedigree Studio removes all of these barriers. The entire application is a single file of about 510 KB with no external dependencies.
 
 ---
 

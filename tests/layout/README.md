@@ -6,12 +6,13 @@ so that changes to the layout can be measured rather than eyeballed.
 
 ## What is tested
 
-`fixtures.py` writes 41 families, each in three starting states (neat, nudged
+`fixtures.py` writes 42 families, each in three starting states (neat, nudged
 about, and scrambled at random), plus the 15 families from the pedigree
 practical (`practical.json`). Between them they cover:
 
 - nuclear families, both sides of the family, four generations with joins
-- big sibships (12 and 20 siblings), twins and triplets, losses, adoption
+- big sibships (12 and 20 siblings), twins, triplets and quadruplets drawn from
+  one point, losses, adoption
 - half-siblings, a person with three partners, two people with several partners
 - partners from different generations: uncle and niece, great-uncle and
   grand-niece, first cousins once removed, a widow and her late husband's son
@@ -40,9 +41,10 @@ python3 fuzz.py 300                         # 300 random (and odd) pedigrees
 
 `run.py` lays each pedigree out with the Studio's own code, measures the
 result with `metrics.js` and saves a picture in `out/<name>/`. The measures
-are: symbols or notes on top of each other, partners not side by side,
-partner lines behind people, children not below their parents, crossing
-lines, lines running along each other, lines through symbols, strangers
-inside a sibship, twins apart, siblings out of the drawn order, sibships not
+are: symbols or notes on top of each other, pedigree numbers on notes,
+symbols, other numbers or lines, partners not side by side, partner lines
+behind people, children not below their parents, crossing lines, lines
+running along each other, lines through symbols, strangers inside a sibship,
+twins (or triplets) apart, siblings out of the drawn order, sibships not
 centred under their parents, and siblings split across generations. Each
 pedigree gets a score that adds these up with rough weights; lower is better.

@@ -1,8 +1,9 @@
 """Random pedigrees, odd ones included (partners from different generations,
 children linked to the wrong generation, people who are their own ancestors,
-free-position people, twins). Checks that Tidy never fails, never leaves a
-position undefined, never puts one symbol on top of another, and keeps
-children below their parents wherever the relationships allow it.
+free-position people, twins, triplets and quadruplets). Checks that Tidy
+never fails, never leaves a position undefined, never puts one symbol on top
+of another, and keeps children below their parents wherever the relationships
+allow it; counts the twins and triplets it could not keep side by side.
 
 usage: python3 fuzz.py [N] [FIRST_SEED] [PAGE]
 Failing cases are saved as fuzz_<seed>.json to load into the Studio."""
@@ -49,8 +50,17 @@ def make(seed):
     for l in links: by.setdefault(l['partnershipId'], []).append(l['childId'])
     for pid, kids in by.items():
         if len(kids) >= 2 and rnd.random() < 0.3:
-            k += 1
-            twins.append(dict(id='twin-%d' % k, child1Id=kids[0], child2Id=kids[1], type='identical', partnershipId=pid))
+            # twins, and sometimes triplets or quadruplets: a chain of links, now and then closed into a ring
+            size = 3 if len(kids) >= 3 and rnd.random() < 0.4 else 2
+            if size == 3 and len(kids) >= 4 and rnd.random() < 0.3:
+                size = 4
+            group = rnd.sample(kids, size)
+            for a, b in zip(group, group[1:]):
+                k += 1
+                twins.append(dict(id='twin-%d' % k, child1Id=a, child2Id=b, type=rnd.choice(['identical', 'nonidentical', 'unknown']), partnershipId=pid))
+            if size > 2 and rnd.random() < 0.2:
+                k += 1
+                twins.append(dict(id='twin-%d' % k, child1Id=group[0], child2Id=group[-1], type='identical', partnershipId=pid))
     return dict(version=4, personIdCounter=n, labelIdCounter=0, lineIdCounter=k, persons=persons, labels=[], partnerships=parts, childLinks=links, twinLinks=twins,
                 legendLabels={}, legendVisible=False, legendX=100, legendY=100, numberingMode='numbers', partnerGapMultiplier=2, childHeightMultiplier=2.5, drawStrokes=[])
 
@@ -92,7 +102,24 @@ CHECK = """(d) => {
     if (!a || !b || !c || c.noSnap || a.noSnap || b.noSnap) return;
     if (parseFloat(c.el.style.top) <= Math.max(parseFloat(a.el.style.top), parseFloat(b.el.style.top))) above++;
   });
-  return { err, bad, overlaps, above, n: P.length };
+  // twins, triplets and more kept together in a row, with no one else between them (Tidy aims for this; free
+  // positions and odd families can stop it)
+  let births = 0, apart = 0;
+  const seen = new Set();
+  twinLinks.forEach(t => {
+    if (seen.has(t.child1Id)) return;
+    const g = typeof twinGroup === 'function' ? twinGroup(t.child1Id, t.partnershipId) : [t.child1Id, t.child2Id];
+    g.forEach(id => seen.add(id));
+    const ms = g.map(id => persons.get(id)).filter(Boolean);
+    if (ms.length < 2 || ms.some(q => q.noSnap)) return;
+    births++;
+    const ys = new Set(ms.map(q => Math.round(parseFloat(q.el.style.top))));
+    const xs = ms.map(q => parseFloat(q.el.style.left)), lo = Math.min(...xs), hi = Math.max(...xs), y = [...ys][0];
+    let between = false;
+    persons.forEach((q, id) => { if (!g.includes(id) && Math.round(parseFloat(q.el.style.top)) === y && parseFloat(q.el.style.left) > lo && parseFloat(q.el.style.left) < hi) between = true; });
+    if (ys.size > 1 || between) apart++;
+  });
+  return { err, bad, overlaps, above, births, apart, n: P.length };
 }"""
 with sync_playwright() as p:
     br = p.chromium.launch(); pg = br.new_page()
@@ -101,11 +128,12 @@ with sync_playwright() as p:
     pg.on('dialog', lambda d: d.accept())
     pg.goto('file://' + page); pg.wait_for_timeout(300)
     pg.evaluate("() => { try { dismissSplash(); } catch (e) {} }")
-    probs = 0
+    probs = births = apart = 0
     for s in range(seed0, seed0 + N):
         d = make(s)
         errors.clear()
         r = pg.evaluate(CHECK, d)
+        births += r['births']; apart += r['apart']
         # children level with or above a parent are expected only when someone
         # is their own ancestor (the rows are then kept as drawn)
         if r['err'] or r['bad'] or r['overlaps'] or errors or (r['above'] and not has_loop(d)):
@@ -113,4 +141,4 @@ with sync_playwright() as p:
             print('seed', s, 'people', r['n'], 'err', (r['err'] or '')[:300], 'nan', r['bad'][:5], 'overlaps', r['overlaps'], 'child-not-below', r['above'], 'pageerrors', errors[:2])
             json.dump(d, open(os.path.join(HERE, 'fuzz_%d.json' % s), 'w'))
     br.close()
-print('done', N, 'problems', probs)
+print('done', N, 'problems', probs, '; twins, triplets and more:', births, 'groups,', apart, 'not side by side')

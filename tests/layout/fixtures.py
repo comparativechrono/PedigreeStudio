@@ -711,6 +711,26 @@ p.p('sis', 'F', 1, 0); p.p('ad', 'F', 1, 2.5, 'adopted', adopted=True); p.p('bro
 p.k(cb, ['sis', 'ad']); p.k(ca, ['ad', 'bro'], dashed=['ad'])
 
 
+# 44 triplets and more
+p = ped('44-multiple-births', 'Identical triplets, twins of unknown zygosity, quadruplets of mixed zygosity, and triplets whose links all join each other')
+p.p('f', 'M', 0, 3, 'Femi, 61'); p.p('m', 'F', 0, 4, 'Ada, 59\nbreast cancer 52'); c0 = p.c('f', 'm')
+for i, s in enumerate('MMMFF'):
+    p.p('a%d' % i, s, 1, i, 'Ike, 34' if i == 0 else '')
+p.p('a5', 'M', 1, 5, 'Obi, 30')
+p.k(c0, ['a%d' % i for i in range(6)])
+p.t('a0', 'a1', 'identical'); p.t('a1', 'a2', 'identical'); p.t('a3', 'a4', 'unknown')
+p.p('w', 'F', 1, 6, 'Kemi, 31\nbreast cancer 29'); c1 = p.c('a5', 'w')
+for i, s in enumerate('MFMF'):
+    p.p('b%d' % i, s, 2, 4 + i, 'quad %d' % (i + 1) if i % 2 else '')
+p.k(c1, ['b0', 'b1', 'b2', 'b3'])
+p.t('b0', 'b1', 'identical'); p.t('b1', 'b2', 'nonidentical'); p.t('b2', 'b3', 'unknown')
+p.p('x', 'F', 1, -1); c2 = p.c('x', 'a0')
+for i in range(3):
+    p.p('c%d' % i, 'F', 2, -1.5 + i)
+p.k(c2, ['c0', 'c1', 'c2'])
+p.t('c0', 'c1', 'identical'); p.t('c1', 'c2', 'identical'); p.t('c0', 'c2', 'identical')
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     names = []

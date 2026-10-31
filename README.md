@@ -121,7 +121,7 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 525 KB (128 KB compressed)
+- **Size**: about 525 KB (129 KB compressed)
 - **Rendering**: DOM elements for persons, SVG for connection lines, the Canvas API for PNG export (SVG export is written as markup)
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads

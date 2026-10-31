@@ -2,9 +2,9 @@
 
 **A fully offline, browser-based clinical pedigree drawing tool.**
 
-No installation. No internet. No data leaves your device.
+No installation needed. No internet needed. No data leaves your device.
 
-🔗 **[Launch Pedigree Studio](https://comparativechrono.github.io/PedigreeStudio/)**
+🔗 **[Launch Pedigree Studio](https://pedigreestudio.xyz)**
 
 ---
 
@@ -26,7 +26,7 @@ Most pedigree software needs internet access, a server, an institutional licence
 - **Working under strict data governance** (GDPR, HIPAA) where transmitting patient-identifiable family data to external servers is problematic
 - **Teaching genetics students** who need to practise pedigree construction without accounts or IT setup
 
-Pedigree Studio removes all of these barriers. The entire application is a single file of about 490 KB with no external dependencies.
+Pedigree Studio removes all of these barriers. The entire application is a single file of about 500 KB with no external dependencies.
 
 ---
 
@@ -80,12 +80,12 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 
 ## Getting started
 
-### Option 1: Use online (still runs locally)
-Visit **[comparativechrono.github.io/PedigreeStudio](https://comparativechrono.github.io/PedigreeStudio/)**. The page loads once and then runs entirely in your browser — you can disconnect from the internet and it will continue to work.
+### Option 1: Use it online, or install it
+Visit **[pedigreestudio.xyz](https://pedigreestudio.xyz)**. The page runs entirely in your browser, and once it has been opened the browser keeps a copy, so it opens again without a connection. To keep it as an app, install it from the browser: **Install** in Chrome or Edge, **Add to Home Screen** in Safari on an iPhone or iPad, or in Chrome on Android. Whenever it opens with a connection, it takes the newest version. Safari deletes what a website keeps after seven days of Safari use without a visit, unless the site has been added to the Home Screen, so save your pedigrees as files.
 
 ### Option 2: Download and use offline
-1. Download the HTML file from this repository
-2. Open it in any modern browser (Chrome, Firefox, Safari, Edge)
+1. Download the HTML file (`index.html`) from this repository
+2. Open it in Chrome or Edge 80, Firefox 75, Safari 13.1 (iOS 13.4), Samsung Internet 13 or any later version
 3. That's it. No build step, no dependencies, no configuration.
 
 You can copy the file to a USB drive, email it, upload it to a shared drive, or distribute it however you like.
@@ -119,18 +119,19 @@ The **?** button opens the help: getting started, the table of symbols with how 
 ## Technical details
 
 - **Single file**: HTML + CSS + JavaScript, no external dependencies
-- **Size**: about 490 KB (116 KB compressed)
-- **Rendering**: DOM elements for persons, SVG for connection lines, Canvas API for image export
+- **Size**: about 500 KB (120 KB compressed)
+- **Rendering**: DOM elements for persons, SVG for connection lines, the Canvas API for PNG export (SVG export is written as markup)
 - **Storage**: browser localStorage (never transmitted)
 - **Fonts**: system font stack only — no web font downloads
-- **Compatibility**: any modern browser on any operating system
-- **Tests**: `tests/layout/` holds the test pedigrees and scripts used to check Tidy (see its README), `tests/interface/check.py` clicks through the toolbar, the panel and the help, and `tests/security/check.py` opens a hostile pedigree file to check that it can neither run code nor reach the network; none of them is needed to run the Studio
+- **Compatibility**: Chrome and Edge 80, Firefox 75, Safari 13.1 (iOS 13.4), Samsung Internet 13 and later versions, on any operating system. Some browsers released in 2020 are older than these (Firefox 72 to 74, for example) and cannot run it. This is worked out from MDN's browser compatibility data for the CSS and the browser features the page uses, and the Studio has been run in Chromium 80, Firefox 75 and a current Chromium; it has not been tested in Safari
+- **Offline install** (the website only): `manifest.webmanifest`, `sw.js` and the icons let the copy at pedigreestudio.xyz be installed and opened without a connection. `index.html` does not need them, and does not use them when opened from a file
+- **Tests**: `tests/layout/` holds the scripts that write the test pedigrees (`fixtures.py`) and check Tidy (see its README), `tests/interface/check.py` clicks through the toolbar, the panel and the help, `tests/security/check.py` opens a hostile pedigree file to check that it can neither run code nor reach the network, and `tests/offline/check.py` serves the website locally to check installing, opening without a connection and updating; none of them is needed to run the Studio
 
 ---
 
 ## Privacy
 
-Pedigree Studio makes **zero network requests**. No analytics, no tracking, no telemetry, no CDN calls, no font downloads. When you open the file from your local disk, the browser has no reason to contact any server at all.
+The Studio's page makes **no network requests** of its own. No analytics, no tracking, no telemetry, no CDN calls, no font downloads. When you open the file from your local disk, the browser has no reason to contact any server at all. When you use the copy at pedigreestudio.xyz, the browser fetches the Studio from there, keeps a copy so that it opens offline, and asks the site for a newer copy each time it opens; those requests fetch only the Studio's own files and carry nothing you have drawn (`tests/offline/check.py` checks that drawing, exporting and saving send nothing).
 
 All pedigree data is stored in your browser's localStorage, which is a local-only storage mechanism that is never shared with any website or server. When you export a session or image, the file is generated entirely on your device. If you open the Studio from your disk, though, the browser keeps one such store for every page opened from disk, so another web page saved on the same computer and opened in the same browser could read it. On a shared computer, clear the canvas and close the tab when you have finished.
 
@@ -158,4 +159,4 @@ Issues and pull requests are welcome. The entire application is in a single HTML
 
 ## Licence
 
-[To be specified]
+Pedigree Studio is free and open source under the MIT licence: see [LICENSE](LICENSE).

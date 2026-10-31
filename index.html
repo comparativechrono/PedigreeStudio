@@ -6796,9 +6796,8 @@ function writeNumbers() {
       // Attach handlers only once
       if (!ne._freetextInit) {
         ne._freetextInit = true;
-        const isBar = () => { const el = ne.closest('.person'), pd = el && persons.get(el.id); return !!pd && isLineShape(pd.shape); };
         ne.addEventListener('dblclick', (e) => {
-          if (numberingMode !== 'freetext' || isBar()) return;
+          if (numberingMode !== 'freetext') return;
           e.stopPropagation();
           ne.contentEditable = 'true';
           ne.focus();
@@ -6811,7 +6810,7 @@ function writeNumbers() {
         });
         let lastTapNum = 0;
         ne.addEventListener('touchend', (e) => {
-          if (numberingMode !== 'freetext' || isBar()) return;
+          if (numberingMode !== 'freetext') return;
           const now = Date.now();
           if (now - lastTapNum < 350) {
             e.preventDefault(); e.stopPropagation();

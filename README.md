@@ -57,7 +57,7 @@ Pedigree Studio removes all of these barriers. The entire application is a singl
 - **Text annotations** below each person (diagnoses, ages, genotypes) with automatic left/right positioning
 - **Free text labels** placeable anywhere on the canvas
 - **Colour key/legend**: draggable, with editable labels for each colour in use; a long label widens the key or wraps onto more lines, as you choose
-- **Automatic generation numbering** (Roman numeral + Arabic), below each symbol and under its notes, or to its lower right where a line or another symbol is in the way, as the nomenclature recommends
+- **Automatic generation numbering** (Roman numeral + Arabic) of each person, below the symbol and under its notes, or to its lower right where a line or another symbol is in the way, as the nomenclature recommends; the bars for no children and infertility are not people, so they have no number
 
 ### Interaction
 - **Toolbar** with every tool named: add people, connect them, select, draw, undo and redo, the colour key, Tidy, and a File menu for export and settings

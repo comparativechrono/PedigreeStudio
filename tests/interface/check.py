@@ -806,6 +806,36 @@ with sync_playwright() as p:
     check(len(cells) == 6 and all(c[0] == 0 and c[1] and c[1].endswith('third') for c in cells), 'the thirds can be picked with the keyboard: %s' % cells[:3])
     ev("() => closeHelp()") if ev("() => typeof closeHelp === 'function'") else None
 
+    # the bars for no children and infertility are not people: no number, and they do not count in their row
+    bars = ev("""() => { restoreSession({ version: 5, persons: [
+          { id: 'person-1', shape: 'male', x: 300, y: 200 }, { id: 'person-2', shape: 'female', x: 404, y: 200 },
+          { id: 'person-10', shape: 'infertile', x: 92, y: 340 },
+          { id: 'person-3', shape: 'male', x: 196, y: 340 }, { id: 'person-4', shape: 'female', x: 300, y: 340 },
+          { id: 'person-6', shape: 'female', x: 456, y: 340 }, { id: 'person-7', shape: 'male', x: 560, y: 340 },
+          { id: 'person-5', shape: 'no-offspring', x: 248, y: 480 }, { id: 'person-9', shape: 'male', x: 508, y: 480 }],
+        partnerships: [{ id: 'pship-1', fromId: 'person-1', toId: 'person-2' }, { id: 'pship-2', fromId: 'person-3', toId: 'person-4' },
+                       { id: 'pship-3', fromId: 'person-6', toId: 'person-7' }],
+        childLinks: [{ id: 'cl-1', partnershipId: 'pship-1', childId: 'person-3' }, { id: 'cl-2', partnershipId: 'pship-1', childId: 'person-6' },
+                     { id: 'cl-3', partnershipId: 'pship-2', childId: 'person-5' }, { id: 'cl-4', partnershipId: 'pship-3', childId: 'person-9' }] });
+        const n = id => persons.get(id).el.querySelector('.person-number').textContent;
+        const out = { numbers: ['person-10', 'person-3', 'person-4', 'person-6', 'person-7', 'person-5', 'person-9'].map(n) };
+        setNumberingMode('letters'); out.letters = ['person-10', 'person-3', 'person-5', 'person-9'].map(n);
+        setNumberingMode('lettersonly'); out.only = ['person-5', 'person-9', 'person-10'].map(n);
+        persons.get('person-5').customLabel = 'from an older file'; persons.get('person-3').customLabel = 'Ike';
+        setNumberingMode('freetext'); out.own = ['person-5', 'person-10'].map(id => [n(id), persons.get(id).el.querySelector('.person-number').classList.contains('editable')]);
+        out.kept = buildSessionData().persons.filter(q => q.id === 'person-5' || q.id === 'person-3').map(q => q.customLabel);
+        setNumberingMode('numbers'); out.at = persons.get('person-5').numberAt || null;
+        return out; }""")
+    check(bars['numbers'] == ['', 'II-1', 'II-2', 'II-3', 'II-4', '', 'III-1'] and bars['letters'] == ['', 'II-A', '', 'III-A']
+          and bars['only'] == ['', 'G', ''] and bars['at'] is None,
+          'no children and infertility get no number, and do not count in their row or among the letters: %s' % bars)
+    check(bars['own'] == [['', False], ['', False]], 'nor a label of their own: %s' % bars['own'])
+    check(sorted(bars['kept']) == ['Ike', 'from an older file'], "a bar's label from an older file is kept in the saved drawing, unseen: %s" % bars['kept'])
+    with pg.expect_download() as dl:
+        ev("() => saveAsSVG()")
+    svg = open(dl.value.path(), encoding='utf-8').read()
+    check(len(re.findall(r'>(I{1,3}-\d)</text>', svg)) == 7, 'the SVG export numbers the seven people and not the two bars')
+
     # a loss's sex set in the panel: its notes and number go below it at once
     ev("(t) => { restoreSession(JSON.parse(t)); fitToView(); }", data)
     ev("() => selectPerson('person-6')")

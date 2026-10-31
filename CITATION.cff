@@ -3,7 +3,7 @@ message: "If you use PedigreeStudio in academic work, clinical teaching, softwar
 type: software
 
 title: "PedigreeStudio"
-version: "1.0.3"
+version: "2.3.0"
 
 authors:
   - family-names: "Hearn"
@@ -24,7 +24,7 @@ keywords:
 license: "MIT"
 
 repository-code: "https://github.com/comparativechrono/PedigreeStudio"
-url: "https://comparativechrono.github.io/PedigreeStudio/"
+url: "https://pedigreestudio.xyz/"
 
 doi: "10.5281/zenodo.20209376"
-date-released: "2026-05-15"
+date-released: "2026-10-31"
